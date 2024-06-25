@@ -55,6 +55,8 @@ class VarLengthAdapter(
             .coerceAtLeast(1f)
     private val mCommentFont = FontManager.getTypeface("comment_font")
     private val mCommentTextColor = ColorManager.getColor("comment_text_color")
+    private val mCandidateBorder = theme.generalStyle.candidateBorder
+    private val mRoundedCorner = theme.generalStyle.roundCorner
 
     override fun onCreateViewHolder(
         context: Context,
