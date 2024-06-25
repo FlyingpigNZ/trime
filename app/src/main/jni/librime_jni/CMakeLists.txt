@@ -19,7 +19,7 @@ target_include_directories(rime_jni PRIVATE
 
 
 execute_process(
-  COMMAND git --git-dir ${CMAKE_SOURCE_DIR}/../../../../.git describe --tags
+  COMMAND git --git-dir ${CMAKE_SOURCE_DIR}/../../../../.git describe --tags --always
   OUTPUT_VARIABLE TRIME_VERSION
 )
 string(STRIP ${TRIME_VERSION} TRIME_VERSION)
