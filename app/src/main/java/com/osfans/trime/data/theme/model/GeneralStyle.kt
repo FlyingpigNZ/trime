@@ -77,4 +77,5 @@ data class GeneralStyle(
     val keyLongTextBorder: Int,
     val enterLabelMode: Int,
     val enterLabel: EnterLabel,
+    var selectedHighlightDelay: Int,
 )

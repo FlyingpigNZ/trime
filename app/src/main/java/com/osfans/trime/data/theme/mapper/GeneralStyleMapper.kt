@@ -66,6 +66,8 @@ class GeneralStyleMapper(
 
         val keyboardPaddingLandBottom = getInt("keyboard_padding_land_bottom")
 
+        val selectedHighlightDelay = getInt("select_highlight_delay", 200)
+
         val layout =
             getObject("layout").let {
                 LayoutStyleMapper(it).map()
@@ -228,6 +230,7 @@ class GeneralStyleMapper(
             keyIntTextBorder,
             enterLabelMode,
             enterLabels,
+            selectedHighlightDelay,
         )
     }
 }

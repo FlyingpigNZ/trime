@@ -57,6 +57,7 @@ class VarLengthAdapter(
     private val mCommentTextColor = ColorManager.getColor("comment_text_color")
     private val mCandidateBorder = theme.generalStyle.candidateBorder
     private val mRoundedCorner = theme.generalStyle.roundCorner
+    private val mSelectedHighlightDelay = theme.generalStyle.selectedHighlightDelay
 
     override fun onCreateViewHolder(
         context: Context,

@@ -107,6 +107,10 @@
           "type": "integer",
           "description": "横屏模式下，屏幕下侧与键盘的距离"
         },
+        "select_highlight_delay": {
+          "type": "integer",
+          "description": "选中候选字后的高亮时间"
+        },
         "layout": {
           "type": "object",
           "description": "懸浮窗口設置",
