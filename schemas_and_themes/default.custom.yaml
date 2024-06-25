@@ -1,0 +1,13 @@
+customization:
+  distribution_code_name: trime
+  distribution_version: "nightly-4-gd0f1787c"
+  generator: rime.trime
+  modified_time: "Sun Jun 16 16:56:46 2024"
+  rime_version: 1.11.2
+patch:
+  "menu/page_size": 200
+  schema_list:
+    - {schema: double_pinyin_flypy}
+    - {schema: rime_ice}
+    - {schema: melt_eng}
+    - {schema: double_pinyin_flypy_double_key}
