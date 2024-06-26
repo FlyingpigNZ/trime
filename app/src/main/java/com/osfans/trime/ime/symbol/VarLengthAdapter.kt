@@ -58,6 +58,8 @@ class VarLengthAdapter(
     private val mCandidateBorder = theme.generalStyle.candidateBorder
     private val mRoundedCorner = theme.generalStyle.roundCorner
     private val mSelectedHighlightDelay = theme.generalStyle.selectedHighlightDelay
+    private val mBackgroundColor = ColorManager.getColor("key_back_color")
+    private val mHighlightBackgroundColor = ColorManager.getColor("hilited_key_back_color")
 
     override fun onCreateViewHolder(
         context: Context,
