@@ -40,6 +40,7 @@ style:
   hanb_font: hanb.ttf #扩充字体
   horizontal: true #水平模式
   horizontal_gap: *hgap #键水平间距
+  select_highlight_delay: 100
   layout:
     position: fixed #候选窗口位置：left|right|left_up|right_up|fixed|bottom_left|bottom_right|top_left|top_right(left、right需要Android5.0以上)
     min_length: 4 #候选窗口最小词长
@@ -944,9 +945,9 @@ liquid_keyboard:
     keys:  # 按键（显示名称为对应的label，不能放太多）
       - liquid_keyboard_exit
       - liquid_keyboard_switch
-      - space3
-      - BackSpace
-      - Return2
+      - liquid_keyboard_space
+      - liquid_keyboard_backspace
+      - liquid_keyboard_return
   keyboards: [tabs, candidate, clipboard,  collection, draft, symbol, cn, ascii, math, emoji, list,  pinyin, jp, grease, rusa, korea, lation, yinbiao, unit, ids, table]  #tab列表
   candidate:
     name: 候选
@@ -1167,7 +1168,6 @@ preset_keyboards:
     height: 35
     ascii_mode: 1
     lock: true
-    reset_ascii_mode: true
     keys:
       - {click: q, long_click: '1', swipe_down: "1", key_symbol_offset_x: 9, key_back_color: bh1, key_text_color: th1}
       - {click: w, long_click: '2', swipe_down: "2", key_symbol_offset_x: 9, key_back_color: bh1, key_text_color: th1}
@@ -1218,6 +1218,8 @@ preset_keyboards:
     height: 35
     ascii_mode: 0
     ascii_keyboard: english
+    lock: true
+    reset_ascii_mode: true
     keys:
       #第一行
       - {label: "Q W", click: q, long_click: '1', swipe_down: "1", key_symbol_offset_x: 9, key_back_color: bh1, key_text_color: th1}
@@ -4188,8 +4190,11 @@ preset_keys:
   Henkan: {toggle: simplification, send: Mode_switch, states: [ 汉字, 漢字 ]}
   Charset_switch: {toggle: extended_charset, send: Mode_switch, states: [ 常用, 增广 ]}
   Punct_switch: {toggle: ascii_punct, send: Mode_switch, states: [ 。，, ．， ]}
-  liquid_keyboard_exit: {label: ' ⌵ ', send: function, command: liquid_keyboard, option: "-1"}  #退出
-  liquid_keyboard_switch: { label: ' ◇ ', send: function, command: liquid_keyboard, option: "◇" }
+  liquid_keyboard_exit: {label: '返回', send: function, command: liquid_keyboard, option: "-1"}  #退出
+  liquid_keyboard_switch: { label: '菜单', send: function, command: liquid_keyboard, option: "◇"}
+  liquid_keyboard_space: {repeatable: false, label: '空格', functional: false, send: space}
+  liquid_keyboard_backspace: {label: '退格', preview: '⇦', repeatable: true, functional: true, send: BackSpace}
+  liquid_keyboard_return: {label: '回车', send: Return }
   # trime设置
   IME_switch: {label: ' ', send: LANGUAGE_SWITCH} #彈出對話框選擇輸入法
   IME_last: {label: 上一输入法, send: LANGUAGE_SWITCH, select: .last} #直接切換到上一輸入法
