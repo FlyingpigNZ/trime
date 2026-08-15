@@ -9,10 +9,10 @@ import android.content.Context
 import android.widget.ViewAnimator
 import androidx.annotation.DrawableRes
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.children
 import com.osfans.trime.R
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.ToolBar
-import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.after
 import splitties.views.dsl.constraintlayout.before
 import splitties.views.dsl.constraintlayout.centerVertically
@@ -30,7 +30,7 @@ import timber.log.Timber
 class AlwaysUi(
     override val ctx: Context,
     private val theme: Theme,
-    private val onButtonClick: ((String?) -> Unit)? = null,
+    private val onButtonClick: ((String) -> Unit)? = null,
 ) : Ui {
     enum class State {
         Toolbar,
@@ -44,13 +44,22 @@ class AlwaysUi(
     private fun toolButton(
         buttonConfig: ToolBar.Button?,
         @DrawableRes icon: Int = 0,
-    ): ToolButton = (if (buttonConfig != null) ToolButton(ctx, buttonConfig) else ToolButton(ctx, icon))
-        .also { it.setOnClickListener { onButtonClick?.invoke(buttonConfig?.action) } }
-
-    private val leftMostIcon: ToolButton = toolButton(
-        theme.toolBar.primaryButton,
-        R.drawable.ic_baseline_more_horiz_24,
-    )
+    ): ToolButton = if (buttonConfig != null) {
+        ToolButton(ctx, buttonConfig).apply {
+            setOnClickListener { onButtonClick?.invoke(buttonConfig.action) }
+            val longPressAction = buttonConfig.longPressAction
+            if (longPressAction.isNotEmpty()) {
+                setOnLongClickListener {
+                    onButtonClick?.invoke(longPressAction)
+                    true
+                }
+            }
+        }
+    } else {
+        ToolButton(ctx, icon).apply {
+            setOnClickListener { onButtonClick?.invoke("") }
+        }
+    }
 
     val buttonsUi = ButtonsBarUi(ctx, theme, onButtonClick)
 
@@ -65,15 +74,10 @@ class AlwaysUi(
             buttonsUi.firstButton?.let { add(it, lParams(matchParent, matchParent)) }
         }
 
-    private val backButton: ToolButton
-    private val leftMostButton =
-        ViewAnimator(ctx).apply {
-            add(leftMostIcon, lParams(matchParent, matchParent))
-            backButton =
-                createBackButton().also {
-                    add(it, lParams(matchParent, matchParent))
-                }
-        }
+    private val leftMostButton = toolButton(
+        theme.toolBar.primaryButton,
+        R.drawable.ic_baseline_more_horiz_24,
+    )
 
     private val animator =
         ViewAnimator(ctx).apply {
@@ -113,21 +117,16 @@ class AlwaysUi(
         updateRightMostButton(State.Toolbar)
     }
 
-    private fun createBackButton(): ToolButton {
-        val firstConfig = theme.toolBar.buttons.firstOrNull()
-        val backConfig = firstConfig
-            ?.takeIf { ToolButton.getContentType(it.foreground?.style) == ToolButton.ContentType.TEXT }
-            ?.copy(foreground = firstConfig.foreground?.copy(style = theme.toolBar.backStyle))
-
-        return toolButton(backConfig, R.drawable.ic_baseline_arrow_back_24)
-            .also { it.setOnClickListener { updateState(State.Toolbar) } }
+    fun updateButtonsStyle(option: String, enabled: Boolean) {
+        leftMostButton.updateStyle(option, enabled)
+        buttonsUi.firstButton?.updateStyle(option, enabled)
+        buttonsUi.updateStyle(option, enabled)
     }
 
-    fun updateButtonsStyle() {
-        leftMostIcon.updateStyle()
-        backButton.updateStyle()
-        buttonsUi.firstButton?.updateStyle()
-        buttonsUi.updateStyle()
+    fun toggleOptions(): Set<String> = buildSet {
+        leftMostButton.option?.let { add(it) }
+        buttonsUi.firstButton?.option?.let { add(it) }
+        buttonsUi.root.children.forEach { (it as ToolButton).option?.let { add(it) } }
     }
 
     fun updateState(state: State) {
@@ -145,8 +144,6 @@ class AlwaysUi(
     }
 
     private fun updateLeftMostButton(state: State) {
-        leftMostButton.displayedChild = if (state == State.Toolbar) 0 else 1
-
         val buttonConfig =
             if (state == State.Toolbar) {
                 theme.toolBar.primaryButton

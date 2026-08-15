@@ -21,7 +21,7 @@ import splitties.views.dsl.core.view
 class ButtonsBarUi(
     override val ctx: Context,
     private val theme: Theme,
-    private val onButtonClick: ((String?) -> Unit)? = null,
+    private val onButtonClick: ((String) -> Unit)? = null,
 ) : Ui {
     override val root = view(::FlexboxLayout) {
         alignItems = AlignItems.CENTER
@@ -37,11 +37,20 @@ class ButtonsBarUi(
         buttonConfig: ToolBar.Button?,
         @DrawableRes icon: Int = 0,
     ): ToolButton = if (buttonConfig != null) {
-        ToolButton(ctx, buttonConfig)
+        ToolButton(ctx, buttonConfig).apply {
+            setOnClickListener { onButtonClick?.invoke(buttonConfig.action) }
+            val longPressAction = buttonConfig.longPressAction
+            if (longPressAction.isNotEmpty()) {
+                setOnLongClickListener {
+                    onButtonClick?.invoke(longPressAction)
+                    true
+                }
+            }
+        }
     } else {
-        ToolButton(ctx, icon)
-    }.apply {
-        setOnClickListener { onButtonClick?.invoke(buttonConfig?.action) }
+        ToolButton(ctx, icon).apply {
+            setOnClickListener { onButtonClick?.invoke("") }
+        }
     }
 
     init {
@@ -68,7 +77,7 @@ class ButtonsBarUi(
         return finalWidth to finalHeight
     }
 
-    fun updateStyle() {
-        root.children.forEach { (it as ToolButton).updateStyle() }
+    fun updateStyle(option: String, enabled: Boolean) {
+        root.children.forEach { (it as ToolButton).updateStyle(option, enabled) }
     }
 }

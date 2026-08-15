@@ -82,13 +82,9 @@ class AppPrefs(
     ) : PreferenceDelegateOwner(shared) {
         companion object {
             const val PID = "general__pid"
-            const val CURRENT_KEYBOARD_ID = "internal__current_keyboard_id"
-            const val LAST_LOCK_KEYBOARD_ID = "internal__last_lock_keyboard_id"
         }
 
         val pid = int(PID, 0)
-        val currentKeyboardId = string(CURRENT_KEYBOARD_ID, "")
-        val lastLockKeyboardId = string(LAST_LOCK_KEYBOARD_ID, "")
     }
 
     class General(
@@ -141,7 +137,7 @@ class AppPrefs(
             const val SPEAK_ON_KEYPRESS = "speak_on_keypress"
             const val SPEAK_ON_COMMIT = "speak_on_commit"
             const val POPUP_ON_KEY_PRESS = "show_key_popup"
-            const val SWIPE_ENABLED = "swipe_enabled"
+            const val EXPAND_KEYPRESS_AREA = "expand_keypress_area"
             const val SWIPE_TRAVEL = "key_swipe_travel"
             const val SWIPE_VELOCITY = "key_swipe_velocity"
             const val LONG_PRESS_TIMEOUT = "key_long_press_timeout"
@@ -241,26 +237,29 @@ class AppPrefs(
         val speakOnKeyPress = switch(R.string.speak_on_keypress, SPEAK_ON_KEYPRESS, false)
         val speakOnCommit = switch(R.string.speak_on_commit, SPEAK_ON_COMMIT, false)
         val popupOnKeyPress = switch(R.string.popup_on_key_press, POPUP_ON_KEY_PRESS, false)
-        val swipeEnabled = switch(R.string.key_swipe_enabled, SWIPE_ENABLED, true)
+        val expandKeypressArea = switch(R.string.expand_keypress_area_to_edge, EXPAND_KEYPRESS_AREA, false)
         val swipeTravel = int(
             R.string.key_swipe_travel,
             SWIPE_TRAVEL,
-            80,
+            60,
             0,
             400,
             "dp",
             10,
-        ) { swipeEnabled.getValue() }
+            R.string.disable,
+            useMinAsDefault = true,
+        )
 
         val swipeVelocity = int(
             R.string.key_swipe_velocity,
             SWIPE_VELOCITY,
-            1600,
+            0,
             0,
             10000,
             "dp/s",
             100,
-        ) { swipeEnabled.getValue() }
+            R.string.disable,
+        )
 
         val longPressTimeout = int(
             R.string.key_long_press_timeout,
@@ -296,7 +295,7 @@ class AppPrefs(
             R.string.key_slide_step_size,
             SLIDE_STEP_SIZE,
             24,
-            0,
+            1,
             100,
             "dp",
         )
@@ -428,6 +427,7 @@ class AppPrefs(
         companion object {
             const val UI_MODE = "ui_mode"
             const val SHOW_APP_ICON = "show_app_icon"
+            const val IGNORE_SYSTEM_GESTURE_INSETS = "ignore_system_gesture_insets"
         }
 
         enum class UiMode(override val stringRes: Int) : PreferenceDelegateEnum {
@@ -442,6 +442,11 @@ class AppPrefs(
             SHOW_APP_ICON,
             true,
             R.string.only_available_on_some_roms,
+        )
+        val ignoreSystemGestureInsets = switch(
+            R.string.ignore_system_gesture_insets,
+            IGNORE_SYSTEM_GESTURE_INSETS,
+            false,
         )
     }
 }

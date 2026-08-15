@@ -26,6 +26,8 @@ interface RimeApi {
 
     suspend fun deploy()
 
+    suspend fun updateConfig()
+
     suspend fun syncUserData(): Boolean
 
     suspend fun processKey(
@@ -70,6 +72,8 @@ interface RimeApi {
 
     suspend fun clearComposition()
 
+    suspend fun getRawInput(): String
+
     suspend fun setRuntimeOption(
         option: String,
         value: Boolean,
@@ -77,8 +81,12 @@ interface RimeApi {
 
     suspend fun getRuntimeOption(option: String): Boolean
 
+    suspend fun setNullInputType(value: Boolean)
+
     suspend fun getCandidates(
         startIndex: Int,
         limit: Int,
-    ): Array<CandidateItem>
+    ): Array<CandidateProto>
+
+    suspend fun setCandidatePagingMode(enabled: Boolean)
 }

@@ -54,7 +54,6 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.imageView
 import splitties.views.dsl.core.matchParent
 import splitties.views.dsl.core.view
-import splitties.views.dsl.core.withTheme
 import splitties.views.dsl.core.wrapContent
 import splitties.views.imageDrawable
 
@@ -90,8 +89,7 @@ class InputView(
 
     private val updateWindowViewHeightJob: Job
 
-    private val themedContext = context.withTheme(android.R.style.Theme_DeviceDefault_Settings)
-    private val inputDepMgr = InputDependencyManager.initialize(themedContext, theme, service, rime)
+    private val inputDepMgr = InputDependencyManager.initialize(this, themedContext, theme, service, rime)
     private val di = inputDepMgr.di
     private val broadcaster: InputBroadcaster by di.instance()
     private val popup: PopupDelegate by di.instance()
@@ -102,7 +100,6 @@ class InputView(
     private val keyboardWindow: KeyboardWindow by di.instance()
     private val liquidWindow: LiquidWindow by di.instance()
 
-    private val inlinePreeditMode by AppPrefs.defaultInstance().general.inlinePreeditMode
     private val candidatesMode by AppPrefs.defaultInstance().candidates.mode
 
     private val keyboardSidePadding = theme.generalStyle.keyboardPadding
@@ -116,6 +113,19 @@ class InputView(
                 if (context.isLandscapeMode()) keyboardSidePaddingLandscape else keyboardSidePadding
             return dp(value)
         }
+
+    private var lastAppearanceState = Triple(false, false, false)
+
+    private fun broadcastKeyAppearanceUpdate() {
+        val composing = rime.run { statusCached.isComposing }
+        val hasMenu = rime.run { hasMenu }
+        val paging = rime.run { paging }
+        val current = Triple(composing, hasMenu, paging)
+        if (current != lastAppearanceState) {
+            lastAppearanceState = current
+            broadcaster.onKeyAppearanceUpdate(current.first, current.second, current.third)
+        }
+    }
 
     private val keyboardBottomPaddingPx: Int
         get() {
@@ -199,9 +209,9 @@ class InputView(
 
         add(
             preedit.ui.root,
-            lParams(matchParent, wrapContent) {
+            lParams(wrapContent, wrapContent) {
                 above(keyboardView)
-                centerHorizontally()
+                startOfParent()
             },
         )
 
@@ -267,11 +277,15 @@ class InputView(
         info: EditorInfo,
         restarting: Boolean = false,
     ) {
+        updateEnterKeyLabel(info)
         broadcaster.onStartInput(info)
-        enterKeyDisplay.updateLabelOnEditorInfo(info)
         if (!restarting) {
             windowManager.attachWindow(KeyboardWindow)
         }
+    }
+
+    fun updateEnterKeyLabel(info: EditorInfo) {
+        enterKeyDisplay.updateLabelOnEditorInfo(info)
     }
 
     override fun handleRimeMessage(it: RimeMessage<*>) {
@@ -300,19 +314,12 @@ class InputView(
                 }
                 broadcaster.onCompositionUpdate(data)
             }
-            is RimeMessage.CandidateMenuMessage -> {
-                broadcaster.onCandidateMenuUpdate(it.data)
-            }
-            is RimeMessage.CandidateListMessage -> {
-                val data = if (candidatesMode == PopupCandidatesMode.ALWAYS_SHOW) {
-                    RimeMessage.CandidateListMessage.Data()
-                } else {
-                    it.data
-                }
-                broadcaster.onCandidateListUpdate(data)
+            is RimeMessage.BulkCandidatesMessage -> {
+                broadcaster.onCandidateListUpdate(it.data)
             }
             else -> {}
         }
+        broadcastKeyAppearanceUpdate()
     }
 
     fun updateSelection(

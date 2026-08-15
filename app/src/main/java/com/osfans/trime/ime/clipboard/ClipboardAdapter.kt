@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.osfans.trime.R
 import com.osfans.trime.data.db.DatabaseBean
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.util.DeviceUtils
 import com.osfans.trime.util.item
 import splitties.resources.styledColor
 import kotlin.math.min
@@ -87,6 +88,12 @@ abstract class ClipboardAdapter(
                 menu.item(R.string.edit, R.drawable.ic_baseline_edit_24, iconTint) {
                     onEdit(bean.id)
                 }
+                menu.item(R.string.share, R.drawable.ic_baseline_share_24, iconTint) {
+                    onShare(bean)
+                }
+                menu.item(R.string.word_segment, R.drawable.ic_baseline_view_comfy_24, iconTint) {
+                    onSegment(bean)
+                }
 
                 if (enableCollection) {
                     menu.item(R.string.collect, R.drawable.ic_baseline_star_24, iconTint) {
@@ -105,7 +112,7 @@ abstract class ClipboardAdapter(
                 menu.item(R.string.delete, R.drawable.ic_baseline_delete_24, iconTint) {
                     onDelete(bean.id)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !DeviceUtils.isSamsungOneUI) {
                     popup.setForceShowIcon(true)
                 }
                 popup.setOnDismissListener { p ->
@@ -126,6 +133,10 @@ abstract class ClipboardAdapter(
     open fun onUnpin(id: Int) {}
 
     abstract fun onEdit(id: Int)
+
+    abstract fun onShare(bean: DatabaseBean)
+
+    abstract fun onSegment(bean: DatabaseBean)
 
     open fun onCollect(bean: DatabaseBean) {}
 

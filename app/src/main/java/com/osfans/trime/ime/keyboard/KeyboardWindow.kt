@@ -14,10 +14,10 @@ import com.osfans.trime.core.CompositionProto
 import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.core.SchemaItem
 import com.osfans.trime.daemon.RimeSession
-import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.TextKeyboard
+import com.osfans.trime.ime.broadcast.EnterKeyDisplayDelegate
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.keyboard.KeyboardPrefs.isLandscapeMode
@@ -44,6 +44,7 @@ class KeyboardWindow :
     private val rime: RimeSession by di.instance()
     private val commonKeyboardActionListener: CommonKeyboardActionListener by di.instance()
     private val popup: PopupDelegate by di.instance()
+    private val enterKeyDisplay: EnterKeyDisplayDelegate by di.instance()
 
     private val cursorCapsMode: Int
         get() =
@@ -71,10 +72,10 @@ class KeyboardWindow :
         get() = KeyboardWindow
 
     private val presetKeyboardIds = theme.presetKeyboards.keys.toList()
-    private val appPrefs = AppPrefs.defaultInstance()
-    private var currentKeyboardId by appPrefs.internal.currentKeyboardId
+    private var currentKeyboardId = ""
     private var lastKeyboardId = ""
-    private var lastLockKeyboardId by appPrefs.internal.lastLockKeyboardId
+    private var lastLockKeyboardId = ""
+    private var tempAsciiMode: Boolean? = null
     private val cachedKeyboards = mutableMapOf<String, Pair<Keyboard, KeyboardView>>()
     private val currentKeyboard: Keyboard? get() = cachedKeyboards[currentKeyboardId]?.first
     private val currentKeyboardView: KeyboardView? get() = cachedKeyboards[currentKeyboardId]?.second
@@ -83,16 +84,7 @@ class KeyboardWindow :
 
     override fun onCreateView(): View {
         keyboardView = context.frameLayout(R.id.keyboard_view)
-
-        // 使用保存的键盘ID或默认值，并经过evalKeyboard处理（包括横屏逻辑）
-        val targetKeyboardId =
-            evalKeyboard(
-                currentKeyboardId
-                    .takeIf { it.isNotEmpty() && presetKeyboardIds.contains(it) }
-                    ?: ".default",
-            )
-
-        attachKeyboard(targetKeyboardId)
+        attachKeyboard(evalKeyboard(".default"))
         return keyboardView
     }
 
@@ -100,7 +92,6 @@ class KeyboardWindow :
         currentKeyboardView?.also {
             it.onDetach()
             keyboardView.removeView(it)
-            it.keyboardActionListener = null
         }
         currentKeyboard?.lastAsciiMode = rime.run { statusCached }.isAsciiMode
     }
@@ -119,8 +110,8 @@ class KeyboardWindow :
         lastKeyboardId = target
 
         val config = selectKeyboardConfig(target)
-        val keyboard = currentKeyboard ?: Keyboard(theme, config)
-        val view = currentKeyboardView ?: KeyboardView(context, theme, keyboard, popup, service)
+        val keyboard = currentKeyboard ?: Keyboard(context, theme, config)
+        val view = currentKeyboardView ?: KeyboardView(context, theme, keyboard, popup, service, keyboardActionListener, enterKeyDisplay)
 
         if (currentKeyboard == null) {
             cachedKeyboards[target] = keyboard to view
@@ -147,7 +138,6 @@ class KeyboardWindow :
         }
 
         view.let {
-            it.keyboardActionListener = keyboardActionListener
             keyboardView.apply {
                 (it.parent as? android.view.ViewGroup)?.removeView(it)
                 add(it, lParams(matchParent, matchParent))
@@ -218,22 +208,15 @@ class KeyboardWindow :
     }
 
     override fun onStartInput(info: EditorInfo) {
-        var tempAsciiMode = false
         val targetKeyboard =
             when (info.imeOptions and EditorInfo.IME_FLAG_FORCE_ASCII) {
-                EditorInfo.IME_FLAG_FORCE_ASCII -> {
-                    tempAsciiMode = true
-                    ".ascii"
-                }
+                EditorInfo.IME_FLAG_FORCE_ASCII -> ".ascii"
                 else -> {
                     when (info.inputType and InputType.TYPE_MASK_CLASS) {
                         InputType.TYPE_CLASS_NUMBER,
                         InputType.TYPE_CLASS_PHONE,
                         InputType.TYPE_CLASS_DATETIME,
-                        -> {
-                            tempAsciiMode = true
-                            "number"
-                        }
+                        -> "number"
                         InputType.TYPE_CLASS_TEXT -> {
                             when (info.inputType and InputType.TYPE_MASK_VARIATION) {
                                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
@@ -241,10 +224,7 @@ class KeyboardWindow :
                                 InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
                                 InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
                                 InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
-                                -> {
-                                    tempAsciiMode = true
-                                    ".ascii"
-                                }
+                                -> ".ascii"
                                 else -> ""
                             }
                         }
@@ -253,16 +233,26 @@ class KeyboardWindow :
                 }
             }
         switchKeyboard(targetKeyboard)
-        currentKeyboard?.let {
-            val isAsciiMode = rime.run { statusCached }.isAsciiMode
-            if (tempAsciiMode) {
-                if (!isAsciiMode) {
-                    service.postRimeJob { setRuntimeOption("ascii_mode", true) }
+        val isAsciiMode = rime.run { statusCached }.isAsciiMode
+        if (targetKeyboard == ".ascii" || targetKeyboard == "number") {
+            if (tempAsciiMode == null) {
+                tempAsciiMode = isAsciiMode
+            }
+            if (!isAsciiMode) {
+                service.postRimeJob { setRuntimeOption("ascii_mode", true) }
+            }
+        } else {
+            tempAsciiMode?.let { saved ->
+                if (isAsciiMode != saved) {
+                    service.postRimeJob { setRuntimeOption("ascii_mode", saved) }
                 }
-            } else if (theme.generalStyle.resetASCIIMode) {
-                val targetMode = if (it.resetAsciiMode) it.asciiMode else it.lastAsciiMode
-                if (isAsciiMode != targetMode) {
-                    service.postRimeJob { setRuntimeOption("ascii_mode", targetMode) }
+                tempAsciiMode = null
+            } ?: currentKeyboard?.let {
+                if (theme.generalStyle.resetAsciiModeOnFocusChange) {
+                    val targetMode = if (it.resetAsciiMode) it.asciiMode else it.lastAsciiMode
+                    if (isAsciiMode != targetMode) {
+                        service.postRimeJob { setRuntimeOption("ascii_mode", targetMode) }
+                    }
                 }
             }
         }
@@ -276,10 +266,11 @@ class KeyboardWindow :
         }
     }
 
-    override fun onCompositionUpdate(data: CompositionProto) {
-        val status = rime.run { statusCached }
-        if (!status.isAsciiMode && data.length == 0 && data.preedit.isNullOrEmpty()) {
-            currentKeyboardView?.invalidateAllKeys()
+    override fun onKeyAppearanceUpdate(composing: Boolean, menu: Boolean, paging: Boolean) {
+        if (!rime.run { statusCached }.isAsciiMode) {
+            currentKeyboard?.appearanceStateKeys?.forEach { key ->
+                currentKeyboardView?.invalidateKeyByIndex(key.index)
+            }
         }
     }
 
@@ -317,18 +308,10 @@ class KeyboardWindow :
         currentKeyboardView?.invalidateAllKeys()
     }
 
-    override fun onEnterKeyLabelUpdate(label: String) {
-        currentKeyboardView?.onEnterKeyLabelUpdate(label)
-    }
-
     override fun onAttached() {
-        currentKeyboardView?.keyboardActionListener = keyboardActionListener
     }
 
     override fun onDetached() {
-        currentKeyboardView?.let {
-            it.onDetach()
-            it.keyboardActionListener = null
-        }
+        currentKeyboardView?.onDetach()
     }
 }

@@ -18,8 +18,8 @@ import androidx.core.graphics.component1
 import androidx.core.graphics.component2
 import androidx.core.graphics.component3
 import androidx.core.graphics.component4
+import com.osfans.trime.core.Candidates
 import com.osfans.trime.core.CompositionProto
-import com.osfans.trime.core.MenuProto
 import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
@@ -57,7 +57,7 @@ class CandidatesView(
     private val layout by AppPrefs.defaultInstance().candidates.layout
     private val position by AppPrefs.defaultInstance().candidates.position
 
-    private var menu = MenuProto()
+    private var candidates = Candidates.Paged()
     private var composition = CompositionProto()
 
     private val anchorPosition = RectF()
@@ -100,6 +100,7 @@ class CandidatesView(
             ctx,
             theme,
             onCandidateClick = { index -> rime.launchOnReady { it.selectCandidate(index, global = false) } },
+            onCandidateAction = { index, text, view -> showCandidateActionMenu(index, text, view, global = false) },
             onPrevPage = { rime.launchOnReady { it.changeCandidatePage(true) } },
             onNextPage = { rime.launchOnReady { it.changeCandidatePage(false) } },
         )
@@ -114,8 +115,8 @@ class CandidatesView(
                 composition = it.data
                 updateUi()
             }
-            is RimeMessage.CandidateMenuMessage -> {
-                menu = it.data
+            is RimeMessage.PagedCandidatesMessage -> {
+                candidates = it.data
                 updateUi()
             }
             else -> {}
@@ -123,7 +124,7 @@ class CandidatesView(
     }
 
     private fun evaluateVisibility(): Boolean = !composition.preedit.isNullOrEmpty() ||
-        menu.candidates.isNotEmpty()
+        candidates.candidates.isNotEmpty()
 
     private fun updateUi() {
         preeditUi.update(composition)
@@ -133,7 +134,7 @@ class CandidatesView(
         val isHorizontalLayout = rime.run {
             getRuntimeOption("_linear") || getRuntimeOption("_horizontal")
         }
-        candidatesUi.update(menu, isHorizontalLayout, layout)
+        candidatesUi.update(candidates, isHorizontalLayout, layout)
         if (evaluateVisibility()) {
             visibility = VISIBLE
         } else {
@@ -221,10 +222,13 @@ class CandidatesView(
         background =
             ColorManager.getDecorDrawable(
                 colorKey = "text_back_color",
+                borderColorKey = "candidate_border_color",
+                borderPx = dp(theme.window.border),
                 cornerRadius = dp(theme.window.cornerRadius),
             )
         clipToOutline = true
         outlineProvider = ViewOutlineProvider.BACKGROUND
+        elevation = dp(theme.window.shadow)
         add(
             preeditUi.root,
             lParams(wrapContent, wrapContent) {

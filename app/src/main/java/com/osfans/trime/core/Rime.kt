@@ -68,8 +68,11 @@ class Rime :
 
     private val inlinePreeditMode by AppPrefs.defaultInstance().general.inlinePreeditMode
     private val showAsciiSwitchTips by AppPrefs.defaultInstance().general.asciiSwitchTips
-    private var lastAsciiTipsText = ""
+
     private var asciiSwitchTipsJob: Job? = null
+    private var isNullInputType = true
+    private var lastAsciiTipsText = ""
+    private var pagingMode = false
 
     init {
         if (lifecycle.currentState != RimeLifecycle.State.STOPPED) {
@@ -88,6 +91,11 @@ class Rime :
     override suspend fun deploy() = withRimeContext {
         exitRime()
         startRime(true)
+    }
+
+    override suspend fun updateConfig() = withRimeContext {
+        exitRime()
+        startRime(false)
     }
 
     override suspend fun syncUserData(): Boolean = withRimeContext {
@@ -116,10 +124,10 @@ class Rime :
             val commit = getRimeCommit()
             val input = getRimeRawInput()
             if (!commit.text.isNullOrEmpty() || input.isNotEmpty()) {
-                emitResponse { commit }
+                emitResponse(commit)
                 true
             } else {
-                emitResponse { CommitProto(sequence) }
+                emitResponse(CommitProto(sequence))
                 false
             }
         } else {
@@ -167,6 +175,10 @@ class Rime :
         emitResponse()
     }
 
+    override suspend fun getRawInput(): String = withRimeContext {
+        getRimeRawInput()
+    }
+
     override suspend fun setRuntimeOption(
         option: String,
         value: Boolean,
@@ -178,11 +190,20 @@ class Rime :
         getRimeOption(option)
     }
 
+    override suspend fun setNullInputType(value: Boolean) = withRimeContext {
+        isNullInputType = value
+    }
+
     override suspend fun getCandidates(
         startIndex: Int,
         limit: Int,
-    ): Array<CandidateItem> = withRimeContext {
+    ): Array<CandidateProto> = withRimeContext {
         getRimeCandidates(startIndex, limit)
+    }
+
+    override suspend fun setCandidatePagingMode(enabled: Boolean) = withRimeContext {
+        pagingMode = enabled
+        emitResponse()
     }
 
     private fun startRime(fullCheck: Boolean) {
@@ -201,7 +222,7 @@ class Rime :
     }
 
     private fun processKeyInner(value: Int, modifiers: Int, isVirtual: Boolean): Boolean {
-        lastAsciiTipsText = asciiTipsText
+        lastAsciiTipsText = asciiTipsText(getRimeStatus())
         val handled = processRimeKey(value, modifiers)
         emitResponse()
         if (!handled) {
@@ -213,40 +234,29 @@ class Rime :
         return handled
     }
 
-    private val asciiTipsText: String
-        get() {
-            val status = getRimeStatus()
-            return if (status.isAsciiMode) {
-                "En"
-            } else if (status.schemaName.isNotEmpty() &&
-                !status.schemaName.startsWith('.')
-            ) {
-                status.schemaName.take(2)
-            } else {
-                ""
-            }
-        }
+    private fun asciiTipsText(status: StatusProto): String = when {
+        status.isAsciiMode -> "En"
+        status.schemaName.isNotEmpty() && !status.schemaName.startsWith('.') ->
+            status.schemaName.take(2)
+        else -> ""
+    }
 
-    private fun emitResponse(
-        commit: (() -> CommitProto) = { getRimeCommit() },
-    ) {
-        handleRimeMessage(4, arrayOf(commit.invoke()))
-        val context = getRimeContext()
-        handlePreedit(context.composition)
-        if (context.composition.length <= 0 && lastAsciiTipsText != asciiTipsText) {
-            showAsciiSwitchTips()
+    private fun emitResponse(commit: CommitProto? = null) {
+        val response = getRimeResponse(pagingMode)
+        handleRimeMessage(4, arrayOf(commit ?: response.commit))
+        handlePreedit(response.composition)
+        if (response.composition.length <= 0 && lastAsciiTipsText != asciiTipsText(response.status)) {
+            showAsciiSwitchTips(response.status)
         }
-        if (getRimeOption("paging_mode")) {
-            handleRimeMessage(7, arrayOf(context.menu))
-        } else {
-            val bulk = getRimeBulkCandidates()
-            handleRimeMessage(9, bulk)
+        when (val candidates = response.candidates) {
+            is Candidates.Paged -> handleRimeMessage(7, arrayOf(candidates))
+            is Candidates.Bulk -> handleRimeMessage(9, arrayOf(candidates))
         }
-        handleRimeMessage(8, arrayOf(getRimeStatus()))
+        handleRimeMessage(8, arrayOf(response.status))
     }
 
     private fun handlePreedit(composition: CompositionProto) {
-        val mode = if (getRimeOption("no_inline_preedit")) {
+        val mode = if (isNullInputType) {
             InlinePreeditMode.DISABLE
         } else {
             inlinePreeditMode
@@ -277,7 +287,7 @@ class Rime :
                 statusCached = status
                 updateSchemaCached(status)
                 if (it.data.option == "ascii_mode") {
-                    showAsciiSwitchTips()
+                    showAsciiSwitchTips(status)
                 }
             }
             is RimeMessage.DeployMessage -> {
@@ -289,12 +299,12 @@ class Rime :
                 val composition = it.data
                 compositionCached = composition
             }
-            is RimeMessage.CandidateMenuMessage -> {
-                val menu = it.data
-                paging = menu.pageNumber != 0
-                hasMenu = menu.candidates.isNotEmpty()
+            is RimeMessage.PagedCandidatesMessage -> {
+                val paged = it.data
+                paging = paged.hasPrevPage
+                hasMenu = paged.candidates.isNotEmpty()
             }
-            is RimeMessage.CandidateListMessage -> {
+            is RimeMessage.BulkCandidatesMessage -> {
                 hasMenu = it.data.candidates.isNotEmpty()
             }
             is RimeMessage.StatusMessage -> {
@@ -319,9 +329,9 @@ class Rime :
         }
     }
 
-    private fun showAsciiSwitchTips() {
+    private fun showAsciiSwitchTips(status: StatusProto) {
         if (!showAsciiSwitchTips) return
-        val tipsText = asciiTipsText
+        val tipsText = asciiTipsText(status)
         if (tipsText.isEmpty()) return
 
         lastAsciiTipsText = tipsText
@@ -481,10 +491,10 @@ class Rime :
         external fun getRimeCandidates(
             startIndex: Int,
             limit: Int,
-        ): Array<CandidateItem>
+        ): Array<CandidateProto>
 
         @JvmStatic
-        external fun getRimeBulkCandidates(): Array<Any>
+        external fun getRimeResponse(pagingMode: Boolean): RimeResponse
 
         @JvmStatic
         fun handleRimeMessage(

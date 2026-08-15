@@ -7,18 +7,28 @@ package com.osfans.trime.ime.core
 
 import android.annotation.SuppressLint
 import android.content.res.Resources
+import android.view.View
 import android.view.WindowInsets
+import android.widget.PopupMenu
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.text.bold
+import androidx.core.text.buildSpannedString
+import androidx.core.text.color
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.osfans.trime.R
 import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.daemon.RimeSession
+import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.data.theme.ThemePrefs
+import com.osfans.trime.ime.keyboard.InputFeedbackManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import splitties.dimensions.dp
+import splitties.views.dsl.core.withTheme
 import kotlin.math.max
 
 abstract class BaseInputView(
@@ -52,6 +62,38 @@ abstract class BaseInputView(
             }
         }
 
+    val themedContext = context.withTheme(android.R.style.Theme_DeviceDefault_Settings)
+
+    private var candidateActionMenu: PopupMenu? = null
+
+    fun showCandidateActionMenu(idx: Int, text: String, view: View, global: Boolean) {
+        candidateActionMenu?.dismiss()
+        candidateActionMenu = null
+        val highlightColor = ColorManager.getColor("hilited_candidate_text_color")
+        val title = buildSpannedString {
+            bold {
+                color(highlightColor) { append(text) }
+            }
+        }
+        service.lifecycleScope.launch {
+            InputFeedbackManager.keyPressVibrate(view, longPress = true)
+            candidateActionMenu =
+                PopupMenu(themedContext, view).apply {
+                    menu.add(title).apply {
+                        isEnabled = false
+                    }
+                    menu.add(R.string.forget_this_word).setOnMenuItemClickListener {
+                        rime.runIfReady { deleteCandidate(idx, global) }
+                        true
+                    }
+                    setOnDismissListener {
+                        candidateActionMenu = null
+                    }
+                    show()
+                }
+        }
+    }
+
     private val navBarBackground by ThemeManager.prefs.navbarBackground
 
     private val navBarFrameHeight: Int
@@ -60,34 +102,38 @@ abstract class BaseInputView(
             val resId = resources.getIdentifier("navigation_bar_frame_height", "dimen", "android")
             return try {
                 resources.getDimensionPixelSize(resId)
-            } catch (e: Resources.NotFoundException) {
+            } catch (_: Resources.NotFoundException) {
                 dp(FALLBACK_NAVBAR_HEIGHT)
             }
         }
+
+    private val ignoreSystemGestureInsets by AppPrefs.defaultInstance().advanced.ignoreSystemGestureInsets
 
     protected fun getNavBarBottomInset(windowInsets: WindowInsets): Int {
         if (navBarBackground != ThemePrefs.NavbarBackground.FULL) {
             return 0
         }
-
         val insets = WindowInsetsCompat.toWindowInsetsCompat(windowInsets)
-
-        val nav = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-        val tappable = insets.getInsets(WindowInsetsCompat.Type.tappableElement()).bottom
-        val mandatory = insets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures()).bottom
-        val systemGestures = insets.getInsets(WindowInsetsCompat.Type.systemGestures()).bottom
-        val threshold = (resources.displayMetrics.density * 40).toInt()
-
-        return when {
-            nav > 0 -> nav
-            tappable > 0 -> tappable
-            mandatory > threshold -> mandatory
-            systemGestures > threshold -> systemGestures
-            else -> 0
+        var mask = WindowInsetsCompat.Type.navigationBars()
+        if (!ignoreSystemGestureInsets) {
+            mask = mask or WindowInsetsCompat.Type.mandatorySystemGestures() or
+                WindowInsetsCompat.Type.systemGestures()
         }
+        val insetsBottom = insets.getInsets(mask).bottom
+        return if (insetsBottom > 0) max(insetsBottom, navBarFrameHeight) else insetsBottom
     }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // on API 35+, we must call requestApplyInsets() manually after replacing views,
+        // otherwise View#onApplyWindowInsets won't be called. ¯\_(ツ)_/¯
+        requestApplyInsets()
+    }
+
     override fun onDetachedFromWindow() {
         handleMessages = false
+        candidateActionMenu?.dismiss()
+        candidateActionMenu = null
         super.onDetachedFromWindow()
     }
 

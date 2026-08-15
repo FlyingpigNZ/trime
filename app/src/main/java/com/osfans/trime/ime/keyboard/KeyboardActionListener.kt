@@ -13,15 +13,7 @@ interface KeyboardActionListener {
      * @param keyEventCode the unicode of the key being pressed. If the touch is not on a valid key,
      * the value will be zero.
      */
-    fun onPress(keyEventCode: Int, isSound: Boolean = true)
-
-    /**
-     * Called when the user releases a key. This is sent after the [.onKey] is called. For
-     * keys that repeat, this is only called once.
-     *
-     * @param keyEventCode the code of the key that was released
-     */
-    fun onRelease(keyEventCode: Int)
+    fun onPress(keyEventCode: Int)
 
     fun onAction(action: KeyAction)
 
@@ -43,7 +35,7 @@ interface KeyboardActionListener {
     /**
      * Sends a sequence of characters to the listener.
      *
-     * @param text the sequence of characters to be displayed.
+     * @param input the sequence of characters to be displayed.
      */
-    fun onText(text: String)
+    fun onText(input: String)
 }

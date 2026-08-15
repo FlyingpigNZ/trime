@@ -20,12 +20,16 @@ class Key(
 ) {
     private val rime get() = RimeDaemon.getFirstSessionOrNull()!!
 
+    var index: Int = -1
+
     val keyActions: Map<KeyBehavior, KeyAction> =
-        buildMap {
-            selfConfig?.behaviors?.forEach {
-                put(it.key, KeyActionManager.getAction(it.value))
+        selfConfig?.behaviors?.mapNotNull { (key, value) ->
+            if (value != null) {
+                key to KeyActionManager.getAction(value)
+            } else {
+                null
             }
-        }
+        }?.toMap() ?: mapOf()
     var edgeFlags = 0
     private val sendBindings: Boolean
 
@@ -42,6 +46,9 @@ class Key(
     var gap = 0
     var row = 0
     var column = 0
+
+    var extraWidthLeft = 0
+    var extraWidthRight = 0
 
     private val label = selfConfig?.label ?: ""
     private val labelSymbol = selfConfig?.labelSymbol ?: ""
@@ -64,8 +71,8 @@ class Key(
         get() = field + keyOffsetX
     var keyHintOffsetY = 0f
         get() = field + keyOffsetY
-    var keyPressOffsetX = 0
-    var keyPressOffsetY = 0
+    var keyPressOffsetX = 0f
+    var keyPressOffsetY = 0f
 
     // get color from key customization or just fallback to specified color
     private fun getColor(
@@ -85,8 +92,7 @@ class Key(
         src: TextKeyboard.TextKey.() -> String,
         fallback: String,
     ) = selfConfig?.let {
-        if (src(it).isEmpty()) null
-        ColorManager.getDrawable(src(it))
+        if (src(it).isEmpty()) null else ColorManager.getDrawable(src(it))
     } ?: ColorManager.getDrawable(fallback)
 
     private val keyBackground by lazy { getDrawable({ keyBackColor }, "key_back_color") }
@@ -111,9 +117,9 @@ class Key(
 
     init {
         if (selfConfig != null) {
-            val hasComposingKey = selfConfig.behaviors.keys.any { it < KeyBehavior.COMBO }
-            if (hasComposingKey) parent.composingKeys.add(this)
-            sendBindings = selfConfig.sendBindings || hasComposingKey
+            val hasStateDependentBehavior = selfConfig.behaviors.keys.any { it < KeyBehavior.COMBO }
+            if (hasStateDependentBehavior) parent.appearanceStateKeys.add(this)
+            sendBindings = selfConfig.sendBindings || hasStateDependentBehavior
         } else {
             sendBindings = true
         }
@@ -125,10 +131,10 @@ class Key(
         return isOn
     }
 
-    private val keyOffsetX: Int
-        get() = if (isPressed) keyPressOffsetX else 0
-    private val keyOffsetY: Int
-        get() = if (isPressed) keyPressOffsetY else 0
+    private val keyOffsetX: Float
+        get() = if (isPressed) keyPressOffsetX else 0f
+    private val keyOffsetY: Float
+        get() = if (isPressed) keyPressOffsetY else 0f
 
     /**
      * Informs the key that it has been pressed, in case it needs to change its appearance or state.

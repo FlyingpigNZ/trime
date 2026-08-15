@@ -34,6 +34,7 @@
     <string name="key_long_press_timeout">长按按键的延迟时间</string>
     <string name="key_repeat_interval">重复按键的重复间隔</string>
     <string name="popup_on_key_press">按键时弹出显示字符</string>
+    <string name="expand_keypress_area_to_edge">将按键范围扩展至边缘</string>
     <string name="use_soft_cursor">预编辑区使用插入符号（^）</string>
     <string name="deploy">部署</string>
     <string name="sync_user_data_immediately">立即同步用户数据</string>
@@ -64,7 +65,7 @@
     <string name="external_storage_permission_denied">已拒绝授权存储权限，部署或读取方案和配置功能或不可用</string>
     <string name="custom_sound_effect_name">自定义按键音效</string>
     <string name="setup__next">下一步</string>
-    <string name="setup__done">完成</string>
+    <string name="done">完成</string>
     <string name="setup__enable_ime_hint">在语言和输入设置中启用<b>同文输入法</b></string>
     <string name="setup__select_ime_hint">选择<b>同文输入法</b>作为默认输入法</string>
     <string name="setup__enable_ime">启用输入法</string>
@@ -82,13 +83,19 @@
     <string name="hook_ctrl_cv">拦截 Ctrl+C/V/X</string>
     <string name="hook_ctrl_lr">拦截 Ctrl+Left/Right</string>
     <string name="hook_ctrl_zy">拦截 Ctrl+Z/Y</string>
-    <string name="key_swipe_enabled">允许触发按键的滑动手势</string>
     <string name="key_swipe_velocity">触发按键滑动手势的速度（距离/速度满足其一即可）</string>
     <string name="build_info">构建信息</string>
     <string name="telegram">Telegram</string>
     <string name="quick_bar">快捷栏</string>
     <string name="copy_done">已复制</string>
     <string name="hook_shift_space">点击空格时，忽略Shift的锁定状态</string>
+    <string name="test_input">测试输入</string>
+    <string name="text">文本</string>
+    <string name="number">数字</string>
+    <string name="password">密码</string>
+    <string name="type_text">输入文本</string>
+    <string name="type_number">输入数字</string>
+    <string name="type_password">输入密码</string>
     <string name="hook_shift_num">点击0-9时，忽略Shift的锁定状态</string>
     <string name="hook_shift_symbol">点击符号键时，忽略Shift的锁定状态</string>
     <string name="hook_shift_arrow">点击方向键时，保持Shift的锁定状态</string>
@@ -215,4 +222,9 @@
     <string name="preferred_voice_input">首选语音输入法</string>
     <string name="no_voice_input_installed">未安装语音输入</string>
     <string name="inline_suggestions">显示内嵌自动填充建议</string>
+    <string name="update_config">更新配置</string>
+    <string name="share">分享</string>
+    <string name="word_segment">分词</string>
+    <string name="star_success">收藏成功</string>
+    <string name="ignore_system_gesture_insets">忽略系统手势边衬区</string>
 </resources>

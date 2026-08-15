@@ -6,8 +6,8 @@
 package com.osfans.trime.ime.broadcast
 
 import android.view.inputmethod.EditorInfo
+import com.osfans.trime.core.Candidates
 import com.osfans.trime.core.CompositionProto
-import com.osfans.trime.core.MenuProto
 import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.core.SchemaItem
 import com.osfans.trime.core.StatusProto
@@ -16,20 +16,17 @@ import com.osfans.trime.ime.window.BoardWindow
 interface InputBroadcastReceiver {
     fun onStartInput(info: EditorInfo) {}
 
-    fun onSelectionUpdate(
-        start: Int,
-        end: Int,
-    ) {}
+    fun onSelectionUpdate(start: Int, end: Int) {}
 
     fun onRimeSchemaUpdated(schema: SchemaItem) {}
 
     fun onRimeOptionUpdated(value: RimeMessage.OptionMessage.Data) {}
 
-    fun onCandidateListUpdate(data: RimeMessage.CandidateListMessage.Data) {}
+    fun onCandidateListUpdate(data: Candidates.Bulk) {}
 
     fun onCompositionUpdate(data: CompositionProto) {}
 
-    fun onCandidateMenuUpdate(data: MenuProto) {}
+    fun onKeyAppearanceUpdate(composing: Boolean, menu: Boolean, paging: Boolean) {}
 
     fun onInputStatusUpdate(value: StatusProto) {}
 
