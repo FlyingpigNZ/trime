@@ -17,6 +17,7 @@ import com.osfans.trime.ime.composition.PreeditDelegate
 import com.osfans.trime.ime.core.InputView
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.keyboard.CommonKeyboardActionListener
+import com.osfans.trime.ime.keyboard.KeyboardSwitcher
 import com.osfans.trime.ime.keyboard.KeyboardWindow
 import com.osfans.trime.ime.popup.PopupDelegate
 import com.osfans.trime.ime.symbol.LiquidWindow
@@ -44,6 +45,7 @@ class InputDependencyManager(
         bindSingleton { EnterKeyDisplayDelegate() }
         bindSingleton { PreeditDelegate() }
         bindSingleton { CommonKeyboardActionListener() }
+        bindSingleton { KeyboardSwitcher(context, theme, rime, service) }
         bindSingleton { BoardWindowManager() }
         bindSingleton { InputBarDelegate() }
         bindSingleton { CompactCandidateDelegate() }

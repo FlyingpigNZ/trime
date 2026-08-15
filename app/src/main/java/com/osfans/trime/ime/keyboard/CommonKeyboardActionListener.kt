@@ -12,7 +12,6 @@ import android.view.KeyEvent
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.R
-import com.osfans.trime.core.KeyModifiers
 import com.osfans.trime.core.RimeApi
 import com.osfans.trime.core.RimeKeyEvent
 import com.osfans.trime.daemon.RimeSession
@@ -23,6 +22,7 @@ import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.ime.clipboard.ClipboardWindow
 import com.osfans.trime.ime.core.TrimeInputMethodService
+import com.osfans.trime.ime.core.toKeyModifiers
 import com.osfans.trime.ime.dependency.InputDependencyManager
 import com.osfans.trime.ime.dialog.EnabledSchemaPickerDialog
 import com.osfans.trime.ime.switches.SwitchOptionWindow
@@ -118,7 +118,7 @@ class CommonKeyboardActionListener {
             }
 
             override fun onAction(action: KeyAction) {
-                val text = action.getText(KeyboardSwitcher.currentKeyboard)
+                val text = action.getText(KeyboardSwitcherLegacy.currentKeyboard, rime.uiState.value)
                 val shouldHandle = when {
                     action.commit.isNotEmpty() -> {
                         service.commitText(action.commit)
@@ -152,7 +152,7 @@ class CommonKeyboardActionListener {
                 rime.launchOnReady { api ->
                     service.lifecycleScope.launch {
                         val isEnabled = api.getRuntimeOption(option)
-                        val isComposing = api.statusCached.isComposing
+                        val isComposing = api.uiState.value.isComposing
                         api.setRuntimeOption(option, !isEnabled)
                         if (option == "ascii_mode" && isComposing) {
                             api.getRawInput().takeIf { it.isNotEmpty() }?.let {
@@ -175,21 +175,21 @@ class CommonKeyboardActionListener {
             private fun handleFunctionCommand(action: KeyAction) {
                 val arg = expandActiveText(action.option)
 
-                when (action.command) {
-                    "liquid_keyboard" -> handleLiquidKeyboard(arg)
-                    "menu_keyboard" -> windowManager.attachWindow(SwitchOptionWindow())
-                    "clipboard_window" -> handleClipboardWindow(arg)
-                    "set_color_scheme" -> handleColorScheme(arg)
-                    "set_theme" -> handleTheme(arg)
-                    "broadcast" -> service.sendBroadcast(Intent(arg))
-                    "clipboard" -> handleClipboard()
-                    "commit" -> service.commitText(arg)
-                    "date" -> service.commitText(customFormatDateTime(arg))
-                    "run" -> handleRunCommand(arg)
-                    "apply" -> handleApplyCommand(arg)
-                    "share_text" -> service.shareText()
-                    "select_candidate" -> handleSelectCandidate(arg)
-                    else -> handleIntentAction(action.command, arg)
+                when (val command = action.command) {
+                    KeyActionCommand.LiquidKeyboard -> handleLiquidKeyboard(arg)
+                    KeyActionCommand.MenuKeyboard -> windowManager.attachWindow(SwitchOptionWindow())
+                    KeyActionCommand.ClipboardWindow -> handleClipboardWindow(arg)
+                    KeyActionCommand.SetColorScheme -> handleColorScheme(arg)
+                    KeyActionCommand.SetTheme -> handleTheme(arg)
+                    KeyActionCommand.Broadcast -> service.sendBroadcast(Intent(arg))
+                    KeyActionCommand.Clipboard -> handleClipboard()
+                    KeyActionCommand.Commit -> service.commitText(arg)
+                    KeyActionCommand.Date -> service.commitText(customFormatDateTime(arg))
+                    KeyActionCommand.Run -> handleRunCommand(arg)
+                    KeyActionCommand.Apply -> handleApplyCommand(arg)
+                    KeyActionCommand.ShareText -> service.shareText()
+                    KeyActionCommand.SelectCandidate -> handleSelectCandidate(arg)
+                    is KeyActionCommand.Intent -> handleIntentAction(command.command, arg)
                 }
             }
 
@@ -329,15 +329,15 @@ class CommonKeyboardActionListener {
                     else -> false
                 }
 
-                if (action.modifier == 0 && KeyboardSwitcher.currentKeyboard.isOnlyShiftOn && shouldHookShiftKey) {
+                if (action.modifier == 0 && KeyboardSwitcherLegacy.currentKeyboard.isOnlyShiftOn && shouldHookShiftKey) {
                     onKey(action.code, 0)
                     return
                 }
 
                 val modifier = when {
-                    action.modifier == 0 -> KeyboardSwitcher.currentKeyboard.modifier
+                    action.modifier == 0 -> KeyboardSwitcherLegacy.currentKeyboard.modifier
                     (action.modifier and KeyEvent.META_CTRL_ON) != 0 && isNavigationKey(action.code) ->
-                        action.modifier or KeyboardSwitcher.currentKeyboard.modifier
+                        action.modifier or KeyboardSwitcherLegacy.currentKeyboard.modifier
                     else -> action.modifier
                 }
 
@@ -359,7 +359,7 @@ class CommonKeyboardActionListener {
                 } else {
                     metaState
                 }
-                val modifiers = KeyModifiers.fromMetaState(m).modifiers
+                val modifiers = m.toKeyModifiers().modifiers
                 service.postRimeJob {
                     if (service.hookKeyboard(keyEventCode, m)) {
                         Timber.d("handleKey: hook")
@@ -383,7 +383,7 @@ class CommonKeyboardActionListener {
             override fun onText(input: String) {
                 if (input.isEmpty()) return
                 Timber.d("onText: $input")
-                val status = rime.run { statusCached }
+                val status = rime.uiState.value.status
                 if (!input[0].isAsciiPrintable() && status.isComposing) {
                     service.postRimeJob { commitComposition() }
                 }

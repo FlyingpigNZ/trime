@@ -6,9 +6,13 @@
 package com.osfans.trime.core
 
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 
 interface RimeApi {
     val messageFlow: SharedFlow<RimeMessage<*>>
+
+    /** Observable snapshot of engine state for the UI layer. */
+    val uiState: StateFlow<RimeUiState>
 
     val isReady: Boolean
 

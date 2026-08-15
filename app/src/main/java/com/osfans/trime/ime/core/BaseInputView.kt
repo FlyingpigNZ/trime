@@ -43,7 +43,7 @@ abstract class BaseInputView(
     private fun setupRimeMessageHandler() {
         messageHandlerJob =
             service.lifecycleScope.launch {
-                rime.run { messageFlow }.collect {
+                rime.messageFlow.collect {
                     handleRimeMessage(it)
                 }
             }

@@ -229,11 +229,16 @@ breaking format change ever happens, it can be handled ad-hoc.)
    - `InputDependencyManager` already binds `rime: RimeSession` — inject via DI
      into `Key`, `KeyAction`, `KeyView` instead of the daemon global.
 6. **Replace pull-based caches with an observable `RimeUiState`** (medium
-   impact, medium effort)
-   - Publish an immutable `StateFlow<RimeUiState>` (composition + candidates +
-     status + options + paging/hasMenu) from the engine.
-   - Delete the 20+ `rime.run { statusCached... }` sites; fixes the
-     unsynchronized cross-thread reads.
+   impact, medium effort) — **DONE**
+   - `RimeApi.uiState: StateFlow<RimeUiState>` + `RimeSession.uiState`;
+     engine updates it atomically in `handleRimeMessage`/`setRuntimeOption`.
+   - Hot-path consumers migrated from `rime.run { statusCached }` (runBlocking)
+     to `rime.uiState.value`: `Key`, `KeyView`, `InputView`,
+     `TrimeInputMethodService`, `KeyboardWindow`, `CommonKeyboardActionListener`,
+     `CandidatesView`, `LiquidWindow`.
+   - Remaining: `KeyAction` (needs item 10), `schemaCached` JNI reads in
+     `KeyboardWindow`/`SwitchOptionWindow` (rare, dialog-time), switch-dialog
+     `getRuntimeOption` calls.
 7. **Fix silent-loss buffering and `runBlocking`** (low impact, low effort)
    - Use a `Channel`/suspending emit or conflation policy for `messageFlow`
      (currently `DROP_OLDEST` with buffer 15 — messages lost under fast typing).
@@ -260,11 +265,19 @@ breaking format change ever happens, it can be handled ad-hoc.)
      validation** — fixes the silent-drop gap; **retire `import_preset`** and
      migrate its usages to `__include`.
 10. **Separate parsing from interpretation in `KeyAction`** (high impact,
-    medium effort)
-    - Extract a pure `ActionDefinitionParser` (token → parsed model) and sealed
-      `Action` types (Commit, Text, KeyCode, Command, Toggle, Select...).
-    - `KeyAction` becomes a thin runtime wrapper; `getLabel/getText` become pure
-      functions of (action, keyboard, status snapshot) with no hidden globals.
+    medium effort) — **10a DONE, 10b in progress**
+    - `KeyActionDefinition` (pure immutable model) + `KeyActionDefinition.parse`
+      replaces the init-block parsing; `KeyAction` is now a thin wrapper that
+      takes the definition. `KeyActionManager` passes `presetKeys` explicitly
+      (no `ThemeManager.activeTheme` hidden global).
+    - `getLabel/getText/getPreview/isShiftLock` now take a `RimeUiState`
+      snapshot; the `RimeDaemon.getFirstSessionOrNull()!!` global is gone from
+      `KeyAction`. **DONE**
+    - **10b DONE**: sealed `KeyActionCommand` type replaces the stringly-typed
+      `when (action.command)` dispatch; unknown commands fall back to the
+      intent handler. (The `_keyboard_`/`_key_` runtime-option prefix matching
+      in KeyboardWindow stays — it's an engine option protocol, not a theme
+      definition.)
 11. **Typed commands instead of strings** (medium impact, low-medium effort)
     - Replace the `when (action.command)` string dispatch with a sealed
       `Command` type; replace `"_keyboard_"`/`"_key_"` prefix matching with typed
@@ -283,10 +296,13 @@ breaking format change ever happens, it can be handled ad-hoc.)
       file(s). Keep the alphabet heuristic as a fallback for unbound schemas.
     - This is what makes tier 3 (schema layouts) work as designed.
 13. **Extract keyboard-switch policy from `KeyboardWindow`** (low-medium impact,
-    low effort)
-    - `smartMatchKeyboard`/`evalKeyboard`/ascii-mode policy is IME logic reading
-      engine state — move to a `KeyboardSwitcher` service; the window only
-      renders.
+    low effort) — **DONE**
+    - New DI-bound `KeyboardSwitcher` owns target resolution
+      (`.default`/`.next`/`.ascii`/...), schema smart-match, ascii-mode sync,
+      the `Keyboard` model cache, and switch state. `KeyboardWindow` only
+      renders (views, height flow, caps dispatch, broadcast handling). The
+      deprecated global became `KeyboardSwitcherLegacy` (view-level bridge,
+      deleted with item 10).
 14. **Validator + reference docs** (medium impact, medium effort)
     - Build the **validator** (D2): checks a custom layout/theme against the
       standard catalog — unknown standard references, malformed key actions,
@@ -331,6 +347,9 @@ breaking format change ever happens, it can be handled ad-hoc.)
 
 - **Do first** (Phase 0): items 1-3 — pure internal refactor, no behavior
   change, unblocks everything else.
+- **Phase 0.5 (tests)**: add the pure-JVM test batch from §6 right after Phase
+  0/1 — it locks in the engine boundary refactor while the code is fresh, and
+  every later Phase 2/3 change adds tests alongside.
 - **Do second** (Phase 1): items 4-7 — makes the engine boundary trustworthy so
   Phase 2/3 can rely on it.
 - **Then** Phase 2 (8-14) and Phase 3 (15-21) can proceed in parallel since
@@ -359,7 +378,72 @@ breaking format change ever happens, it can be handled ad-hoc.)
   inheritance mechanism (`import_preset` retired — migrate its usages, e.g.
   `KeyboardWindow.kt:101-103`).
 
-## 6. Open design questions (for the user)
+## 6. Unit-testing strategy (new)
+
+The codebase currently has **no meaningful unit tests**: only 2 stale files
+(`app/src/test/.../GeneralStyleTest.kt`, `WeakHashSetTest.kt`), the first of
+which references `Theme.decodeByConfigId` and `Rime.startupRime` APIs that no
+longer exist. Test infrastructure *is* configured (JUnit5 platform + Kotest
+runner/assertions in `app/build.gradle.kts`, `testOptions { unitTests { useJUnitPlatform() } }`),
+but nothing runs it.
+
+### Why testing is now possible
+
+The refactor so far deliberately created pure, JVM-testable seams:
+
+- **`core/` is Android-free** — `RimeProto`, `RimeMessage`, `KeyValue`,
+  `KeyModifier`, `RimeUiState`, `InputOptions`, `RimeEnvironment` are plain
+  Kotlin with no `android.*` imports.
+- **`KeyActionDefinition.parse(token, presetKeys)`** is a pure function
+  (no globals, no engine); `KeyActionCommand.fromName` is a pure mapping.
+- **`Theme.decode(Node.Mapping)`** and the `__include` resolver
+  (`resolveKeyboardIncludes`) are pure YAML→model functions.
+- **`KeyboardSwitcher`** takes injected `context/theme/rime/service`; its
+  policy methods (`resolveKeyboard`, `startInputTarget`) are near-pure and
+  could be tested with a fake `RimeSession` (see below).
+
+### Test targets (ranked by value)
+
+1. **`KeyActionDefinition.parse`** — token forms (plain key name, preset-key
+   lookup, `{Control+a}`, key-sequence braces, inline `{commit,text,label}`),
+   fallback label derivation, shift-label computation. Pure; highest value.
+2. **`KeyActionCommand.fromName`** — known commands map to sealed types,
+   unknown names fall back to `Intent`.
+3. **`Theme.decode` + `__include` inheritance** — include resolution, child
+   field override precedence, cycle detection (`Circular __include` error),
+   missing-base fallback, `import_preset` legacy alias.
+4. **`RimeMessage.nativeCreate`** — C++-channel types 1-3 map to
+   Schema/Option/Deploy; out-of-range → `UnknownMessage`.
+5. **`RimeUiState`** — snapshot immutability, derived accessors
+   (`isAsciiMode`, `schemaId`, ...).
+6. **`KeyboardSwitcher.resolveKeyboard`** — symbolic targets
+   (`.default`/`.next`/`.ascii`/`.last_lock`), smart-match by schema alphabet,
+   landscape fallback. Needs a `RimeSession` fake — make
+   `RimeSession`/`RimeApi` testable (they already are interfaces; a stub
+   implementation with a `MutableStateFlow` suffices).
+
+### Test framework decisions
+
+- **Kotest** (already a dependency): `BehaviorSpec`/`StringSpec` style to match
+  the existing files.
+- **No Robolectric** for now — keep tests JVM-pure; Android-dependent behavior
+  stays untested until needed.
+- **No JNI in tests** — never call `Rime.startupRime` etc. from unit tests
+  (the old `GeneralStyleTest` did; that's why it's broken and why the host
+  OOM'd under Gradle). All test targets above avoid the engine.
+- **YAML fixtures**: small inline strings or `src/test/resources` files; avoid
+  the real `trime.yaml` (1716 lines) in tests.
+
+### When
+
+- **Phase 0.5 DONE**: deleted/replaced the stale `GeneralStyleTest`; added tests
+  for targets 1-5 (pure, no engine). These lock in the refactor so far.
+- **During Phase 2/3 items**: add tests alongside each definition/theme change
+  (parse, inheritance, declaration validation).
+- **Validator (item 14)**: its checks are themselves unit-testable — the
+  validation core should be a pure function over parsed models.
+
+## 7. Open design questions (for the user)
 
 Settled so far:
 

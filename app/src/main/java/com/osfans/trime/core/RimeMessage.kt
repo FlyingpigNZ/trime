@@ -130,18 +130,23 @@ sealed class RimeMessage<T>(
     }
 
     companion object {
-        private val types = MessageType.entries.toTypedArray()
-
+        /**
+         * Thin adapter for the C++ notification channel (`rime_jni.cc`).
+         *
+         * Only types 0-3 are sent from native code: unknown / schema / option /
+         * deploy. Kotlin-internal emission must construct the sealed
+         * subclasses directly (see [com.osfans.trime.core.Rime]).
+         */
         @Suppress("UNCHECKED_CAST")
         fun nativeCreate(
             type: Int,
             params: Array<Any>,
-        ) = when (types[type]) {
-            MessageType.Schema -> {
+        ) = when (type) {
+            1 -> {
                 val (id, name) = (params[0] as String).split('/', limit = 2)
                 SchemaMessage(SchemaItem(id, name))
             }
-            MessageType.Option -> {
+            2 -> {
                 val value = params[0] as String
                 OptionMessage(
                     OptionMessage.Data(
@@ -150,36 +155,11 @@ sealed class RimeMessage<T>(
                     ),
                 )
             }
-            MessageType.Deploy ->
+            3 ->
                 DeployMessage(
                     DeployMessage.State.valueOf((params[0] as String).replaceFirstChar { it.titlecase() }),
                 )
-            MessageType.Commit ->
-                CommitTextMessage(params[0] as CommitProto)
-            MessageType.InlinePreedit ->
-                InlinePreeditMessage(params[0] as String)
-            MessageType.Composition ->
-                CompositionMessage(params[0] as CompositionProto)
-            MessageType.Menu ->
-                PagedCandidatesMessage(params[0] as Candidates.Paged)
-            MessageType.Status ->
-                StatusMessage(params[0] as StatusProto)
-            MessageType.Candidate ->
-                BulkCandidatesMessage(params[0] as Candidates.Bulk)
-            MessageType.Key ->
-                KeyMessage(
-                    KeyMessage.Data(
-                        KeyValue(params[0] as Int),
-                        KeyModifiers.of(params[1] as Int),
-                        params[2] as Boolean,
-                    ),
-                )
             else -> UnknownMessage(params)
         }
-
-        fun create(
-            type: MessageType,
-            params: Array<Any>,
-        ) = nativeCreate(type.ordinal, params)
     }
 }

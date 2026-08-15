@@ -10,6 +10,7 @@ import android.graphics.Point
 import android.os.Build
 import android.view.KeyEvent
 import android.view.WindowInsets
+import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.TextKeyboard
@@ -26,6 +27,7 @@ class Keyboard(
     private val context: Context,
     private val theme: Theme,
     selfConfig: TextKeyboard? = null,
+    private val rime: RimeSession,
 ) {
 
     /** 按鍵默認水平間距  */
@@ -299,7 +301,7 @@ class Keyboard(
                     continue
                 }
 
-                val key = Key(this, textKey)
+                val key = Key(this, textKey, rime)
 
                 key.keyTextOffsetX = firstNonZero(textKey.keyTextOffsetX, selfConfig.keyTextOffsetX, theme.generalStyle.keyTextOffsetX)
                 key.keyTextOffsetY = firstNonZero(textKey.keyTextOffsetY, selfConfig.keyTextOffsetY, theme.generalStyle.keyTextOffsetY)

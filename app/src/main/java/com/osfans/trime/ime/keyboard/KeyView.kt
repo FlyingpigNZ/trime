@@ -16,10 +16,11 @@ import android.graphics.drawable.GradientDrawable
 import android.view.KeyEvent
 import com.mikepenz.iconics.IconicsDrawable
 import com.mikepenz.iconics.utils.sizeDp
-import com.osfans.trime.daemon.RimeDaemon
+import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
+import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.popup.PopupAction
 import com.osfans.trime.ime.popup.PopupDelegate
@@ -34,6 +35,7 @@ class KeyView(
     private val keyboard: Keyboard,
     private val keyboardView: KeyboardView,
     private val keyboardActionListener: KeyboardActionListener,
+    private val rime: RimeSession,
 ) : GestureFrame(context) {
 
     private val service: TrimeInputMethodService
@@ -41,8 +43,6 @@ class KeyView(
 
     private val popup: PopupDelegate
         get() = keyboardView.popup
-
-    private val rime get() = RimeDaemon.getFirstSessionOrNull()!!
 
     private val hookShiftArrow: Boolean by lazy {
         AppPrefs.defaultInstance().keyboard.hookShiftArrow.getValue()
@@ -102,7 +102,7 @@ class KeyView(
                     val triggerAction = PopupAction.TriggerAction(id)
                     popup.listener.onPopupAction(triggerAction)
                     triggerAction.outAction?.let { action ->
-                        keyboardActionListener.onAction(KeyAction(action))
+                        keyboardActionListener.onAction(KeyAction(action, ThemeManager.activeTheme.presetKeys))
                         dismissPopupPreview()
                     }
                     setPressedState(false)
@@ -137,8 +137,8 @@ class KeyView(
         onSlide = { delta, _, _ ->
             if (isSlideCursor) {
                 when {
-                    delta > 0 -> keyboardActionListener?.onAction(KeyAction("Right"))
-                    delta < 0 -> keyboardActionListener?.onAction(KeyAction("Left"))
+                    delta > 0 -> keyboardActionListener?.onAction(KeyAction("Right", ThemeManager.activeTheme.presetKeys))
+                    delta < 0 -> keyboardActionListener?.onAction(KeyAction("Left", ThemeManager.activeTheme.presetKeys))
                 }
             } else if (isSlideDelete) {
                 val ic = service.currentInputConnection
@@ -203,7 +203,7 @@ class KeyView(
 
         if (action.isModifierKey) {
             keyboard.clickModifierKey(
-                action.isShiftLock xor (behavior == KeyBehavior.LONG_CLICK),
+                action.isShiftLock(rime.uiState.value) xor (behavior == KeyBehavior.LONG_CLICK),
                 action.modifierKeyOnMask,
             )
             keyboardView.invalidateAllKeys()
@@ -379,8 +379,9 @@ class KeyView(
     }
 
     private fun drawSymbol(canvas: Canvas, text: String, isTop: Boolean = true) {
-        val showSymbol = rime.run { !getRuntimeOption("_hide_key_symbol") }
-        val showHint = rime.run { !getRuntimeOption("_hide_key_hint") }
+        val options = rime.uiState.value.options
+        val showSymbol = !(options["_hide_key_symbol"] ?: false)
+        val showHint = !(options["_hide_key_hint"] ?: false)
 
         if (isTop && !showSymbol) return
         if (!isTop && !showHint) return

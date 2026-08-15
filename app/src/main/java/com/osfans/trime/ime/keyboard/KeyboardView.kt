@@ -10,6 +10,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.widget.FrameLayout
 import androidx.core.view.children
+import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.broadcast.EnterKeyDisplayDelegate
@@ -26,6 +27,7 @@ class KeyboardView(
     val service: TrimeInputMethodService,
     private val keyboardActionListener: KeyboardActionListener,
     private val enterKeyDisplay: EnterKeyDisplayDelegate,
+    private val rime: RimeSession,
 ) : FrameLayout(context) {
 
     private val keys get() = keyboard.keys
@@ -51,7 +53,7 @@ class KeyboardView(
         }
     }
 
-    private fun createKeyView(index: Int, key: Key): KeyView = KeyView(context, key = key, keyboard = keyboard, keyboardView = this, keyboardActionListener = keyboardActionListener).apply {
+    private fun createKeyView(index: Int, key: Key): KeyView = KeyView(context, key = key, keyboard = keyboard, keyboardView = this, keyboardActionListener = keyboardActionListener, rime = rime).apply {
         id = index
 
         val totalWidth = key.width + key.extraWidthLeft + key.extraWidthRight

@@ -37,6 +37,60 @@ easy to use — by splitting themes into a composable three-tier model.
 4. Wrote `doc/refactor-plan.md` — the full 21-item phased plan, three-tier
    composable definition model, and all design decisions.
 5. This handoff file.
+6. **Implementation sessions**: Phase 0 (core/ Android-free + typed protocol),
+   Phase 1 (daemon split, DI injection, RimeUiState, message flow), Phase 2
+   items 10-13 (KeyAction split + typed commands, `__include` inheritance,
+   KeyboardSwitcher). See §7 for the full commit list and remaining work.
+7. **Unit-testing strategy** added to plan §6 (was: no tests existed).
+8. **Plugin install ATTEMPTED (NOT completed — see §5)**: `dsh-routing-suite`
+   (injector + router-standard preset). Blocked by sandbox read-only `~/.dsh`;
+   the escalation was rejected. Ready to finish in the next session.
+9. **Phase 0.5 DONE**: replaced the stale `GeneralStyleTest` and added a pure
+   JVM Kotest batch (`KeyActionDefinition.parse`, `KeyActionCommand.fromName`,
+   `Theme.decode` + `__include`, `RimeMessage.nativeCreate`, `RimeUiState`).
+   To make `KeyActionDefinition.parse` JVM-testable, introduced
+   `KeyLabelProvider` (Android + pure ASCII provider) and made `KeyCode`
+   prefer the generated Rime mapping before the Android fallback. Targeted
+   `testDebugUnitTest` passes (21 tests).
+
+---
+
+## 8. Plugin install: dsh-routing-suite (pending)
+
+The user asked to install https://github.com/yjh051108/dsh-routing-suite
+(an "injector × reasoning-mode router" kit for DSH: runtime injector +
+task-aware router presets). **Not completed** — blocked by the sandbox:
+`~/.dsh` is read-only in workspace mode, and the user rejected the
+`danger-full-access` escalation for `dsh plugin --profile web add`.
+
+State on disk (in the workspace, all untracked):
+- `./.dsh-routing-suite/` — cloned with all 3 submodules
+  (injector@v0.3.3, preset/router-standard@v0.3.0, mode-boost@v0.1.0)
+- `./.npm-global/` + `./.npm-cache/` — local pnpm install
+  (`~/.npm` cache and home prefix are read-only; pnpm lives at
+  `.npm-global/bin/pnpm`)
+
+To finish (next session, needs user approval for `~/.dsh` writes, or run from
+the user's own shell):
+
+```bash
+# 1. injector (official assembly path)
+PATH="/home/jin/Sources/my_projects/trime/.npm-global/bin:$PATH" \
+  dsh plugin --profile web add /home/jin/Sources/my_projects/trime/.dsh-routing-suite/injector
+
+# 2. router-standard preset (user-level roster)
+mkdir -p ~/.dsh/.agent-presets
+cp -r .dsh-routing-suite/preset/preset/router-standard ~/.dsh/.agent-presets/router-standard
+# (also: router-spec is available; mode-boost is a third component)
+
+# 3. restart DSH → new session picks Router Standard (experimental)
+```
+
+Notes: `dsh plugin --profile web add <dir>` needs pnpm on PATH (step uses the
+local one). The preset loader caches ESM by URL — do NOT overwrite an
+installed preset in place; use fresh names. The user ALSO wants to change the
+agent preset (likely to router-standard / router-spec) — that happens once
+the preset lands in `~/.dsh/.agent-presets/`.
 
 ---
 
@@ -186,6 +240,28 @@ at load. Definition-layer change only — no UI rewrite.
   fails again: use a workspace-local credential helper + `-c
   credential.helper=` to clear the broken store helper. NOTE: a past helper
   bug — `${cred#*:}` grabs `//FlyingpigNZ:...`; must strip `https://` first.
+- **HOST OOM (end of session 2)**: a Gradle run in this sandbox OOM'd the whole
+  host machine (not a cgroup limit — the host itself ran out of memory, ~93GB
+  total). Trigger: `testDebugUnitTest`/`compileDebugUnitTestKotlin` with
+  `-Xmx4096M` daemon heap + in-process Kotlin compiler + forked test JVM +
+  re-unpacking Gradle 9.5.1 after `/tmp` was cleared (caches vanished).
+  Recovery: `pkill -f gradle`; host returned to 89GB free. **Avoid long Gradle
+  runs in this sandbox — prefer the user's own machine for builds/tests.**
+  If a Gradle run is unavoidable: `/tmp` is wiped between shell commands, so use
+  a workspace-persistent home: `GRADLE_USER_HOME=$PWD/.gradle-test-home
+  ./gradlew ...`, then delete that directory afterwards (it is untracked).
+  Expect the first run to download Gradle 9.5.1 + dependencies; later runs are
+  fast. Be ready to kill the daemon (`pkill -f gradle`).
+- **No meaningful unit tests existed** (2 stale files: `GeneralStyleTest.kt`
+  references `Theme.decodeByConfigId` + `Rime.startupRime`, both gone;
+  `WeakHashSetTest.kt` ok). JUnit5 + Kotest infra IS configured
+  (`app/build.gradle.kts` `testOptions { unitTests { useJUnitPlatform() } }`).
+  New testing strategy in plan §6: pure JVM targets only (`KeyActionDefinition
+  .parse`, `KeyActionCommand.fromName`, `Theme.decode` + `__include`,
+  `RimeMessage.nativeCreate`, `RimeUiState`, `KeyboardSwitcher.resolveKeyboard`
+  with a fake session) — **no JNI, no Robolectric, no `Rime.startupRime` in
+  tests** (the old test did exactly that and is why it broke). Start with a
+  "Phase 0.5" test batch locking in the refactor so far.
 - Working tree currently has: modified submodule `OpenCC` (M), dirty
   `librime-lua-deps` (m, pre-existing local deletions of lua5.3 files — do NOT
   touch/commit), untracked `app/release/`, `app/src/main/assets/prelude/`,
@@ -227,13 +303,73 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
 2. Verify branch: `git branch --show-current` should be
    `refactor/untangle-ime-engine`; if not, `git checkout
    refactor/untangle-ime-engine`.
-3. Current state: analysis + plan COMPLETE. No implementation started yet.
-4. Next step (awaiting user choice when this session ended):
-   - (a) start Phase 0 item 1 (type message protocol) — recommended first
-   - (b) start Phase 2 item 8 (tier split) — the user's core ask
-   - (c) prototype the standard catalog YAML files (extract from
-     trime.yaml/tongwenfeng.trime.yaml) as a reviewable proposal
-   - (d) user may raise something else
-5. Commit docs to the branch so they survive: `git add doc/refactor-plan.md
-   doc/refactor-handoff.md && git commit -m "docs: refactor plan and session
-   handoff"` (or leave uncommitted — user preference; currently uncommitted).
+3. Current state (end of implementation session 3):
+   - **Phase 0 DONE**: core/ Android-free (Rime takes injected
+     InputOptions/RimeEnvironment/hooks), typed message protocol
+     (emitMessage + sealed RimeMessage; nativeCreate = C++ adapter 1-3).
+   - **Phase 1 DONE**: DeployNotifier split (4); getFirstSessionOrNull()!!
+     removed from views (5); RimeUiState StateFlow + hot-path migration (6);
+     messageFlow on RimeSession + buffer 64 (7).
+   - **Phase 0.5 DONE**: pure-JVM test batch added (see §1 item 9); targeted
+     `testDebugUnitTest` passes.
+   - **Phase 2 partial**: item 8 (tier split) NOT started; 9 (declaration
+     mechanism) NOT started; 10 DONE (KeyActionDefinition + parse split,
+     interpretation takes RimeUiState snapshot, sealed KeyActionCommand
+     dispatch); 11+12 DONE (import_preset flattened, __include inheritance at
+     parse time with cycle detection); 13 DONE (KeyboardSwitcher extracted,
+     KeyboardWindow renders only); 14 (validator) NOT started.
+   - **Phase 3 NOT started** (decoration system, items 15-21).
+   - Commits on this branch: f0ebd2b9 (Phase 0.5 tests) -> 75d13157 (docs) ->
+     15f42b24 (10b) -> 8c05f7de (10a) -> b8114d2e (13) -> f94324d2 (7/11/12)
+     -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) -> f5503f1e (Phase 0) ->
+     d5c46822 (docs).
+4. Next step options:
+   - (a) **Phase 2 item 8 (theme tier split)** — the user's core ask, biggest
+     remaining piece; recommended next (item 8 must precede 9/12/14)
+   - (b) Phase 2 item 9 (declaration/validation mechanism) — can start once 8
+     defines the catalog format
+   - (c) Phase 2 item 14 (validator) — medium effort
+   - (d) Phase 3 (decoration system)
+   - (e) user may raise something else
+5. Build gotcha: home dir is read-only in this sandbox, and `/tmp` is wiped
+   between shell commands. For repeated Gradle runs use a workspace-writable
+   user home, e.g. `GRADLE_USER_HOME=$PWD/.gradle-test-home ./gradlew ...`,
+   then delete that directory when done (it is untracked). If incremental
+   compile errors look stale, add `--rerun-tasks`. **CAUTION: Gradle runs
+   OOM'd the host machine at the end of session 2 — prefer compiling/tests on
+   the user's own machine; if you must run Gradle here, kill the daemon
+   afterward (`pkill -f gradle`).**
+
+---
+
+## 9. Test coverage goal & Android integration testing (open)
+
+The Phase 0.5 batch locks in the first pure-JVM seams, but it is not full
+project coverage. Goal: as the refactor proceeds, add pure-JVM unit tests for
+every non-Android seam we touch:
+
+- `core/` protocol/state types (done: `RimeMessage`, `RimeUiState`; extend to
+  `RimeProto`/`RimeResponse`/`KeyValue` as needed).
+- `data/theme/` decode + inheritance (done: `GeneralStyle`, `Theme` +
+  `__include`; extend to `TextKeyboard`/`TextKey`, `PresetKey`,
+  `LiquidKeyboard`, `ToolBar`/`Window`/`Preedit`).
+- `ime/keyboard/` definitions and policy (done: `KeyActionDefinition`,
+  `KeyActionCommand`; next: `KeyboardSwitcher.resolveKeyboard` with a fake
+  `RimeSession`, `KeyBehavior`, `KeyCode` mapping).
+- Validator core (Phase 2 item 14) must be pure and unit-tested.
+- Any new `ThemeResolver`/catalog parser must be pure and unit-tested.
+
+**Android integration testing is a separate track.** The project has
+`androidTestImplementation(libs.junit)` but no instrumentation tests yet. Local
+unit tests (`testDebugUnitTest`) deliberately avoid JNI/Robolectric. Real
+integration tests (IME lifecycle, view rendering, Rime JNI round-trips) need an
+Android emulator/device and can be run with:
+
+```bash
+./gradlew :app:connectedDebugAndroidTest
+```
+
+or from Android Studio. Those runs need the native librime build and are not
+practical inside this sandbox. We can add a small instrumentation smoke test
+later (e.g. service starts, theme loads) and document how the user runs it on
+their machine/CI.

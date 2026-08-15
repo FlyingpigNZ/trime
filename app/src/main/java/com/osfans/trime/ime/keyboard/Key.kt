@@ -7,7 +7,7 @@ package com.osfans.trime.ime.keyboard
 import android.graphics.drawable.Drawable
 import android.view.KeyEvent
 import androidx.annotation.ColorInt
-import com.osfans.trime.daemon.RimeDaemon
+import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.model.TextKeyboard
@@ -17,8 +17,8 @@ import splitties.bitflags.hasFlag
 class Key(
     private val parent: Keyboard,
     private val selfConfig: TextKeyboard.TextKey? = null,
+    private val rime: RimeSession,
 ) {
-    private val rime get() = RimeDaemon.getFirstSessionOrNull()!!
 
     var index: Int = -1
 
@@ -219,11 +219,11 @@ class Key(
     fun getAction(behavior: KeyBehavior): KeyAction? = keyActions[behavior]?.takeIf { behavior != KeyBehavior.CLICK } ?: checkKeyAction(sendBindings) ?: click
 
     private fun checkKeyAction(): KeyAction? {
-        val rime = rime
-        val asciiMode = rime.run { statusCached }.isAsciiMode
-        val paging = rime.run { paging }
-        val hasMenu = rime.run { hasMenu }
-        val composing = rime.run { statusCached }.isComposing
+        val ui = rime.uiState.value
+        val asciiMode = ui.isAsciiMode
+        val paging = ui.paging
+        val hasMenu = ui.hasMenu
+        val composing = ui.isComposing
         return keyActions[KeyBehavior.ASCII].takeIf { asciiMode }
             ?: keyActions[KeyBehavior.PAGING]?.takeIf { paging }
             ?: keyActions[KeyBehavior.HAS_MENU]?.takeIf { hasMenu }
@@ -241,17 +241,17 @@ class Key(
         label.isNotEmpty() &&
             keyAction == click &&
             !keyActions.containsKey(KeyBehavior.ASCII) &&
-            !rime.run { statusCached }.let { it.isAsciiMode || it.isAsciiPunct } -> label
-        else -> keyAction!!.getLabel(parent) // 中文狀態顯示標籤
+            !rime.uiState.value.status.let { it.isAsciiMode || it.isAsciiPunct } -> label
+        else -> keyAction!!.getLabel(parent, rime.uiState.value) // 中文狀態顯示標籤
     }
 
     fun getPreviewText(behavior: KeyBehavior): String = when (behavior) {
-        KeyBehavior.CLICK -> keyAction!!.getPreview(parent)
-        else -> getAction(behavior)!!.getPreview(parent)
+        KeyBehavior.CLICK -> keyAction!!.getPreview(parent, rime.uiState.value)
+        else -> getAction(behavior)!!.getPreview(parent, rime.uiState.value)
     }
 
     val symbolLabel: String
-        get() = labelSymbol.ifEmpty { longClick?.getLabel(parent) ?: "" }
+        get() = labelSymbol.ifEmpty { longClick?.getLabel(parent, rime.uiState.value) ?: "" }
 
     private val appearanceType: Int
         get() {

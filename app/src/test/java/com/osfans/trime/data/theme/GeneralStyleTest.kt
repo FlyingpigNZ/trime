@@ -1,64 +1,50 @@
-// SPDX-FileCopyrightText: 2015 - 2024 Rime community
+// SPDX-FileCopyrightText: 2015 - 2026 Rime community
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 package com.osfans.trime.data.theme
 
-import com.osfans.trime.BuildConfig
-import com.osfans.trime.core.Rime
 import com.osfans.trime.data.theme.model.GeneralStyle
-import io.kotest.core.spec.style.BehaviorSpec
+import com.osfans.trime.util.yaml.Node
+import com.osfans.trime.util.yaml.Yaml
+import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
-import java.io.File
 
 class GeneralStyleTest :
-    BehaviorSpec({
-        Given("Correct trime.yaml") {
-            val dir = File("src/test/assets")
-            Rime.startupRime(
-                dir.absolutePath,
-                dir.absolutePath,
-                BuildConfig.BUILD_VERSION_NAME,
-                false,
-            )
+    StringSpec({
+        "decode applies defaults for empty style" {
+            val style = decode("{}")
 
-            When("loaded") {
-                val generalStyle = Theme.decodeByConfigId("trime").generalStyle
-
-                Then("it should not be null") {
-                    generalStyle shouldNotBe null
-                    generalStyle.autoCaps shouldBe "false"
-
-                    generalStyle.candidateFont shouldBe listOf("han.ttf")
-                }
-            }
-
-            Rime.exitRime()
+            style.autoCaps shouldBe false
+            style.candidateBorder shouldBe 0
+            style.candidateFont shouldBe emptyList()
+            style.commentPosition shouldBe GeneralStyle.CommentPosition.RIGHT
+            style.enterLabel.go shouldBe "go"
         }
 
-        Given("Empty trime.yaml") {
-            val dir = File("src/test/assets")
-            Rime.startupRime(
-                dir.absolutePath,
-                dir.absolutePath,
-                BuildConfig.BUILD_VERSION_NAME,
-                false,
-            )
+        "decode reads explicit style fields" {
+            val style =
+                decode(
+                    """
+                    auto_caps: true
+                    candidate_border: 3
+                    candidate_font: [han.ttf, comment.ttf]
+                    comment_position: top
+                    enter_labels:
+                      go: 前往
+                    """.trimIndent(),
+                )
 
-            When("loaded") {
-                val generalStyle = Theme.decodeByConfigId("incorrect").generalStyle
-
-                Then("with default value without exception") {
-                    generalStyle.autoCaps shouldBe ""
-                    generalStyle.candidateBorder shouldBe 0
-                    generalStyle.candidateFont shouldBe emptyList()
-                    generalStyle.commentPosition shouldBe GeneralStyle.CommentPosition.RIGHT
-                    generalStyle.enterLabel shouldNotBe null
-                    generalStyle.enterLabel.go shouldBe "go"
-                }
-            }
-
-            Rime.exitRime()
+            style.autoCaps shouldBe true
+            style.candidateBorder shouldBe 3
+            style.candidateFont shouldBe listOf("han.ttf", "comment.ttf")
+            style.commentPosition shouldBe GeneralStyle.CommentPosition.TOP
+            style.enterLabel.go shouldBe "前往"
         }
     })
+
+private fun decode(yaml: String): GeneralStyle {
+    val node = Yaml.Default.parseToYamlNode(yaml)
+    require(node is Node.Mapping) { "expected a YAML mapping" }
+    return GeneralStyle.decode(node)
+}

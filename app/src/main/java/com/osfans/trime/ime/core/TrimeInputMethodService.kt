@@ -34,8 +34,6 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
-import com.osfans.trime.core.KeyModifiers
-import com.osfans.trime.core.KeyValue
 import com.osfans.trime.core.RimeApi
 import com.osfans.trime.core.RimeKeyMapping
 import com.osfans.trime.core.RimeMessage
@@ -173,7 +171,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             jobs.consumeEach { it.join() }
         }
         lifecycleScope.launch {
-            rime.run { messageFlow }.collect {
+            rime.messageFlow.collect {
                 handleRimeMessage(it)
             }
         }
@@ -219,7 +217,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                                     // recognized keyCode
                                     sendDownUpKeyEvent(
                                         keyCode,
-                                        it.modifiers.metaState or meta(
+                                        it.modifiers.toMetaState() or meta(
                                             alt = it.modifiers.alt,
                                             shift = it.modifiers.shift,
                                             ctrl = it.modifiers.ctrl,
@@ -244,9 +242,9 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                             // recognized keyCode
                             val eventTime = SystemClock.uptimeMillis()
                             if (it.modifiers.release) {
-                                sendUpKeyEvent(eventTime, keyCode, it.modifiers.metaState)
+                                sendUpKeyEvent(eventTime, keyCode, it.modifiers.toMetaState())
                             } else {
-                                sendDownKeyEvent(eventTime, keyCode, it.modifiers.metaState)
+                                sendDownKeyEvent(eventTime, keyCode, it.modifiers.toMetaState())
                             }
                         } else {
                             if (!it.modifiers.release && it.value.value > 0) {
@@ -709,9 +707,9 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun forwardKeyEvent(event: KeyEvent): Boolean {
-        val keyVal = KeyValue.fromKeyEvent(event)
+        val keyVal = event.toKeyValue()
         if (keyVal.value != RimeKeyMapping.RimeKey_VoidSymbol) {
-            val modifiers = KeyModifiers.fromKeyEvent(event)
+            val modifiers = event.toKeyModifiers()
             postRimeJob {
                 processKey(keyVal, modifiers, isVirtual = false)
             }
@@ -930,7 +928,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     }
 
     fun getActiveText(type: Int): String {
-        val rimeComposition = rime.run { compositionCached }
+        val rimeComposition = rime.uiState.value.composition
         val selected = currentInputConnection?.getSelectedText(0)?.toString()
         val commitPreview = rimeComposition.commitTextPreview
         val preedit = rimeComposition.preedit ?: ""

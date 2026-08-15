@@ -481,3 +481,8 @@ app/src/main/jni/boost/
 # kotlin
 .kotlin
 
+
+# local tooling (plugin install helpers, sandbox-only)
+.npm-global/
+.npm-cache/
+.dsh-routing-suite/
