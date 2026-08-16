@@ -136,4 +136,14 @@ object ThemeManager {
         activeTheme = theme
         prefs.selectedTheme.setValue(resolvedTheme.configId)
     }
+
+    /** Merge an installed schema-layout package onto the active theme. */
+    fun applySchemaLayout(layout: Theme) {
+        val theme = activeTheme.mergeSchemaLayout(layout)
+        KeyActionManager.resetCache()
+        FontManager.resetCache(theme)
+        ColorManager.switchTheme(theme)
+        LiquidData.init(theme)
+        activeTheme = theme
+    }
 }

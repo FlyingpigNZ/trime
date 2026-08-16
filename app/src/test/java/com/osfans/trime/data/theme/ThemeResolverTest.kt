@@ -193,6 +193,56 @@ class ThemeResolverTest :
             theme.colorSchemes.map { it.id } shouldContain "default"
         }
 
+        "decoded layout theme merges onto active theme" {
+            val base = ThemeResolver.resolve(mapping("name: base\nstyle: {}"), standardCatalog())
+            val layout =
+                ThemeResolver.resolve(
+                    mapping(
+                        """
+                        name: layout
+                        style: {}
+                        preset_keyboards:
+                          custom:
+                            name: Custom
+                            columns: 4
+                        """.trimIndent(),
+                    ),
+                    standardCatalog(),
+                )
+
+            val merged = base.mergeSchemaLayout(layout)
+
+            merged.name shouldBe "base"
+            merged.presetKeyboards.keys shouldContain "custom"
+            merged.presetKeyboards.getValue("custom").name shouldBe "Custom"
+        }
+
+        "schema layout fragment merges onto decoration theme" {
+            val decoration =
+                mapping(
+                    """
+                    name: decoration
+                    style: {}
+                    """.trimIndent(),
+                )
+            val layout =
+                mapping(
+                    """
+                    standard_keyboards: [qwerty]
+                    preset_keyboards:
+                      custom:
+                        name: Custom
+                        columns: 4
+                    """.trimIndent(),
+                )
+
+            val theme = ThemeResolver.mergeSchemaLayout(decoration, layout, standardCatalog())
+
+            theme.name shouldBe "decoration"
+            theme.presetKeyboards.keys.toList() shouldContainExactly listOf("qwerty", "custom")
+            theme.presetKeyboards.getValue("custom").name shouldBe "Custom"
+        }
+
         "minimal 14jian layout resolves with shipped standard catalog" {
             val themeNode =
                 mapping(File("../sample_theme_schemas/minimal-14jian/14jian.layout.yaml").readText())

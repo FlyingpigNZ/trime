@@ -20,6 +20,7 @@ import com.osfans.trime.R
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.SchemaLayoutPackageManager
 import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
 import com.osfans.trime.ui.common.withLoadingDialog
@@ -32,6 +33,7 @@ import com.osfans.trime.util.getFileFromUri
 import com.osfans.trime.util.getUriForFile
 import com.osfans.trime.util.toast
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import splitties.dimensions.dp
 import splitties.resources.drawable
@@ -77,6 +79,7 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
 
     private lateinit var browseLauncher: ActivityResultLauncher<Uri?>
     private var launcherResultCallback: ((path: String) -> Unit)? = null
+    private lateinit var packageLauncher: ActivityResultLauncher<String>
 
     private lateinit var editSyncIntervalPreference: EditTextIntPreference
 
@@ -95,6 +98,9 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
                 ) ?: return@registerForActivityResult
             val path = requireContext().getFileFromUri(uri)?.absolutePath ?: return@registerForActivityResult
             launcherResultCallback?.invoke(path)
+        }
+        packageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) installSchemaLayoutPackage(uri)
         }
     }
 
@@ -218,6 +224,12 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
             }
             addCategory(R.string.maintenance) {
                 isIconSpaceReserved = false
+                addPreference(
+                    R.string.install_schema_layout_package,
+                    R.string.install_schema_layout_package_summary,
+                ) {
+                    packageLauncher.launch("application/zip")
+                }
                 addPreference(R.string.reset, R.string.reset_hint) {
                     val items = ctx.assets.list("shared") ?: return@addPreference
                     val checked = BooleanArray(items.size) { false }
@@ -246,6 +258,25 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
                             }
                         }.show()
                 }
+            }
+        }
+    }
+
+    private fun installSchemaLayoutPackage(uri: Uri) {
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            try {
+                val tempFile = File.createTempFile("schema-package-", ".zip", ctx.cacheDir)
+                withContext(Dispatchers.IO) {
+                    ctx.contentResolver.openInputStream(uri)!!.use { input ->
+                        tempFile.outputStream().use { input.copyTo(it) }
+                    }
+                    SchemaLayoutPackageManager.selectPackage(tempFile)
+                }
+                viewModel.rime.launchOnReady { it.deploy() }
+                ctx.toast(R.string.install_schema_layout_package_success)
+            } catch (_: Exception) {
+                ctx.toast(R.string.install_schema_layout_package_failure)
             }
         }
     }

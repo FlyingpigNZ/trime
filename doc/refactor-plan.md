@@ -287,7 +287,12 @@ breaking format change ever happens, it can be handled ad-hoc.)
       `Command` type; replace `"_keyboard_"`/`"_key_"` prefix matching with typed
       option keys; replace the keycode↔name↔Rime-value string round-trip.
 12. **Declared schema↔layout binding** (medium impact, medium effort)
-    — **manifest model + registry + switcher binding DONE; zip unpack TODO**
+    — **DONE**
+    - Manifest model + registry + switcher binding
+    - Zip installer with zip-slip protection
+    - Schema list updater (`default.custom.yaml`)
+    - Package manager: install → Rime deploy → register → merge layout
+    - On-device install action in Profile settings (pick `.zip`)
     - Replace the implicit `smartMatchKeyboard` naming convention with an
       explicit declaration. **Pair the schema with its custom layouts** (per
       the user's decision): the Rime schema and its keyboard layouts travel
@@ -299,6 +304,13 @@ breaking format change ever happens, it can be handled ad-hoc.)
       keyboard, `resources` for images/backgrounds) + `SchemaLayoutRegistry`;
       `KeyboardSwitcher` consults the registry instead of the alphabet
       heuristic.
+    - Install flow: `SchemaLayoutPackageInstaller` unpacks the zip;
+      `SchemaListUpdater` adds the schema to `default.custom.yaml` as the
+      default input method; `SchemaLayoutPackageManager` orchestrates install +
+      Rime deploy + registry registration.
+    - Layout merge: `ThemeResolver.mergeSchemaLayout` merges a package layout
+      fragment onto the decoration theme, combining standard references with
+      package-local custom keyboards/colors.
     - **Delivery: package the pair** — schema + its layouts are shipped
       together as an archive (e.g. a zip: schema file + layout file(s) +
       metadata/manifest). The app unpacks it, compiles the schema through Rime,

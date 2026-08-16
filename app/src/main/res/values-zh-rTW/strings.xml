@@ -120,6 +120,10 @@
     <string name="virtual_keyboard">虛擬鍵盤</string>
     <string name="storage">儲存</string>
     <string name="maintenance">維護</string>
+    <string name="install_schema_layout_package">安裝方案鍵盤佈局包</string>
+    <string name="install_schema_layout_package_summary">安裝包含 Rime 方案、佈局和可選資源的 .zip 檔案</string>
+    <string name="install_schema_layout_package_success">方案鍵盤佈局包安裝成功</string>
+    <string name="install_schema_layout_package_failure">方案鍵盤佈局包安裝失敗</string>
     <string name="loading">正在載入</string>
     <string name="success">成功</string>
     <string name="failure">失敗</string>

@@ -21,10 +21,39 @@ import com.osfans.trime.util.yaml.string
  * entries, so legacy monolithic themes keep working without declarations.
  */
 object ThemeResolver {
+    private val schemaLayoutKeys =
+        listOf(
+            "use_standard_preset_keys",
+            "standard_keyboards",
+            "standard_color_schemes",
+            "preset_keys",
+            "preset_keyboards",
+            "preset_color_schemes",
+        )
+
     fun resolve(
         theme: Node.Mapping,
         standard: StandardCatalog,
     ): Theme = Theme.decode(merge(theme, standard))
+
+    /**
+     * Merge a tier-3 schema layout fragment on top of a decoration theme.
+     *
+     * The layout can reference standard components by name and/or define custom
+     * preset keys/keyboards/color schemes inside the package. The decoration
+     * theme still supplies `name`/`style` and other chrome.
+     */
+    fun mergeSchemaLayout(
+        theme: Node.Mapping,
+        layout: Node.Mapping,
+        standard: StandardCatalog,
+    ): Theme {
+        val merged = LinkedHashMap<Node, Node>(theme.pairs)
+        schemaLayoutKeys.forEach { key ->
+            layout[key]?.let { merged[Node.Scalar(key)] = it }
+        }
+        return resolve(Node.Mapping(merged), standard)
+    }
 
     fun merge(
         theme: Node.Mapping,

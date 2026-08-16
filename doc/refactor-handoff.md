@@ -72,7 +72,13 @@ easy to use — by splitting themes into a composable three-tier model.
     for background images), and `KeyboardSwitcher` now consults the registry for
     explicit schema→default-keyboard bindings. The legacy alphabet heuristic
     was removed: unbound schemas use the theme's explicit default keyboard.
-    Full item 12 zip unpack/register plumbing is still TODO.
+    Item 12 is now DONE: `SchemaLayoutPackageInstaller` unpacks zips (with
+    zip-slip protection), `SchemaListUpdater` adds the new schema to
+    `default.custom.yaml` as the default input method,
+    `SchemaLayoutPackageManager` orchestrates install + Rime deploy +
+    registration, `ThemeResolver.mergeSchemaLayout`/`Theme.mergeSchemaLayout`
+    merge package layouts onto the active theme, and Profile settings has an
+    on-device "Install schema layout package" action.
 13. **Phase 3 item 19 DONE**: color schemes are now self-contained light/dark
     pairs (`light:`/`dark:` blocks). Legacy flat schemes still work and use
     their light palette as the dark fallback. `ColorManager`'s 4-branch
@@ -354,20 +360,21 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      `import_preset` retired); 10 DONE (KeyActionDefinition + parse split,
      interpretation takes RimeUiState snapshot, sealed KeyActionCommand
      dispatch); 11+12 DONE (import_preset flattened, __include inheritance at
-     parse time with cycle detection); 12 partial (manifest model + registry +
-     KeyboardSwitcher explicit binding done; zip unpack/register TODO); 13 DONE
-     (KeyboardSwitcher extracted, KeyboardWindow renders only); 14 (validator)
-     NOT started.
+     parse time with cycle detection); 12 DONE (schema-layout package install
+     flow + UI action + layout merge); 13 DONE (KeyboardSwitcher extracted,
+     KeyboardWindow renders only); 14 (validator) NOT started.
    - **Phase 3 partial**: item 18 DONE (unified fallback tables); item 19 DONE
      (self-contained light/dark pairs); 15-17, 20, 21 NOT started.
-   - Commits on this branch: d0681490 (item 18 fallback tables) -> fa14cf80
-     (standard color migration TODO) -> 35117fba (item 19 dark pairs) ->
-     d7d1aac3 (keep Gradle temp) -> 835618ce (drop alphabet heuristic) ->
-     37fb3ded (item 12 manifest/binding) -> a7d0a174 (schema-tier reference) ->
-     5cddcb88 (item 9) -> dc03bbed (item 8 core) -> f0ebd2b9 (Phase 0.5 tests)
-     -> 75d13157 (docs) -> 15f42b24 (10b) -> 8c05f7de (10a) -> b8114d2e (13)
-     -> f94324d2 (7/11/12) -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) ->
-     f5503f1e (Phase 0) -> d5c46822 (docs).
+   - Commits on this branch: b1786358 (item 12 done) -> 15dd8947 (item 12
+     select flow + layout merge) -> bd71a067 (item 12 zip installer) ->
+     d0681490 (item 18 fallback tables) -> fa14cf80 (standard color migration
+     TODO) -> 35117fba (item 19 dark pairs) -> d7d1aac3 (keep Gradle temp) ->
+     835618ce (drop alphabet heuristic) -> 37fb3ded (item 12 manifest/binding)
+     -> a7d0a174 (schema-tier reference) -> 5cddcb88 (item 9) -> dc03bbed
+     (item 8 core) -> f0ebd2b9 (Phase 0.5 tests) -> 75d13157 (docs) ->
+     15f42b24 (10b) -> 8c05f7de (10a) -> b8114d2e (13) -> f94324d2 (7/11/12)
+     -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) -> f5503f1e (Phase 0) ->
+     d5c46822 (docs).
 4. Next step options:
    - (a) **Phase 2 item 12 (schema↔layout binding + zip delivery)** — completes
      the schema tier deferred by item 8

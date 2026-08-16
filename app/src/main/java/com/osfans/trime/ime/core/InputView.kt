@@ -21,6 +21,7 @@ import com.osfans.trime.core.CompositionProto
 import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.SchemaLayoutPackageManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.bar.InputBarDelegate
@@ -89,7 +90,15 @@ class InputView(
 
     private val updateWindowViewHeightJob: Job
 
-    private val inputDepMgr = InputDependencyManager.initialize(this, themedContext, theme, service, rime)
+    private val inputDepMgr =
+        InputDependencyManager.initialize(
+            this,
+            themedContext,
+            theme,
+            service,
+            rime,
+            SchemaLayoutPackageManager.registry(),
+        )
     private val di = inputDepMgr.di
     private val broadcaster: InputBroadcaster by di.instance()
     private val popup: PopupDelegate by di.instance()

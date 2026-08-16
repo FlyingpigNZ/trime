@@ -116,6 +116,10 @@
     <string name="profile">配置</string>
     <string name="storage">存储</string>
     <string name="maintenance">维护</string>
+    <string name="install_schema_layout_package">安装方案键盘布局包</string>
+    <string name="install_schema_layout_package_summary">安装包含 Rime 方案、布局和可选资源的 .zip 文件</string>
+    <string name="install_schema_layout_package_success">方案键盘布局包安装成功</string>
+    <string name="install_schema_layout_package_failure">方案键盘布局包安装失败</string>
     <string name="loading">正在加载</string>
     <string name="reset">恢复默认设置</string>
     <string name="success">成功</string>

@@ -120,6 +120,10 @@
     <string name="about">About</string>
     <string name="storage">Storage</string>
     <string name="maintenance">Maintenance</string>
+    <string name="install_schema_layout_package">Install schema layout package</string>
+    <string name="install_schema_layout_package_summary">Install a .zip containing a Rime schema, layouts, and optional resources</string>
+    <string name="install_schema_layout_package_success">Schema layout package installed</string>
+    <string name="install_schema_layout_package_failure">Failed to install schema layout package</string>
     <string name="loading">Loading</string>
     <string name="success">success</string>
     <string name="failure">failure</string>

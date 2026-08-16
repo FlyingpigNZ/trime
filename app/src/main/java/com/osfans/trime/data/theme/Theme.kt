@@ -33,6 +33,27 @@ data class Theme(
     val fallbackColors: Map<String, String>,
     val toolBar: ToolBar,
 ) : Parcelable {
+    /**
+     * Merge a schema-layout theme (already resolved against the standard
+     * catalog) on top of this decoration theme. The layout contributes preset
+     * keys/keyboards/color schemes; all chrome stays with the base theme.
+     */
+    fun mergeSchemaLayout(layout: Theme): Theme = copy(
+        presetKeys = presetKeys + layout.presetKeys,
+        presetKeyboards = presetKeyboards + layout.presetKeyboards,
+        colorSchemes = mergeColorSchemes(colorSchemes, layout.colorSchemes),
+    )
+
+    private fun mergeColorSchemes(
+        base: List<ColorScheme>,
+        overlay: List<ColorScheme>,
+    ): List<ColorScheme> {
+        val byId = base.associateBy { it.id }.toMutableMap()
+        overlay.forEach { byId[it.id] = it }
+        val order = base.mapNotNull { byId.remove(it.id) } + byId.values
+        return order
+    }
+
     companion object {
         fun decode(node: Node.Mapping): Theme = Theme(
             name = node["name"]?.string!!,
