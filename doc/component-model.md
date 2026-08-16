@@ -160,24 +160,22 @@ components:
 
 ## 5. Shared-aux component
 
-`shared-aux` is the reusable "tongwenfeng base" for common helper keyboards,
-behaviors, liquid keyboard, and style fragments.
+`shared-aux` is the reusable "tongwenfeng base" for common helper keyboards and
+behaviors.
 
-Decision (2026-08-16):
+Decision (2026-08-16, Option A):
 
 - Use **tongwenfeng** as the source/base for shared keyboards.
-- `shared-aux` should contain most existing helper keyboards:
-  - symbol pages
-  - emoji pages
-  - 颜文字 pages
-  - liquid keyboard
-  - common preset key behaviors/macros
-  - common style/layout parameters
+- `shared-aux` contains:
+  - `keyboard.yaml` — tongwenfeng helper keyboards
+  - `behavior.yaml` — common preset key behaviors/macros (standard duplicates
+    dropped)
+- Style, color, liquid, and chrome are **theme-specific** and live in each
+  theme's own `style.yaml` / `color.yaml` / `chrome.yaml`.
 
 Open question: whether to split `shared-aux` into smaller opt-in packs
-(`symbols-cn`, `emoji`, `ywz`, `liquid`, `behaviors`) or keep one larger
-component. Initial direction: one `shared-aux` component first, then split if
-needed.
+(`symbols-cn`, `emoji`, `ywz`, `behaviors`) or keep one larger component.
+Initial direction: one `shared-aux` component first, then split if needed.
 
 ---
 
@@ -292,8 +290,9 @@ The component resolver produces the same merged `Theme` shape used today:
 - schema package → `SchemaLayoutPackage` installed/deployed as today
 
 The runtime does not need to know about components; it still sees a fully
-merged definition. This lets us introduce the authoring/validation layer
-without a risky runtime rewrite.
+merged definition. `ComponentThemeLoader` now implements this bridge:
+`ThemeFilesManager` discovers component manifests and `ThemeManager` loads them
+through the resolver before falling back to monolithic theme files.
 
 ---
 
@@ -323,9 +322,77 @@ without a risky runtime rewrite.
 
 ---
 
-## 12. Open questions
+## 12. Reference prototype
+
+A pure-Python prototype exists to validate the composition semantics:
+
+- `script/component_resolver.py` — resolves a component manifest into merged
+  `preset_keys` / `preset_keyboards` / `preset_color_schemes` / `style` /
+  `liquid_keyboard` / `fallback_colors` / `resources` sections.
+- `script/test_component_resolver.py` — unit tests for layering order and
+  `add` / `override` / `remove` validation.
+
+Run:
+
+```bash
+cd script
+python3 -m unittest test_component_resolver -v
+```
+
+The Kotlin port now exists under
+`app/src/main/java/com/osfans/trime/data/theme/component/`:
+
+- `ComponentManifest.kt` — manifest/spec parser
+- `ComponentSource.kt` — file/ in-memory source abstraction
+- `ComponentResolver.kt` — pure resolver producing merged `Node.Mapping`
+  sections
+
+Tests: `app/src/test/java/com/osfans/trime/data/theme/component/ComponentResolverTest.kt`
+and `BehaviorVerifierTest.kt`.
+
+`BehaviorVerifier.kt` walks every keyboard action (`click`, `long_click`,
+`swipe_*`, `composing`) and validates preset-key references, `select:` targets,
+toggle states, and keyboard-level references.
+
+Run:
+
+```bash
+GRADLE_USER_HOME=$PWD/.gradle-test-home ./gradlew :app:testDebugUnitTest \
+  --tests "com.osfans.trime.data.theme.component.*" --offline
+```
+
+A first real component extraction exists:
+
+- `sample_theme_schemas/shared-aux/` — component files extracted from
+  `tongwenfeng.trime.yaml` plus the normalized helper keyboards/behaviors from
+  `简纯+14键` (`keyboard.yaml`, `behavior.yaml`, `style.yaml`, `color.yaml`).
+- `sample_theme_schemas/tongwenfeng/manifest.yaml` — a thin component manifest
+  that reproduces tongwenfeng as `standard` + `../shared-aux` + `chrome.yaml`.
+- `sample_theme_schemas/简纯+14键/component.yaml` — a thin component manifest
+  that composes `standard` + `../shared-aux` + schema package files and only
+  overrides the same-name keyboards/behaviors/colors/style/liquid that differ
+  from the shared base.
+
+Resolve it with:
+
+```bash
+python3 - <<'PY'
+import sys
+sys.path.insert(0, 'script')
+from component_resolver import resolve_file
+sections = resolve_file(__import__('pathlib').Path('sample_theme_schemas/tongwenfeng/manifest.yaml'))
+print(len(sections['preset_keys']), len(sections['preset_keyboards']))
+PY
+```
+
+---
+
+## 13. Open questions
 
 - Should `shared-aux` be one component or several opt-in packs?
+- How to unify helper keyboard IDs between tongwenfeng (`bq*`, `kao_*`,
+  `fbj*`) and 简纯+14键 (`sym*`, `emoji*`, `ywz*`) so 简纯+14键 can consume
+  `shared-aux` without carrying its own near-duplicate pages?
 - Should `liquid_keyboard` live in `style` or its own component?
 - Should switch definitions be part of `behavior` or a separate `switches`
   component?
@@ -337,7 +404,7 @@ without a risky runtime rewrite.
 
 ---
 
-## 13. Relationship to existing files
+## 14. Relationship to existing files
 
 | Existing | Role after migration |
 |---|---|
@@ -347,3 +414,4 @@ without a risky runtime rewrite.
 | `script/split_legacy_theme.py` | temporary conversion tool; superseded by component migration |
 | `script/validate-definitions.py` | extended to validate component manifests |
 | `doc/definition-schema.md` | updated to describe component files |
+| `doc/component-schema.md` | precise component manifest/file schema (draft) |

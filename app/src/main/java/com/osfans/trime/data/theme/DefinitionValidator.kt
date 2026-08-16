@@ -5,6 +5,9 @@
 package com.osfans.trime.data.theme
 
 import com.osfans.trime.data.schema.SchemaLayoutManifest
+import com.osfans.trime.data.theme.component.ComponentManifest
+import com.osfans.trime.data.theme.component.ComponentResolver
+import com.osfans.trime.data.theme.component.ComponentSource
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
@@ -62,6 +65,23 @@ object DefinitionValidator {
         } catch (e: IllegalArgumentException) {
             listOf(e.message ?: "Invalid schema layout manifest")
         }
+
+    fun validateComponentManifest(
+        yaml: String,
+        source: ComponentSource? = null,
+    ): List<String> {
+        val node = parseMapping(yaml)
+            ?: return listOf("Component manifest must be a YAML mapping")
+        return try {
+            val manifest = ComponentManifest.parse(node)
+            if (source != null) {
+                ComponentResolver(source).resolve(manifest)
+            }
+            emptyList()
+        } catch (e: Exception) {
+            listOf(e.message ?: "Invalid component manifest")
+        }
+    }
 
     private fun parseMapping(yaml: String): Node.Mapping? =
         try {

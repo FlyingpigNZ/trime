@@ -1,0 +1,712 @@
+# Tongwenfeng color schemes and fallback colors
+# Generated from app/src/main/assets/shared/tongwenfeng.trime.yaml
+preset_color_schemes:
+  default:
+    light:
+      name: 标准配色！
+      author: 风花絮
+      back_color: 4294967295
+      candidate_separator_color: 4294967295
+      candidate_text_color: 4278190080
+      comment_text_color: 4292994023
+      hilited_back_color: 4294967295
+      hilited_candidate_back_color: 4281493152
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4278190080
+      hilited_key_back_color: 4281493152
+      hilited_key_symbol_color: 4294967295
+      hilited_key_text_color: 4278190080
+      hilited_off_key_back_color: 4294967295
+      hilited_off_key_text_color: 4278190080
+      hilited_text_color: 4278190080
+      key_back_color: 4294967295
+      key_symbol_color: 4286808963
+      key_text_color: 4278190080
+      keyboard_back_color: 4292994023
+      label_color: 4281493152
+      off_key_back_color: 4289508034
+      off_key_text_color: 4286808963
+      preview_back_color: 4289508034
+      preview_text_color: 4281493152
+      text_color: 4281493152
+      text_back_color: 4294967295
+      bkg: 4294967295
+      tkg: 4278190080
+      benter: 4281493152
+      tenter: 4294967295
+      bgn: 4289508034
+      tgn: 4294967295
+      bbs: 4289508034
+      tbs: 4294967295
+      baoe: 4294967295
+      taoe: 4281493152
+      bh1: 4294967295
+      th1: 4278190080
+      bh2: 4294967295
+      th2: 4278190080
+      bh3: 4294967295
+      th3: 4278190080
+      bh4: 4294967295
+      th4: 4278190080
+  yushe:
+    light:
+      name: 預設／default
+      author: osfans
+      back_color: 4293191657
+      border_color: 4290889674
+      candidate_separator_color: 4290889674
+      candidate_text_color: 4284114798
+      comment_text_color: 4286285452
+      hilited_back_color: 3436435418
+      hilited_candidate_back_color: 4292073434
+      hilited_candidate_text_color: 4278190080
+      hilited_comment_text_color: 4278190080
+      hilited_key_back_color: 4292073434
+      hilited_key_symbol_color: 4278190080
+      hilited_key_text_color: 4278190080
+      hilited_off_key_back_color: 4292073434
+      hilited_off_key_text_color: 4278190080
+      hilited_on_key_back_color: 4292073434
+      hilited_on_key_text_color: 4278190080
+      hilited_text_color: 4280521870
+      key_back_color: 4293718001
+      key_border_color: 4293718001
+      key_symbol_color: 4284443507
+      key_text_color: 4281812815
+      keyboard_back_color: 4294967295
+      label_color: 4278190080
+      off_key_back_color: 4292073434
+      off_key_text_color: 4278190080
+      on_key_back_color: 4280521870
+      on_key_text_color: 4281812815
+      preview_back_color: 1438629823
+      preview_text_color: 4280521870
+      shadow_color: 4278190080
+      text_color: 4284114798
+      text_back_color: 3437553641
+  aqua:
+    light:
+      name: 碧水／Aqua
+      author: 佛振 <chen.sst@gmail.com>
+      text_color: 4278190080
+      back_color: 4293848812
+      border_color: 4292927712
+      hilited_text_color: 4278190080
+      hilited_back_color: 4292138196
+      hilited_candidate_text_color: 4294967295
+      hilited_candidate_back_color: 4278860538
+  azure:
+    light:
+      name: 青天／Azure
+      author: 佛振 <chen.sst@gmail.com>
+      text_color: 4291487999
+      candidate_text_color: 4293851391
+      back_color: 4278275723
+      border_color: 4278275723
+      hilited_text_color: 4293851391
+      hilited_back_color: 4278275723
+      hilited_candidate_text_color: 4294966911
+      hilited_candidate_back_color: 4278279849
+      comment_text_color: 4284782278
+  luna:
+    light:
+      name: 明月／Luna
+      author: 佛振 <chen.sst@gmail.com>
+      text_color: 4278190080
+      back_color: 4294967295
+      border_color: 4291611852
+      hilited_text_color: 4278190080
+      hilited_back_color: 4294967167
+      hilited_candidate_text_color: 4294967295
+      hilited_candidate_back_color: 4278190080
+  ink:
+    light:
+      name: 墨池／Ink
+      author: 佛振 <chen.sst@gmail.com>
+      text_color: 4278190080
+      back_color: 4294967295
+      border_color: 4278190080
+      hilited_text_color: 4278190080
+      hilited_back_color: 4292730333
+      hilited_candidate_text_color: 4294967295
+      hilited_candidate_back_color: 4278190080
+  lost_temple:
+    light:
+      name: 孤寺／Lost Temple
+      author: 佛振 <chen.sst@gmail.com>, based on ir_black
+      text_color: 4294374376
+      back_color: 4282664004
+      border_color: 4282664004
+      hilited_text_color: 4291487362
+      hilited_back_color: 4280427042
+      hilited_candidate_text_color: 4278190080
+      hilited_candidate_back_color: 4291487362
+  dark_temple:
+    light:
+      name: 暗堂／Dark Temple
+      author: 佛振 <chen.sst@gmail.com>, based on ir_black
+      text_color: 4292540050
+      candidate_text_color: 4293321688
+      back_color: 4280427042
+      border_color: 4280427042
+      hilited_text_color: 4288335871
+      hilited_back_color: 4280427042
+      hilited_candidate_text_color: 4292540050
+      hilited_candidate_back_color: 4281545523
+      comment_text_color: 4294929504
+  starcraft:
+    light:
+      name: 星際我爭霸／StarCraft
+      author: Contralisk <contralisk@gmail.com>, original artwork by Blizzard Entertainment
+      text_color: 4287146700
+      candidate_text_color: 4283808560
+      back_color: 4278190080
+      border_color: 4288679952
+      hilited_text_color: 4288072702
+      hilited_back_color: 4278190080
+      hilited_candidate_text_color: 4289265504
+      hilited_candidate_back_color: 4278190080
+  google:
+    light:
+      name: 谷歌／Google
+      author: skoj <skoj@qq.com>
+      text_color: 4284900966
+      candidate_text_color: 4278190080
+      back_color: 4294967295
+      border_color: 4293059298
+      hilited_text_color: 4278190080
+      hilited_back_color: 4294967295
+      hilited_candidate_text_color: 4294967295
+      hilited_candidate_back_color: 4281955790
+  solarized_rock:
+    light:
+      name: 曬經石／Solarized Rock
+      author: Aben <tntaben@gmail.com>, based on Ethan Schoonover's Solarized color scheme
+      back_color: 4278201142
+      border_color: 4278201142
+      text_color: 4286945536
+      hilited_text_color: 4280983960
+      candidate_text_color: 4286813334
+      hilited_candidate_text_color: 4294967295
+      hilited_candidate_back_color: 4292032130
+  tintin:
+    light:
+      name: 丁丁／ Tintin
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4278228441
+      border_color: 4278228441
+      label_color: 4294967295
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_text_color: 4287748343
+      hilited_back_color: 4278228441
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4294009889
+  dota_2:
+    light:
+      name: DOTA 2
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4279242514
+      border_color: 4279242514
+      label_color: 4287591772
+      hilited_text_color: 4292690200
+      hilited_back_color: 4279242514
+      candidate_text_color: 4287591772
+      comment_text_color: 4287591772
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4292690200
+  brasil:
+    light:
+      name: 笆悉／Brasil
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4279341909
+      border_color: 4279341909
+      label_color: 4294967295
+      hilited_text_color: 4294967295
+      hilited_back_color: 4279711357
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4294428438
+  doraemon:
+    light:
+      name: 銅鑼衛門／Doraemon
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4293197842
+      back_color: 4294967295
+      border_color: 4278231016
+      label_color: 4278231016
+      hilited_text_color: 4294967295
+      hilited_back_color: 4293197842
+      candidate_text_color: 4278231016
+      comment_text_color: 4278231016
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4278231016
+  espagna:
+    light:
+      name: 埃斯巴尼亞／España
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4290972963
+      border_color: 4290972963
+      label_color: 4294967295
+      hilited_text_color: 4294967295
+      hilited_back_color: 4294423852
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4294423852
+  gholabok:
+    light:
+      name: 胡蘿菔／Gholabok
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4293409065
+      border_color: 4293409065
+      label_color: 4294967295
+      hilited_text_color: 4294967295
+      hilited_back_color: 4278221635
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4293750077
+  kuma_shuzboz:
+    light:
+      name: 熊出沒／Kuma Shuzboz
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4278190080
+      back_color: 4294489645
+      border_color: 4294489645
+      label_color: 4294967295
+      hilited_text_color: 4294489645
+      hilited_back_color: 4294967295
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4278190080
+  kuon:
+    light:
+      name: 琨／Kuon
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4282299248
+      border_color: 4282299248
+      label_color: 4294967295
+      hilited_text_color: 4282299248
+      hilited_back_color: 4294967295
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4282299248
+      hilited_comment_text_color: 4282299248
+      hilited_candidate_back_color: 4294967295
+  macau:
+    light:
+      name: 澳門／Macau
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294957312
+      back_color: 4278231937
+      border_color: 4278231937
+      label_color: 4294967295
+      hilited_text_color: 4294967295
+      hilited_back_color: 4294957312
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4294957312
+      hilited_comment_text_color: 4294957312
+      hilited_candidate_back_color: 4294967295
+  nba:
+    light:
+      name: NBA
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4278217399
+      border_color: 4278217399
+      label_color: 4294967295
+      hilited_text_color: 4292288084
+      hilited_back_color: 4294967295
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4292288084
+  ps4:
+    light:
+      name: 遊驛四／PS4
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4278190080
+      border_color: 4278190080
+      label_color: 4294967295
+      hilited_text_color: 4294967295
+      hilited_back_color: 4284045143
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4278231016
+  skype:
+    light:
+      name: 斯蓋普／Skype
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4278234607
+      border_color: 4278234607
+      label_color: 4294967295
+      hilited_text_color: 4278234607
+      hilited_back_color: 4294967295
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4278234607
+      hilited_comment_text_color: 4278234607
+      hilited_candidate_back_color: 4294967295
+  xbox_silver:
+    light:
+      name: 銀色叉盒／Xbox Silver
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4287480351
+      back_color: 4293848815
+      border_color: 4293848815
+      label_color: 4290113627
+      hilited_text_color: 4294967295
+      hilited_back_color: 4290113627
+      candidate_text_color: 4287480351
+      comment_text_color: 4287480351
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4280847428
+  youtube:
+    light:
+      name: YouTube
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4278190080
+      back_color: 4292796126
+      border_color: 4292796126
+      label_color: 4278190080
+      hilited_text_color: 4290972963
+      hilited_back_color: 4294967295
+      candidate_text_color: 4278190080
+      comment_text_color: 4278190080
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4290972963
+  so_young:
+    light:
+      name: 致青春／So Young
+      author: 五磅兔 <zcunlin@foxmail.com>
+      text_color: 4292032130
+      back_color: 4294833891
+      border_color: 4293847253
+      label_color: 4287865249
+      candidate_text_color: 4284840835
+      comment_text_color: 4280716242
+      hilited_text_color: 4286813334
+      hilited_back_color: 4293847253
+      hilited_candidate_text_color: 4293847253
+      hilited_comment_text_color: 4293847253
+      hilited_candidate_back_color: 4280983960
+  smurfs:
+    light:
+      name: 藍精靈／Smurfs
+      author: skoj <skoj@qq.com>
+      text_color: 4294967295
+      back_color: 4279728319
+      border_color: 4292931061
+      label_color: 4279728319
+      hilited_text_color: 4285381851
+      hilited_back_color: 4279728319
+      candidate_text_color: 4294375158
+      comment_text_color: 4294375158
+      hilited_candidate_text_color: 4294375158
+      hilited_comment_text_color: 4294375158
+      hilited_candidate_back_color: 4285381851
+  wii:
+    light:
+      name: Wii
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4284045143
+      back_color: 4293914607
+      border_color: 4293914607
+      label_color: 4291348938
+      hilited_text_color: 4281584895
+      hilited_back_color: 4293914607
+      candidate_text_color: 4284045143
+      comment_text_color: 4291348938
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4281584895
+  android:
+    light:
+      name: 安卓／Android
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4280054681
+      border_color: 4280054681
+      label_color: 4281698497
+      hilited_text_color: 4289250384
+      hilited_back_color: 4280054681
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4289250384
+  cool_breeze:
+    light:
+      name: 清風／Cool Breeze
+      author: skoj <skoj@qq.com>
+      text_color: 4294901760
+      back_color: 4294704127
+      border_color: 4289374975
+      hilited_text_color: 4291690496
+      hilited_back_color: 4294704127
+      candidate_text_color: 4278227200
+      hilited_candidate_text_color: 4281991279
+      hilited_candidate_back_color: 4289517311
+  google_plus:
+    light:
+      name: Google+
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4291348938
+      back_color: 4294967295
+      border_color: 4292692793
+      label_color: 4291348938
+      hilited_text_color: 4292692793
+      hilited_back_color: 4294967295
+      candidate_text_color: 4292692793
+      comment_text_color: 4291348938
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4292692793
+  modern_warfare:
+    light:
+      name: 現代戰爭／Modern Warfare
+      author: P1461
+      text_color: 4285578260
+      back_color: 4279048970
+      border_color: 4286819659
+      hilited_text_color: 4294770171
+      hilited_back_color: 4278586883
+      candidate_text_color: 4292673195
+      comment_text_color: 4294704636
+      hilited_candidate_text_color: 4292673195
+      hilited_candidate_back_color: 4284706663
+  brisk:
+    light:
+      name: 輕盈／Brisk
+      author: skoj <skoj@qq.com>
+      text_color: 4292622370
+      back_color: 4294967295
+      border_color: 4281545523
+      hilited_text_color: 4292622370
+      hilited_back_color: 4294967295
+      candidate_text_color: 4283914071
+      hilited_candidate_text_color: 4292622370
+      hilited_candidate_back_color: 4294967295
+  starcraft_ii:
+    light:
+      name: 星際爭霸Ⅱ／StarCraft Ⅱ
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4294967295
+      back_color: 4278851881
+      border_color: 4282796883
+      label_color: 4294967295
+      hilited_text_color: 4294967295
+      hilited_back_color: 4278849559
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4294967295
+      hilited_candidate_back_color: 4280200687
+  steam:
+    light:
+      name: Steam
+      author: Patricivs <ipatrickmac@me.com>
+      text_color: 4283600077
+      back_color: 4279703060
+      border_color: 4281873973
+      label_color: 4294967295
+      hilited_text_color: 4291940297
+      hilited_back_color: 4279703060
+      candidate_text_color: 4294967295
+      comment_text_color: 4289308583
+      hilited_candidate_text_color: 4294967295
+      hilited_comment_text_color: 4289308583
+      hilited_candidate_back_color: 4281418329
+  flypy:
+    light:
+      name: 小鶴飛揚／flypy
+      author: Pal.lxk <Pal.lxk@gmail.com>
+      text_color: 4278190080
+      back_color: 4294967295
+      border_color: 4291217094
+      label_color: 4278223103
+      hilited_text_color: 4278223103
+      hilited_back_color: 4294967295
+      candidate_text_color: 4278223103
+      comment_text_color: 4278223103
+      hilited_candidate_text_color: 4289724416
+      hilited_comment_text_color: 4289724416
+      hilited_candidate_back_color: 4294967295
+  tantsing:
+    light:
+      name: 丹青
+      author: Mijiag
+      back_color: 4293125091
+      border_color: 4278190080
+      text_color: 4278190080
+      hilited_text_color: 4293125091
+      hilited_back_color: 4287694618
+      hilited_candidate_text_color: 4293125091
+      hilited_candidate_back_color: 4285729647
+      candidate_text_color: 4278190080
+      comment_text_color: 4282861383
+  yygc:
+    light:
+      author: 小辛
+      back_color: 4294967295
+      border_color: 4294967295
+      candidate_text_color: 4286545791
+      comment_text_color: 4286545791
+      hilited_back_color: 4294967295
+      hilited_candidate_back_color: 4294967295
+      hilited_candidate_text_color: 4286545791
+      hilited_comment_text_color: 4286545791
+      hilited_key_text_color: 4286545791
+      hilited_off_key_back_color: 4294967295
+      hilited_off_key_text_color: 4286545791
+      hilited_on_key_back_color: 4294967295
+      hilited_on_key_text_color: 4286545791
+      hilited_text_color: 4286545791
+      key_text_color: 4286545791
+      label_color: 4286545791
+      name: 一葉孤城
+      off_key_text_color: 4286545791
+      text_color: 4286545791
+  feng01:
+    light:
+      author: 风花絮
+      back_color: 4294503889
+      border_color: 4294503889
+      candidate_text_color: 4288971876
+      comment_text_color: 4294967295
+      hilited_back_color: 4294239938
+      hilited_candidate_back_color: 4294239938
+      hilited_candidate_text_color: 4290407781
+      hilited_text_color: 4288059030
+      name: 奈々
+      off_key_text_color: 4290407781
+      text_color: 4288971876
+  feng02:
+    light:
+      author: 风花絮
+      back_color: 4283662226
+      border_color: 4283662226
+      candidate_text_color: 4294638335
+      comment_text_color: 4294967295
+      hilited_back_color: 4283662226
+      hilited_candidate_back_color: 4288059030
+      hilited_candidate_text_color: 4294966010
+      hilited_text_color: 4288059030
+      name: 独立日
+      text_color: 4294966010
+  feng03:
+    light:
+      author: 风花絮
+      back_color: 4284061778
+      border_color: 4284061778
+      candidate_text_color: 4294967295
+      comment_text_color: 4288059030
+      hilited_back_color: 4284061778
+      hilited_candidate_back_color: 4284061778
+      hilited_candidate_text_color: 4294288715
+      hilited_text_color: 4294967295
+      key_back_color: 4294967295
+      name: 一叶清荷
+      off_key_text_color: 4294288715
+      text_color: 4285177938
+      key_text_color: 4284061778
+  feng04:
+    light:
+      author: 风花絮
+      back_color: 4286092970
+      border_color: 4286092970
+      candidate_text_color: 4294967295
+      comment_text_color: 4288059030
+      hilited_back_color: 4283599271
+      hilited_candidate_back_color: 4286092970
+      hilited_candidate_text_color: 4294967168
+      hilited_text_color: 4288059030
+      key_back_color: 4283599271
+      name: 往事回忆
+      text_color: 4294967295
+  feng05:
+    light:
+      author: 风花絮
+      back_color: 4278190080
+      border_color: 4278190080
+      candidate_text_color: 4294967295
+      comment_text_color: 4294967295
+      hilited_back_color: 4278190080
+      hilited_candidate_back_color: 4278190080
+      hilited_candidate_text_color: 4294900045
+      hilited_text_color: 4294967295
+      key_back_color: 4294900045
+      name: 黄黑
+      text_color: 4278190080
+      key_text_color: 4278190080
+      key_symbol_color: 4278190080
+  feng06:
+    light:
+      author: 风花絮
+      back_color: 4286094464
+      border_color: 4286094464
+      candidate_text_color: 4294967228
+      comment_text_color: 4294967228
+      hilited_back_color: 4286094464
+      hilited_candidate_back_color: 4286094464
+      hilited_candidate_text_color: 4294872867
+      hilited_text_color: 4294967295
+      key_back_color: 4281758322
+      name: 花香流转
+      text_color: 4294967295
+  feng07:
+    light:
+      author: 风花絮
+      back_color: 4292518218
+      border_color: 4292518218
+      candidate_text_color: 4294304180
+      comment_text_color: 4286743170
+      hilited_back_color: 4292518218
+      hilited_candidate_back_color: 4292518218
+      hilited_candidate_text_color: 4281210631
+      hilited_text_color: 4294967295
+      key_back_color: 4281210631
+      name: 巴黎遗梦
+      off_key_text_color: 4292385862
+      text_color: 4294967295
+  hong:
+    light:
+      author: 风花絮
+      back_color: 4281677368
+      border_color: 4281677368
+      candidate_text_color: 4294967295
+      hilited_back_color: 1316375
+      hilited_candidate_back_color: 811156017
+      hilited_candidate_text_color: 4294967295
+      hilited_text_color: 4291416017
+      key_back_color: 4279506455
+      label_color: 4294967295
+      name: 黑橙／hong
+      off_key_text_color: 4292335575
+      text_color: 4291660882
+fallback_colors:
+  candidate_text_color: text_color

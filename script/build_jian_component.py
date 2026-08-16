@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2015 - 2026 Rime community
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Build the 简纯+14键 component manifest over a clean tongwenfeng shared-aux.
+
+Reads:
+  sample_theme_schemas/简纯+14键/theme.yaml      (tier-2 split)
+  sample_theme_schemas/shared-aux/*.yaml        (shared component, Option A)
+  app/src/main/assets/shared/standard/*.yaml    (to avoid re-adding standard dupes)
+
+Writes inside sample_theme_schemas/简纯+14键/:
+  component.yaml   — component composition manifest
+  keyboard.yaml    — same-name overrides + new helper keyboards
+  behavior.yaml    — same-name overrides + new preset keys
+  color.yaml       — color scheme + fallback color overrides/additions
+  style.yaml       — style + liquid keyboard overrides
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT_DIR = ROOT / "sample_theme_schemas/简纯+14键"
+SHARED_DIR = ROOT / "sample_theme_schemas/shared-aux"
+STANDARD_DIR = ROOT / "app/src/main/assets/shared/standard"
+THEME_FILE = OUT_DIR / "theme.yaml"
+
+
+def load(path: Path) -> dict:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def dump(obj: object) -> str:
+    return yaml.safe_dump(obj, allow_unicode=True, sort_keys=False, width=1000)
+
+
+def main() -> int:
+    theme = load(THEME_FILE)
+    shared_keyboards = load(SHARED_DIR / "keyboard.yaml").get("preset_keyboards", {})
+    shared_behavior = load(SHARED_DIR / "behavior.yaml").get("preset_keys", {})
+    shared_colors = (
+        load(SHARED_DIR / "color.yaml").get("preset_color_schemes", {})
+        if (SHARED_DIR / "color.yaml").exists()
+        else {}
+    )
+    standard_keys = load(STANDARD_DIR / "preset_keys.yaml").get("preset_keys", {})
+
+    theme_keyboards = theme.get("preset_keyboards", {})
+    theme_keys = theme.get("preset_keys", {})
+    theme_colors = theme.get("preset_color_schemes", {})
+
+    # Keyboard deltas.
+    keyboard_overrides = {
+        name: value
+        for name, value in theme_keyboards.items()
+        if name in shared_keyboards and shared_keyboards[name] != value
+    }
+    keyboard_adds = {
+        name: value
+        for name, value in theme_keyboards.items()
+        if name not in shared_keyboards
+    }
+    keyboard_remove = [
+        name for name in shared_keyboards if name not in theme_keyboards
+    ]
+
+    # Behavior deltas.
+    behavior_overrides: dict = {}
+    for name, value in theme_keys.items():
+        if name in shared_behavior and shared_behavior[name] != value:
+            behavior_overrides[name] = value
+        elif name in standard_keys and standard_keys[name] != value:
+            behavior_overrides[name] = value
+    # Keys not used by this theme but present in both shared-aux and standard
+    # must be reset to the standard value (drop tongwenfeng's override).
+    for name in shared_behavior:
+        if (
+            name not in theme_keys
+            and name in standard_keys
+            and shared_behavior[name] != standard_keys[name]
+        ):
+            behavior_overrides[name] = standard_keys[name]
+
+    behavior_adds = {
+        name: value
+        for name, value in theme_keys.items()
+        if name not in shared_behavior and name not in standard_keys
+    }
+    behavior_remove = [
+        name
+        for name in shared_behavior
+        if name not in theme_keys and name not in standard_keys
+    ]
+    color_remove = [
+        name for name in shared_colors if name not in theme_colors
+    ]
+
+    color_data = {
+        "preset_color_schemes": theme.get("preset_color_schemes", {}),
+        "fallback_colors": theme.get("fallback_colors", {}),
+    }
+    style_data = {
+        "style": theme.get("style", {}),
+        "liquid_keyboard": theme.get("liquid_keyboard", {}),
+    }
+
+    keyboard_spec = {"file": "keyboard.yaml"}
+    if keyboard_remove:
+        keyboard_spec["remove"] = keyboard_remove
+    behavior_spec = {"file": "behavior.yaml"}
+    if behavior_remove:
+        behavior_spec["remove"] = behavior_remove
+    color_spec = {"file": "color.yaml"}
+    if color_remove:
+        color_spec["remove"] = color_remove
+
+    component = {
+        "name": theme.get("name", "简纯+14键"),
+        "author": theme.get("author", "amzxyz"),
+        "version": "1.0",
+        "use_standard_preset_keys": True,
+        "standard_keyboards": ["default", "letter", "number", "symbols"],
+        "standard_color_schemes": ["default"],
+        "components": [
+            "standard",
+            "../shared-aux",
+            {"schema": {"file": "14jian.schema.yaml"}},
+            {"keyboard": keyboard_spec},
+            {"keyboard": {"file": "14jian.layout.yaml"}},
+            {"behavior": behavior_spec},
+            {"color": color_spec},
+            {"style": {"file": "style.yaml"}},
+        ],
+    }
+
+    (OUT_DIR / "component.yaml").write_text(
+        "# 简纯+14键 component manifest (thin, Option A)\n"
+        "# Generated by script/build_jian_component.py\n" + dump(component),
+        encoding="utf-8",
+    )
+    (OUT_DIR / "keyboard.yaml").write_text(
+        "# 简纯+14键 keyboard deltas (overrides + new helpers)\n"
+        "# Generated by script/build_jian_component.py\n"
+        + dump({"preset_keyboards": {**keyboard_adds, **keyboard_overrides}}),
+        encoding="utf-8",
+    )
+    (OUT_DIR / "behavior.yaml").write_text(
+        "# 简纯+14键 behavior deltas (overrides + new keys)\n"
+        "# Generated by script/build_jian_component.py\n"
+        + dump({"preset_keys": {**behavior_adds, **behavior_overrides}}),
+        encoding="utf-8",
+    )
+    (OUT_DIR / "color.yaml").write_text(
+        "# 简纯+14键 color schemes and fallback colors\n"
+        "# Generated by script/build_jian_component.py\n"
+        + dump({k: v for k, v in color_data.items() if v}),
+        encoding="utf-8",
+    )
+    (OUT_DIR / "style.yaml").write_text(
+        "# 简纯+14键 style and liquid keyboard overrides\n"
+        "# Generated by script/build_jian_component.py\n"
+        + dump({k: v for k, v in style_data.items() if v}),
+        encoding="utf-8",
+    )
+
+    print(f"Wrote 简纯+14键 component files to {OUT_DIR}")
+    print(f"keyboard overrides: {len(keyboard_overrides)}, adds: {len(keyboard_adds)}, remove: {len(keyboard_remove)}")
+    print(f"behavior overrides: {len(behavior_overrides)}, adds: {len(behavior_adds)}, remove: {len(behavior_remove)}")
+    print(f"color schemes: {len(color_data['preset_color_schemes'])}, remove: {len(color_remove)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

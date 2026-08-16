@@ -9,6 +9,7 @@ import android.content.res.Configuration
 import com.osfans.trime.core.Rime
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.theme.component.ComponentThemeLoader
 import com.osfans.trime.ime.symbol.LiquidData
 import com.osfans.trime.util.WeakHashSet
 import com.osfans.trime.util.yaml.Yaml
@@ -59,6 +60,16 @@ object ThemeManager {
     )
 
     private fun loadThemeByIdOrNull(id: String): Theme? {
+        ThemeFilesManager.findComponentManifest(id)?.let { manifest ->
+            return try {
+                val standard = StandardCatalog.load(DataManager.sharedDataDir)
+                ComponentThemeLoader.loadTheme(manifest, standard)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to load component theme '$id'")
+                null
+            }
+        }
+
         if (!Rime.deployRimeConfigFile(id, "config_version")) {
             Timber.w("Failed to deploy theme config file '$id.yaml'")
         }

@@ -134,7 +134,40 @@ easy to use — by splitting themes into a composable three-tier model.
     and deterministic `include`/`add`/`override`/`remove` semantics.
     Decisions so far: `shared-aux` derives from tongwenfeng; behavior owns
     switches/keyboard-switching policy; tongwenfeng becomes the shared base;
-    `简纯+14键` becomes the first real consumer.
+    `简纯+14键` becomes the first real consumer. A pure-Python reference
+    prototype (`script/component_resolver.py` + tests) validates the
+    layering/override semantics. `doc/component-schema.md` defines the
+    precise manifest/file schema. `sample_theme_schemas/shared-aux/` is now
+    extracted from tongwenfeng, and
+    `sample_theme_schemas/tongwenfeng/manifest.yaml` is a thin component
+    manifest reproducing tongwenfeng as `standard` + `shared-aux`.
+    `sample_theme_schemas/简纯+14键/component.yaml` now composes
+    `standard` + `shared-aux` + schema package with only the differing
+    same-name keyboards/behaviors/colors/style/liquid as deltas
+    (`keyboard.yaml`, `behavior.yaml`, `color.yaml`, `style.yaml`).
+    Option A cleanup done: `shared-aux` is the clean tongwenfeng base
+    (keyboards + behaviors only); style/color/liquid/chrome are
+    theme-specific. Standard selection (`use_standard_preset_keys`,
+    `standard_keyboards`, `standard_color_schemes`) is supported by the
+    resolver. Duplicate keys in the 简纯+14键 monolith were fixed.
+    Equivalence tests (`script/test_equivalence.py`) pass for tongwenfeng and
+    简纯+14键 (component-assembled == normalized monolith + selected standard).
+    A behavior verifier (`script/behavior_verifier.py` and Kotlin
+    `BehaviorVerifier.kt`) validates every key action and reports zero errors
+    on both real manifests.
+    The component resolver is ported to Kotlin
+    (`data/theme/component/`) with unit tests; full `testDebugUnitTest`
+    passes. Machine-readable `doc/component-schema.json` added.
+26. **Component model reference implementation DONE**: Python prototype +
+    Kotlin resolver (`data/theme/component/`) + `DefinitionValidator`
+    component-manifest support + JSON schema + shared-aux extraction +
+    thin tongwenfeng and 简纯+14键 component manifests. Full
+    `testDebugUnitTest` passes.
+27. **Runtime component theme loading DONE**: `ComponentThemeLoader` resolves
+    a component manifest into a runtime `Theme`; `ThemeFilesManager` discovers
+    component themes (`<id>.component.yaml` or `<id>/component.yaml|manifest.yaml`)
+    alongside monolithic `*.trime.yaml`; `ThemeManager` tries the component
+    manifest before the legacy deployed file. Unit tests cover the loader.
 
 ---
 
@@ -446,7 +479,11 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
    - (d) user may raise something else
    - (e) **Implement the component model** from `doc/component-model.md`:
      component resolver + `shared-aux` extraction from tongwenfeng, then
-     migrate `简纯+14键` onto it
+     migrate `简纯+14键` onto it — **DONE** as reference implementation
+   - (f) ~~**Integrate the Kotlin component resolver into runtime theme
+     loading** so `ThemeManager` can consume component manifests instead of
+     monolithic theme files~~ **DONE** — `ComponentThemeLoader` +
+     `ThemeFilesManager` + `ThemeManager` integration
 5. Build gotcha: home dir is read-only in this sandbox, and `/tmp` is wiped
    between shell commands. For repeated Gradle runs use a workspace-writable
    user home, e.g. `GRADLE_USER_HOME=$PWD/.gradle-test-home ./gradlew ...`.

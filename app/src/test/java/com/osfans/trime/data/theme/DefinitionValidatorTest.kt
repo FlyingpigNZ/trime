@@ -4,6 +4,7 @@
 
 package com.osfans.trime.data.theme
 
+import com.osfans.trime.data.theme.component.ComponentSource
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import io.kotest.core.spec.style.StringSpec
@@ -96,6 +97,71 @@ class DefinitionValidatorTest :
                 )
 
             errors shouldBe listOf("Missing required field 'schema_id'")
+        }
+
+        "valid component manifest passes" {
+            DefinitionValidator.validateComponentManifest(
+                """
+                name: test
+                components: [standard]
+                """.trimIndent(),
+            ).shouldBeEmpty()
+        }
+
+        "component manifest with duplicate add fails" {
+            val errors =
+                DefinitionValidator.validateComponentManifest(
+                    """
+                    name: test
+                    components:
+                      - keyboard:
+                          add:
+                            qwerty: {}
+                      - keyboard:
+                          add:
+                            qwerty: {}
+                    """.trimIndent(),
+                    ComponentSource.fromMap(emptyMap()),
+                )
+
+            errors.shouldContain("preset_keyboards.add: 'qwerty' already exists; use override")
+        }
+
+        "component manifest resolves against in-memory source" {
+            val files =
+                mapOf(
+                    "standard/preset_keys.yaml" to
+                        section(
+                            """
+                            preset_keys:
+                              BackSpace:
+                                send: BackSpace
+                            """.trimIndent(),
+                        ),
+                    "standard/keyboards.yaml" to
+                        section(
+                            """
+                            preset_keyboards:
+                              default:
+                                name: default
+                            """.trimIndent(),
+                        ),
+                    "standard/colors.yaml" to
+                        section(
+                            """
+                            preset_color_schemes:
+                              default:
+                                light: {}
+                            """.trimIndent(),
+                        ),
+                )
+            DefinitionValidator.validateComponentManifest(
+                """
+                name: test
+                components: [standard]
+                """.trimIndent(),
+                ComponentSource.fromMap(files),
+            ).shouldBeEmpty()
         }
     })
 

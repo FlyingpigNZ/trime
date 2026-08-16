@@ -20,6 +20,9 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 STANDARD_DIR = ROOT / "app/src/main/assets/shared/standard"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from component_resolver import ComponentError, ComponentResolver  # noqa: E402
+
 
 def load_standard() -> tuple[dict, dict]:
     keyboards = yaml.safe_load((STANDARD_DIR / "keyboards.yaml").read_text(encoding="utf-8"))["preset_keyboards"]
@@ -56,6 +59,14 @@ def validate_layout(data: dict, keyboards: dict, colors: dict) -> list[str]:
     return validate_theme({**data, "name": data.get("name") or "fragment", "style": data.get("style") or {}}, keyboards, colors)
 
 
+def validate_component_manifest(data: dict, path: Path) -> list[str]:
+    try:
+        ComponentResolver(path.parent).resolve_manifest(data)
+    except ComponentError as exc:
+        return [str(exc)]
+    return []
+
+
 def validate_file(path: Path, kind: str | None) -> list[str]:
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -63,6 +74,8 @@ def validate_file(path: Path, kind: str | None) -> list[str]:
         return [f"Invalid YAML: {exc}"]
     if not isinstance(data, dict):
         return ["Definition must be a YAML mapping"]
+    if "components" in data:
+        return validate_component_manifest(data, path)
     keyboards, colors = load_standard()
     if kind == "manifest" or (kind is None and {"schema_id", "schema_file", "layout_files"} & data.keys()):
         return validate_manifest(data)
@@ -90,6 +103,13 @@ def check_shipped() -> int:
             found = validate_file(path, kind)
             if found:
                 errors.append(f"{path.relative_to(ROOT)}:\n  " + "\n  ".join(found))
+    component_manifests = [
+        ROOT / "sample_theme_schemas/tongwenfeng/manifest.yaml",
+    ]
+    for path in component_manifests:
+        found = validate_file(path, "manifest")
+        if found:
+            errors.append(f"{path.relative_to(ROOT)}:\n  " + "\n  ".join(found))
     standard_checks = {
         STANDARD_DIR / "colors.yaml": "preset_color_schemes",
         STANDARD_DIR / "keyboards.yaml": "preset_keyboards",
