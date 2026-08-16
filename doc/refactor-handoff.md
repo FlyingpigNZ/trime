@@ -64,11 +64,15 @@ easy to use — by splitting themes into a composable three-tier model.
     selecting a keyboard pulls in its `__include` dependencies. `__include`
     now fails loudly on unknown targets, and the legacy `import_preset` theme
     alias is retired (the field was removed from `TextKeyboard`).
-12. **Schema-tier reference pair added**: created
+12. **Schema-tier reference pair + manifest model**: created
     `sample_theme_schemas/minimal-14jian/` (manifest + minimal schema + minimal
     layout) derived from the user's full samples, plus a ThemeResolver test that
-    resolves the minimal layout against the shipped standard catalog. Full item
-    12 loader/zip plumbing is still TODO.
+    resolves the minimal layout against the shipped standard catalog. Added
+    pure `SchemaLayoutManifest`/`SchemaLayoutRegistry` (including `resources`
+    for background images), and `KeyboardSwitcher` now consults the registry for
+    explicit schema→default-keyboard bindings. The legacy alphabet heuristic
+    was removed: unbound schemas use the theme's explicit default keyboard.
+    Full item 12 zip unpack/register plumbing is still TODO.
 
 ---
 
@@ -266,9 +270,12 @@ at load. Definition-layer change only — no UI rewrite.
   runs in this sandbox — prefer the user's own machine for builds/tests.**
   If a Gradle run is unavoidable: `/tmp` is wiped between shell commands, so use
   a workspace-persistent home: `GRADLE_USER_HOME=$PWD/.gradle-test-home
-  ./gradlew ...`, then delete that directory afterwards (it is untracked).
-  Expect the first run to download Gradle 9.5.1 + dependencies; later runs are
-  fast. Be ready to kill the daemon (`pkill -f gradle`).
+  ./gradlew ...`. Keep `.gradle-test-home` on disk between sessions (do not
+  delete it; it is untracked and must not be committed). Also keep the local
+  `gradle.properties` change `kotlin.compiler.execution.strategy=in-process`
+  on disk uncommitted — it avoids the read-only Kotlin daemon directory in this
+  sandbox. Expect the first run to download Gradle 9.5.1 + dependencies; later
+  runs are fast. Be ready to kill the daemon (`pkill -f gradle`).
 - **No meaningful unit tests existed** (2 stale files: `GeneralStyleTest.kt`
   references `Theme.decodeByConfigId` + `Rime.startupRime`, both gone;
   `WeakHashSetTest.kt` ok). JUnit5 + Kotest infra IS configured
@@ -335,14 +342,17 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      `import_preset` retired); 10 DONE (KeyActionDefinition + parse split,
      interpretation takes RimeUiState snapshot, sealed KeyActionCommand
      dispatch); 11+12 DONE (import_preset flattened, __include inheritance at
-     parse time with cycle detection); 13 DONE (KeyboardSwitcher extracted,
-     KeyboardWindow renders only); 14 (validator) NOT started.
+     parse time with cycle detection); 12 partial (manifest model + registry +
+     KeyboardSwitcher explicit binding done; zip unpack/register TODO); 13 DONE
+     (KeyboardSwitcher extracted, KeyboardWindow renders only); 14 (validator)
+     NOT started.
    - **Phase 3 NOT started** (decoration system, items 15-21).
-   - Commits on this branch: a7d0a174 (schema-tier reference) -> 5cddcb88
-     (item 9) -> dc03bbed (item 8 core) -> f0ebd2b9 (Phase 0.5 tests) ->
-     75d13157 (docs) -> 15f42b24 (10b) -> 8c05f7de (10a) -> b8114d2e (13) ->
-     f94324d2 (7/11/12) -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) ->
-     f5503f1e (Phase 0) -> d5c46822 (docs).
+   - Commits on this branch: 37fb3ded (item 12 manifest/binding) ->
+     a7d0a174 (schema-tier reference) -> 5cddcb88 (item 9) -> dc03bbed
+     (item 8 core) -> f0ebd2b9 (Phase 0.5 tests) -> 75d13157 (docs) ->
+     15f42b24 (10b) -> 8c05f7de (10a) -> b8114d2e (13) -> f94324d2 (7/11/12)
+     -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) -> f5503f1e (Phase 0) ->
+     d5c46822 (docs).
 4. Next step options:
    - (a) **Phase 2 item 12 (schema↔layout binding + zip delivery)** — completes
      the schema tier deferred by item 8
@@ -352,12 +362,14 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
    - (d) user may raise something else
 5. Build gotcha: home dir is read-only in this sandbox, and `/tmp` is wiped
    between shell commands. For repeated Gradle runs use a workspace-writable
-   user home, e.g. `GRADLE_USER_HOME=$PWD/.gradle-test-home ./gradlew ...`,
-   then delete that directory when done (it is untracked). If incremental
-   compile errors look stale, add `--rerun-tasks`. **CAUTION: Gradle runs
-   OOM'd the host machine at the end of session 2 — prefer compiling/tests on
-   the user's own machine; if you must run Gradle here, kill the daemon
-   afterward (`pkill -f gradle`).**
+   user home, e.g. `GRADLE_USER_HOME=$PWD/.gradle-test-home ./gradlew ...`.
+   Keep `.gradle-test-home` and the local `gradle.properties`
+   `kotlin.compiler.execution.strategy=in-process` line on disk — they are
+   untracked/uncommitted and should stay that way. If incremental compile
+   errors look stale, add `--rerun-tasks`. **CAUTION: Gradle runs OOM'd the
+   host machine at the end of session 2 — prefer compiling/tests on the user's
+   own machine; if you must run Gradle here, kill the daemon afterward
+   (`pkill -f gradle`).**
 
 ---
 

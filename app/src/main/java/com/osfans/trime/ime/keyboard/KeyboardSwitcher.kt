@@ -8,6 +8,7 @@ import android.content.Context
 import android.text.InputType
 import android.view.inputmethod.EditorInfo
 import com.osfans.trime.daemon.RimeSession
+import com.osfans.trime.data.schema.SchemaLayoutRegistry
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.TextKeyboard
 import com.osfans.trime.ime.core.TrimeInputMethodService
@@ -15,8 +16,8 @@ import com.osfans.trime.ime.keyboard.KeyboardPrefs.isLandscapeMode
 
 /**
  * IME policy for keyboard selection: resolves symbolic targets (`.default`,
- * `.next`, `.ascii`, ...), smart-matches keyboards to the active schema, and
- * syncs ascii-mode with the engine.
+ * `.next`, `.ascii`, ...), applies explicit schema→layout bindings, and syncs
+ * ascii-mode with the engine.
  *
  * Owns the [Keyboard] model cache and the switch state
  * (`currentKeyboardId`/`lastKeyboardId`/`lastLockKeyboardId`/`tempAsciiMode`).
@@ -27,6 +28,7 @@ class KeyboardSwitcher(
     private val theme: Theme,
     private val rime: RimeSession,
     private val service: TrimeInputMethodService,
+    private val schemaLayouts: SchemaLayoutRegistry = SchemaLayoutRegistry.Empty,
 ) {
     private val presetKeyboardIds = theme.presetKeyboards.keys.toList()
 
@@ -53,7 +55,7 @@ class KeyboardSwitcher(
         val currentIdx = presetKeyboardIds.indexOfFirst { currentKeyboardId == it }
         val dot =
             when (target) {
-                ".default" -> smartMatchKeyboard()
+                ".default" -> resolveDefaultKeyboard()
                 ".prior" -> presetKeyboardIds.getOrNull(currentIdx - 1) ?: currentKeyboardId
                 ".next" -> presetKeyboardIds.getOrNull(currentIdx + 1) ?: currentKeyboardId
                 ".last" -> lastKeyboardId
@@ -71,7 +73,7 @@ class KeyboardSwitcher(
                     }
                 }
             }
-        var final = dot.ifEmpty { smartMatchKeyboard() }
+        var final = dot.ifEmpty { resolveDefaultKeyboard() }
 
         // 切换到横屏布局
         if (service.isLandscapeMode()) {
@@ -81,21 +83,22 @@ class KeyboardSwitcher(
         return final
     }
 
-    private fun smartMatchKeyboard(): String {
-        // 主题的布局中包含方案id，直接采用
+    private fun resolveDefaultKeyboard(): String {
+        // Explicit tier-3 package binding wins.
         val currentSchema = rime.uiState.value.schemaId
+        schemaLayouts.defaultKeyboardFor(currentSchema)?.let { bound ->
+            if (presetKeyboardIds.contains(bound)) {
+                return bound
+            }
+        }
+        // A theme may still name a keyboard after the schema id.
         if (presetKeyboardIds.contains(currentSchema)) {
             return currentSchema
         }
-        val alphabet = rime.run { schemaCached }.alphabet
-        val layout =
-            when {
-                alphabet.all { it.isLetter() } -> "qwerty" // 包含 26 个字母
-                alphabet.all { it.isLetter() || ",./;".any(it::equals) } -> "qwerty_" // 包含 26 个字母和,./;
-                alphabet.all { it.isLetterOrDigit() } -> "qwerty0" // 包含 26 个字母和数字键
-                else -> "default"
-            }
-        return if (presetKeyboardIds.contains(layout)) layout else "default"
+        // Otherwise fall back to the theme's explicit default keyboard.
+        return "default".takeIf { presetKeyboardIds.contains(it) }
+            ?: presetKeyboardIds.firstOrNull()
+            ?: ""
     }
 
     /**

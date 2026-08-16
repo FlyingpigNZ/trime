@@ -11,3 +11,8 @@ layout_files:
   - 14jian.layout.yaml
 # Optional: the keyboard used when this schema becomes active.
 default_keyboard: 14jian
+# Optional resources referenced by the layouts, e.g. background images.
+# Paths are relative to the package root and are unpacked with the layout.
+resources:
+  # - backgrounds/14jian.png
+  # - backgrounds/14jian.night.png

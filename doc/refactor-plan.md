@@ -287,7 +287,7 @@ breaking format change ever happens, it can be handled ad-hoc.)
       `Command` type; replace `"_keyboard_"`/`"_key_"` prefix matching with typed
       option keys; replace the keycode↔name↔Rime-value string round-trip.
 12. **Declared schema↔layout binding** (medium impact, medium effort)
-    — **reference pair created; loader/zip plumbing still TODO**
+    — **manifest model + registry + switcher binding DONE; zip unpack TODO**
     - Replace the implicit `smartMatchKeyboard` naming convention with an
       explicit declaration. **Pair the schema with its custom layouts** (per
       the user's decision): the Rime schema and its keyboard layouts travel
@@ -295,17 +295,23 @@ breaking format change ever happens, it can be handled ad-hoc.)
       schema file on its own, so they cannot be a single YAML.
     - Reference package: `sample_theme_schemas/minimal-14jian/`
       (`manifest.yaml` + `14jian.schema.yaml` + `14jian.layout.yaml`).
+    - Manifest model: `SchemaLayoutManifest` (schema id, files, default
+      keyboard, `resources` for images/backgrounds) + `SchemaLayoutRegistry`;
+      `KeyboardSwitcher` consults the registry instead of the alphabet
+      heuristic.
     - **Delivery: package the pair** — schema + its layouts are shipped
       together as an archive (e.g. a zip: schema file + layout file(s) +
       metadata/manifest). The app unpacks it, compiles the schema through Rime,
       and registers the layouts into the schema tier.
     - Mechanism inside the package: a small manifest maps schema id → layout
-      file(s). Keep the alphabet heuristic as a fallback for unbound schemas.
+      file(s). No alphabet heuristic: unbound schemas use the theme's explicit
+      default keyboard.
     - This is what makes tier 3 (schema layouts) work as designed.
 13. **Extract keyboard-switch policy from `KeyboardWindow`** (low-medium impact,
     low effort) — **DONE**
     - New DI-bound `KeyboardSwitcher` owns target resolution
-      (`.default`/`.next`/`.ascii`/...), schema smart-match, ascii-mode sync,
+      (`.default`/`.next`/`.ascii`/...), explicit schema→layout binding,
+      ascii-mode sync,
       the `Keyboard` model cache, and switch state. `KeyboardWindow` only
       renders (views, height flow, caps dispatch, broadcast handling). The
       deprecated global became `KeyboardSwitcherLegacy` (view-level bridge,
@@ -424,7 +430,7 @@ The refactor so far deliberately created pure, JVM-testable seams:
 5. **`RimeUiState`** — snapshot immutability, derived accessors
    (`isAsciiMode`, `schemaId`, ...).
 6. **`KeyboardSwitcher.resolveKeyboard`** — symbolic targets
-   (`.default`/`.next`/`.ascii`/`.last_lock`), smart-match by schema alphabet,
+   (`.default`/`.next`/`.ascii`/`.last_lock`), explicit schema→layout binding,
    landscape fallback. Needs a `RimeSession` fake — make
    `RimeSession`/`RimeApi` testable (they already are interfaces; a stub
    implementation with a `MutableStateFlow` suffices).
