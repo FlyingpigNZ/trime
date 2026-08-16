@@ -46,7 +46,6 @@ data class TextKeyboard(
     val keyHintOffsetY: Float,
     val keyPressOffsetX: Float,
     val keyPressOffsetY: Float,
-    val importPreset: String,
     val keys: List<TextKey>,
 ) : Parcelable {
     enum class LabelTransform {
@@ -154,7 +153,6 @@ data class TextKeyboard(
             keyHintOffsetY = node["key_hint_offset_y"]?.float ?: 0f,
             keyPressOffsetX = node["key_press_offset_x"]?.float ?: 0f,
             keyPressOffsetY = node["key_press_offset_y"]?.float ?: 0f,
-            importPreset = node["import_preset"]?.string ?: "",
             keys = node["keys"]?.sequence?.mapNotNull {
                 TextKey.decode(it.mapping!!)
             } ?: emptyList(),

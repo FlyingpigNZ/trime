@@ -74,7 +74,12 @@ object ThemeManager {
                 Timber.w("Failed to load theme '$id': YAML root is not a mapping")
                 null
             } else {
-                Theme.decode(mapping)
+                val standard = StandardCatalog.load(DataManager.sharedDataDir)
+                if (standard != null) {
+                    ThemeResolver.resolve(mapping, standard)
+                } else {
+                    Theme.decode(mapping)
+                }
             }
         } catch (e: Exception) {
             Timber.w(e, "Failed to load theme '$id'")

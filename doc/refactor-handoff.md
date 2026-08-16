@@ -52,6 +52,23 @@ easy to use — by splitting themes into a composable three-tier model.
    `KeyLabelProvider` (Android + pure ASCII provider) and made `KeyCode`
    prefer the generated Rime mapping before the Android fallback. Targeted
    `testDebugUnitTest` passes (21 tests).
+10. **Phase 2 item 8 (core) DONE**: added app-shipped standard catalog files
+    (`assets/shared/standard/{preset_keys,keyboards,colors}.yaml`), a
+    `StandardCatalog` loader, and `ThemeResolver` that merges the catalog under
+    each theme (theme overrides win). `trime.yaml` is now decoration-only;
+    legacy monoliths (e.g. `tongwenfeng`) remain loadable as overrides. Schema
+    tier still lands with item 12.
+11. **Phase 2 item 9 DONE**: made tier-1 selection explicit-by-name via
+    `use_standard_preset_keys: true`, `standard_keyboards: [...]`, and
+    `standard_color_schemes: [...]`; unknown declared names fail validation;
+    selecting a keyboard pulls in its `__include` dependencies. `__include`
+    now fails loudly on unknown targets, and the legacy `import_preset` theme
+    alias is retired (the field was removed from `TextKeyboard`).
+12. **Schema-tier reference pair added**: created
+    `sample_theme_schemas/minimal-14jian/` (manifest + minimal schema + minimal
+    layout) derived from the user's full samples, plus a ThemeResolver test that
+    resolves the minimal layout against the shipped standard catalog. Full item
+    12 loader/zip plumbing is still TODO.
 
 ---
 
@@ -303,7 +320,7 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
 2. Verify branch: `git branch --show-current` should be
    `refactor/untangle-ime-engine`; if not, `git checkout
    refactor/untangle-ime-engine`.
-3. Current state (end of implementation session 3):
+3. Current state (end of implementation session 5):
    - **Phase 0 DONE**: core/ Android-free (Rime takes injected
      InputOptions/RimeEnvironment/hooks), typed message protocol
      (emitMessage + sealed RimeMessage; nativeCreate = C++ adapter 1-3).
@@ -312,25 +329,27 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      messageFlow on RimeSession + buffer 64 (7).
    - **Phase 0.5 DONE**: pure-JVM test batch added (see §1 item 9); targeted
      `testDebugUnitTest` passes.
-   - **Phase 2 partial**: item 8 (tier split) NOT started; 9 (declaration
-     mechanism) NOT started; 10 DONE (KeyActionDefinition + parse split,
+   - **Phase 2 partial**: item 8 core DONE (standard catalog + ThemeResolver;
+     `trime.yaml` decoration-only; schema tier deferred to item 12); item 9
+     DONE (explicit `standard_*` declarations, strict `__include`,
+     `import_preset` retired); 10 DONE (KeyActionDefinition + parse split,
      interpretation takes RimeUiState snapshot, sealed KeyActionCommand
      dispatch); 11+12 DONE (import_preset flattened, __include inheritance at
      parse time with cycle detection); 13 DONE (KeyboardSwitcher extracted,
      KeyboardWindow renders only); 14 (validator) NOT started.
    - **Phase 3 NOT started** (decoration system, items 15-21).
-   - Commits on this branch: f0ebd2b9 (Phase 0.5 tests) -> 75d13157 (docs) ->
-     15f42b24 (10b) -> 8c05f7de (10a) -> b8114d2e (13) -> f94324d2 (7/11/12)
-     -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) -> f5503f1e (Phase 0) ->
-     d5c46822 (docs).
+   - Commits on this branch: a7d0a174 (schema-tier reference) -> 5cddcb88
+     (item 9) -> dc03bbed (item 8 core) -> f0ebd2b9 (Phase 0.5 tests) ->
+     75d13157 (docs) -> 15f42b24 (10b) -> 8c05f7de (10a) -> b8114d2e (13) ->
+     f94324d2 (7/11/12) -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) ->
+     f5503f1e (Phase 0) -> d5c46822 (docs).
 4. Next step options:
-   - (a) **Phase 2 item 8 (theme tier split)** — the user's core ask, biggest
-     remaining piece; recommended next (item 8 must precede 9/12/14)
-   - (b) Phase 2 item 9 (declaration/validation mechanism) — can start once 8
-     defines the catalog format
-   - (c) Phase 2 item 14 (validator) — medium effort
-   - (d) Phase 3 (decoration system)
-   - (e) user may raise something else
+   - (a) **Phase 2 item 12 (schema↔layout binding + zip delivery)** — completes
+     the schema tier deferred by item 8
+   - (b) Phase 2 item 14 (validator) — medium effort; the explicit-declaration
+     contract is now settled
+   - (c) Phase 3 (decoration system)
+   - (d) user may raise something else
 5. Build gotcha: home dir is read-only in this sandbox, and `/tmp` is wiped
    between shell commands. For repeated Gradle runs use a workspace-writable
    user home, e.g. `GRADLE_USER_HOME=$PWD/.gradle-test-home ./gradlew ...`,

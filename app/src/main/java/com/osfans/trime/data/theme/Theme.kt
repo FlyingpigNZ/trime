@@ -63,13 +63,12 @@ data class Theme(
         )
 
         /**
-         * Resolve `__include` / `import_preset` inheritance for
-         * `preset_keyboards` at parse time.
+         * Resolve `__include` inheritance for `preset_keyboards` at parse time.
          *
-         * A keyboard may declare `__include: /preset_keyboards/<name>` (or the
-         * legacy `import_preset: <name>`); the included keyboard's fields are
-         * merged underneath, with the including keyboard's own fields taking
-         * precedence. Cycles are detected and reported.
+         * A keyboard may declare `__include: /preset_keyboards/<name>`; the
+         * included keyboard's fields are merged underneath, with the including
+         * keyboard's own fields taking precedence. Cycles and unknown targets
+         * are reported instead of silently dropping the inheritance.
          */
         private fun resolveKeyboardIncludes(mapping: Node.Mapping?): Map<String, Node.Mapping> {
             if (mapping == null) return emptyMap()
@@ -80,8 +79,7 @@ data class Theme(
 
             fun resolve(name: String, stack: List<String>): Node.Mapping? {
                 val node = raw[name] ?: return null
-                val include =
-                    node[INCLUDE_KEY]?.string ?: node[IMPORT_PRESET_KEY]?.string ?: return node
+                val include = node[INCLUDE_KEY]?.string ?: return node
                 val target = include.substringAfterLast('/').ifEmpty { return node }
 
                 if (target in stack) {
@@ -89,14 +87,18 @@ data class Theme(
                         "Circular $INCLUDE_KEY in preset_keyboards: ${(stack + name).joinToString(" -> ")}",
                     )
                 }
-                val base = resolve(target, stack + name) ?: return node
+                val base =
+                    resolve(target, stack + name)
+                        ?: throw IllegalArgumentException(
+                            "Unknown $INCLUDE_KEY target '$include' in preset_keyboards entry '$name'",
+                        )
                 // included fields first, then this keyboard's own fields win
                 val merged = LinkedHashMap<Node, Node>()
                 base.pairs.forEach { (k, v) -> merged[k] = v }
                 node.pairs.forEach { (k, v) ->
                     val key = k.string ?: return@forEach
-                    // drop the include markers from the merged result
-                    if (key != INCLUDE_KEY && key != IMPORT_PRESET_KEY) merged[k] = v
+                    // drop the include marker from the merged result
+                    if (key != INCLUDE_KEY) merged[k] = v
                 }
                 return Node.Mapping(merged)
             }
@@ -105,6 +107,5 @@ data class Theme(
         }
 
         private const val INCLUDE_KEY = "__include"
-        private const val IMPORT_PRESET_KEY = "import_preset"
     }
 }

@@ -53,7 +53,7 @@ class ThemeDecodeTest :
             child.keys.first().label shouldBe "a"
         }
 
-        "legacy import_preset alias is still resolved" {
+        "legacy import_preset is retired and no longer inherits" {
             val theme = decode(
                 """
                 name: test
@@ -69,7 +69,7 @@ class ThemeDecodeTest :
             )
 
             val child = theme.presetKeyboards.getValue("child")
-            child.name shouldBe "base"
+            child.name shouldBe ""
             child.columns shouldBe 8
         }
 
@@ -93,19 +93,22 @@ class ThemeDecodeTest :
                 "Circular __include in preset_keyboards: a -> b"
         }
 
-        "missing __include base falls back to the including keyboard" {
-            val theme = decode(
-                """
-                name: test
-                style: {}
-                preset_keyboards:
-                  child:
-                    __include: /preset_keyboards/does_not_exist
-                    columns: 9
-                """.trimIndent(),
-            )
-
-            theme.presetKeyboards.getValue("child").columns shouldBe 9
+        "missing __include base fails loudly instead of silently dropping" {
+            val exception =
+                shouldThrow<IllegalArgumentException> {
+                    decode(
+                        """
+                        name: test
+                        style: {}
+                        preset_keyboards:
+                          child:
+                            __include: /preset_keyboards/does_not_exist
+                            columns: 9
+                        """.trimIndent(),
+                    )
+                }
+            exception.message shouldBe
+                "Unknown __include target '/preset_keyboards/does_not_exist' in preset_keyboards entry 'child'"
         }
     })
 

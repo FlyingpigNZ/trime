@@ -247,7 +247,7 @@ breaking format change ever happens, it can be handled ad-hoc.)
 ### Phase 2 — Composable definition model (layouts + schema binding)
 
 8. **Split the theme monolith into the three tiers** (high impact, medium
-   effort)
+   effort) — **DONE for tiers 1+2 core; schema tier lands with item 12**
    - Extract standard keyboards + predefined colors into the **standard
      catalog** files (single YAML each, app-shipped).
    - Leave theme files as decoration (including the entire `generalStyle`);
@@ -256,14 +256,18 @@ breaking format change ever happens, it can be handled ad-hoc.)
      views use today. Migration: keep legacy monolithic themes loadable by
      treating their embedded keyboards/colors as overrides.
 9. **Implement explicit declaration + validation** (high impact, medium
-   effort)
+   effort) — **DONE**
    - **Explicit-by-name references only** (D1): themes/schema layouts reference
      standard keyboards/colors by name (`qwerty`, `26key`, `symbol`, `emoji`,
-     …); no implicit merging.
+     …); no implicit merging. Settled syntax:
+     `use_standard_preset_keys: true`,
+     `standard_keyboards: [qwerty, …]`,
+     `standard_color_schemes: [default, …]`.
    - **`__include` is the single inheritance mechanism** (per the user's
      decision): make it actually work, resolved **at parse time with
      validation** — fixes the silent-drop gap; **retire `import_preset`** and
-     migrate its usages to `__include`.
+     migrate its usages to `__include` (the legacy alias is no longer
+     recognized; no shipped theme keyboard used it).
 10. **Separate parsing from interpretation in `KeyAction`** (high impact,
     medium effort) — **10a DONE, 10b in progress**
     - `KeyActionDefinition` (pure immutable model) + `KeyActionDefinition.parse`
@@ -283,11 +287,14 @@ breaking format change ever happens, it can be handled ad-hoc.)
       `Command` type; replace `"_keyboard_"`/`"_key_"` prefix matching with typed
       option keys; replace the keycode↔name↔Rime-value string round-trip.
 12. **Declared schema↔layout binding** (medium impact, medium effort)
+    — **reference pair created; loader/zip plumbing still TODO**
     - Replace the implicit `smartMatchKeyboard` naming convention with an
       explicit declaration. **Pair the schema with its custom layouts** (per
       the user's decision): the Rime schema and its keyboard layouts travel
       together, but as **separate files** — the Rime engine must compile the
       schema file on its own, so they cannot be a single YAML.
+    - Reference package: `sample_theme_schemas/minimal-14jian/`
+      (`manifest.yaml` + `14jian.schema.yaml` + `14jian.layout.yaml`).
     - **Delivery: package the pair** — schema + its layouts are shipped
       together as an archive (e.g. a zip: schema file + layout file(s) +
       metadata/manifest). The app unpacks it, compiles the schema through Rime,
