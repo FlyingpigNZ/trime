@@ -1,0 +1,9 @@
+# Schema-layout package manifest (full 简纯+14键 conversion)
+schema_id: 14jian
+name: 简纯+14键
+version: '0.1'
+schema_file: 14jian.schema.yaml
+layout_files:
+- 14jian.layout.yaml
+default_keyboard: 14jian
+resources: []

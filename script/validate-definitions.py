@@ -73,16 +73,23 @@ def validate_file(path: Path, kind: str | None) -> list[str]:
 
 def check_shipped() -> int:
     errors: list[str] = []
-    for path in sorted((ROOT / "sample_theme_schemas/minimal-14jian").glob("*.yaml")):
-        if path.name == "manifest.yaml":
-            kind = "manifest"
-        elif "layout" in path.name:
-            kind = "layout"
-        else:
-            continue
-        found = validate_file(path, kind)
-        if found:
-            errors.append(f"{path.relative_to(ROOT)}:\n  " + "\n  ".join(found))
+    reference_dirs = [
+        ROOT / "sample_theme_schemas/minimal-14jian",
+        ROOT / "sample_theme_schemas/简纯+14键",
+    ]
+    for ref_dir in reference_dirs:
+        for path in sorted(ref_dir.glob("*.yaml")):
+            if path.name == "manifest.yaml":
+                kind = "manifest"
+            elif path.name == "theme.yaml":
+                kind = "theme"
+            elif "layout" in path.name:
+                kind = "layout"
+            else:
+                continue
+            found = validate_file(path, kind)
+            if found:
+                errors.append(f"{path.relative_to(ROOT)}:\n  " + "\n  ".join(found))
     standard_checks = {
         STANDARD_DIR / "colors.yaml": "preset_color_schemes",
         STANDARD_DIR / "keyboards.yaml": "preset_keyboards",
