@@ -369,10 +369,10 @@ breaking format change ever happens, it can be handled ad-hoc.)
       the light palette.
     - `ColorManager` simply selects `darkColors` when night mode is active;
       the old `light_scheme`/`dark_scheme` 4-branch `when` is removed.
-    - **Data migration**: `standard/colors.yaml` converted to the new
-      `light:` shape (dark fallback = light). Legacy themes such as
-      `tongwenfeng` are still accepted as flat overrides; converting them can
-      be part of standard resource delivery.
+    - **Data migration**: `standard/colors.yaml` and
+      `tongwenfeng.trime.yaml` converted to the new `light:` shape (dark
+      fallback = light); legacy flat schemes are still accepted for
+      compatibility.
 20. **Decouple parsing from Parcelable** (low-medium impact, medium effort)
     — **DONE**
     - Removed `@Parcelize`/`Parcelable` from `Theme` and all theme model

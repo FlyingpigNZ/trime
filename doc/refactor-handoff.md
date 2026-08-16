@@ -84,10 +84,10 @@ easy to use — by splitting themes into a composable three-tier model.
     their light palette as the dark fallback. `ColorManager`'s 4-branch
     `light_scheme`/`dark_scheme` logic is removed; night mode just selects the
     scheme's `darkColors`.
-    **Standard resource delivery**: `standard/colors.yaml` has been converted
-    to the new `light:` shape (dark fallback = light). Legacy themes such as
-    `tongwenfeng` are still accepted as flat overrides; converting them can be
-    part of final standard resource delivery.
+    **Standard resource delivery**: `standard/colors.yaml` and
+    `tongwenfeng.trime.yaml` have been converted to the new `light:` shape
+    (dark fallback = light). Legacy flat schemes are still accepted for
+    compatibility.
 14. **Phase 3 item 18 DONE**: `ColorManager` now merges the builtin fallback
     table with theme `fallback_colors` once per theme switch and resolves from a
     single combined map; duplicated builtin fallback comments were removed from
@@ -116,6 +116,10 @@ easy to use — by splitting themes into a composable three-tier model.
 22. **Phase 3 item 21 DONE**: added `BaseInputView.restyle()` and overrides;
     color changes now restyle existing input/candidate views in place. Theme
     structure changes still use full rebuild as a safe fallback.
+23. **Canonical install workflow recorded**: user picks a schema-layout zip →
+    extract + merge with standard → copy package resources to user backgrounds
+    → deploy Rime schema → add to `default.custom.yaml` as default → activate.
+    Legacy monolithic theme files are not part of this workflow.
 
 ---
 
@@ -370,7 +374,7 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
 2. Verify branch: `git branch --show-current` should be
    `refactor/untangle-ime-engine`; if not, `git checkout
    refactor/untangle-ime-engine`.
-3. Current state (end of implementation session 5):
+3. Current state (all plan phases complete):
    - **Phase 0 DONE**: core/ Android-free (Rime takes injected
      InputOptions/RimeEnvironment/hooks), typed message protocol
      (emitMessage + sealed RimeMessage; nativeCreate = C++ adapter 1-3).
@@ -379,21 +383,25 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      messageFlow on RimeSession + buffer 64 (7).
    - **Phase 0.5 DONE**: pure-JVM test batch added (see §1 item 9); targeted
      `testDebugUnitTest` passes.
-   - **Phase 2 partial**: item 8 core DONE (standard catalog + ThemeResolver;
-     `trime.yaml` decoration-only; schema tier deferred to item 12); item 9
-     DONE (explicit `standard_*` declarations, strict `__include`,
-     `import_preset` retired); 10 DONE (KeyActionDefinition + parse split,
-     interpretation takes RimeUiState snapshot, sealed KeyActionCommand
-     dispatch); 11+12 DONE (import_preset flattened, __include inheritance at
-     parse time with cycle detection); 12 DONE (schema-layout package install
-     flow + UI action + layout merge); 13 DONE (KeyboardSwitcher extracted,
-     KeyboardWindow renders only); 14 DONE (validator + CLI + in-app).
-   - **Phase 2 COMPLETE**.
+   - **Phase 2 COMPLETE**: items 8-14 DONE (standard catalog + ThemeResolver,
+     explicit declarations, KeyAction split, typed commands, schema-layout
+     package flow, KeyboardSwitcher, validator + CLI + in-app).
    - **Phase 3 COMPLETE**: items 15-21 DONE (typed colors, ThemeContext,
      resolved palette, fallback tables, light/dark pairs, Parcelable removal,
      incremental color restyle).
-   - Commits on this branch: f3d9df3d (item 21 restyle) -> 13602d3a
-     (instrumentation smoke test) -> 9e53c2fb (automated testing docs) ->
+   - **Post-plan resource standardization**: `standard/colors.yaml` and
+     `tongwenfeng.trime.yaml` converted to new `light:` shape;
+     `minimal-14jian/` is a self-contained schema-layout package (manifest +
+     schema + single layout defining 14jian/letter_14jian and all non-standard
+     preset keys); package resources are copied to user backgrounds on install.
+   - **Automatic app testing**: `doc/automated-testing.md` + compiling
+     `SmokeTest` androidTest; running requires an emulator/device.
+   - Commits on this branch: d3ce11c6 (handoff update) -> afa48fc3 (package
+     resource copy + workflow) -> 1cc7a0c1 (14jian self-contained) ->
+     b48493b7 (14jian package split) -> e6f475a6 (tongwenfeng standardization)
+     ->
+     f3d9df3d (item 21 restyle) -> 13602d3a (instrumentation smoke test) ->
+     9e53c2fb (automated testing docs) ->
      36fb5912 (item 16 ThemeContext) -> 77ff33a1 (item 17 resolved palette) ->
      b1b4fcb9 (item 15 typed colors) -> 91d1f78c (item 20 Parcelable removal)
      -> fffe3c38 (item 14 validator) -> 8405a3d4 (definition spec + standard
@@ -408,10 +416,13 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) -> f5503f1e (Phase 0) ->
      d5c46822 (docs).
 4. Next step options:
-   - (a) **Phase 3 decoration system** — items 15-17, 20, 21 remain
-   - (b) **Automatic app-level testing** — design/implement instrumentation or
-     emulator-based tests outside unit tests
-   - (c) user may raise something else
+   - (a) Run `./gradlew :app:connectedDebugAndroidTest` on an emulator/device
+     to execute the instrumentation smoke test
+   - (b) Decide on a dedicated import dialog/UX for schema packages (currently
+     system file picker + toast)
+   - (c) Convert the full `简纯+14键.trime.yaml` monolith into the split
+     package/theme resources (currently only mapping doc + minimal reference)
+   - (d) user may raise something else
 5. Build gotcha: home dir is read-only in this sandbox, and `/tmp` is wiped
    between shell commands. For repeated Gradle runs use a workspace-writable
    user home, e.g. `GRADLE_USER_HOME=$PWD/.gradle-test-home ./gradlew ...`.

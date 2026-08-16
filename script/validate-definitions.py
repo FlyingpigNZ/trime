@@ -96,6 +96,13 @@ def check_shipped() -> int:
             continue
         if not isinstance(data, dict) or expected_key not in data:
             errors.append(f"{path.relative_to(ROOT)}: Missing expected top-level key '{expected_key}'")
+    for path in [
+        ROOT / "app/src/main/assets/shared/trime.yaml",
+        ROOT / "app/src/main/assets/shared/tongwenfeng.trime.yaml",
+    ]:
+        found = validate_file(path, "theme")
+        if found:
+            errors.append(f"{path.relative_to(ROOT)}:\n  " + "\n  ".join(found))
     if errors:
         print("\n".join(errors))
         return 1

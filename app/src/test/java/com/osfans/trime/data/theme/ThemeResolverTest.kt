@@ -181,6 +181,16 @@ class ThemeResolverTest :
             }
         }
 
+        "shipped tongwenfeng theme resolves with shipped standard catalog" {
+            val themeNode = mapping(File("src/main/assets/shared/tongwenfeng.trime.yaml").readText())
+            val theme = ThemeResolver.resolve(themeNode, shippedStandard())
+
+            theme.name shouldBe "标准"
+            theme.colorSchemes.isNotEmpty() shouldBe true
+            theme.presetKeyboards.isNotEmpty() shouldBe true
+            theme.colorSchemes.all { "light" in it.colors || it.colors.isNotEmpty() } shouldBe true
+        }
+
         "shipped decoration-only trime.yaml resolves with shipped standard catalog" {
             val themeNode = mapping(File("src/main/assets/shared/trime.yaml").readText())
             val theme = ThemeResolver.resolve(themeNode, shippedStandard())
@@ -253,6 +263,10 @@ class ThemeResolverTest :
             theme.presetKeyboards.keys shouldContain "letter_14jian"
             theme.presetKeyboards.keys shouldContain "default"
             theme.presetKeys.keys shouldContain "14keyqw"
+            theme.presetKeys.keys shouldContain "num1"
+            theme.presetKeys.keys shouldContain "Keyboard_symbols"
+            theme.presetKeys.keys shouldContain "Keyboard_number"
+            theme.presetKeys.keys shouldContain "BS"
             theme.presetKeyboards.getValue("14jian").name shouldBe "14键"
             theme.presetKeyboards.getValue("letter_14jian").asciiMode shouldBe true
         }

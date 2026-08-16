@@ -13,6 +13,7 @@ import com.osfans.trime.data.theme.ThemeResolver
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
+import com.osfans.trime.util.yaml.string
 import java.io.File
 
 /**
@@ -28,8 +29,12 @@ import java.io.File
 object SchemaLayoutPackageManager {
     private val installed = mutableMapOf<String, SchemaLayoutManifest>()
 
+    private val mergeableSections =
+        setOf("preset_keys", "preset_keyboards", "preset_color_schemes")
+
     fun install(packageFile: File): SchemaLayoutManifest {
         val manifest = SchemaLayoutPackageInstaller.install(packageFile, installDir())
+        copyPackageResources(manifest)
         installed[manifest.schemaId] = manifest
         return manifest
     }
@@ -59,24 +64,56 @@ object SchemaLayoutPackageManager {
 
     fun installedPackage(schemaId: String): SchemaLayoutManifest? = installed[schemaId]
 
+    /**
+     * Make package resources (e.g. background images) visible to [ColorManager]
+     * by copying them into the user backgrounds directory. Resource paths like
+     * `backgrounds/14jian.png` become `backgrounds/14jian.png`.
+     */
+    private fun copyPackageResources(manifest: SchemaLayoutManifest) {
+        val packageDir = File(installDir(), manifest.schemaId)
+        val backgroundsDir = File(DataManager.userDataDir, "backgrounds").apply { mkdirs() }
+        manifest.resources.forEach { resource ->
+            val source = File(packageDir, resource)
+            if (!source.isFile) return@forEach
+            val relative = resource.removePrefix("backgrounds/").removePrefix("images/")
+            val target = File(backgroundsDir, relative)
+            target.parentFile?.mkdirs()
+            source.copyTo(target, overwrite = true)
+        }
+    }
+
     private fun buildLayoutTheme(manifest: SchemaLayoutManifest): Theme {
         val standard =
             StandardCatalog.load(DataManager.sharedDataDir)
                 ?: throw IllegalStateException("Standard catalog unavailable")
-        var merged: Theme? = null
+        val combined = LinkedHashMap<Node, Node>()
         for (layoutFile in manifest.layoutFiles) {
             val file = File(File(installDir(), manifest.schemaId), layoutFile)
             val node =
                 Yaml.parseToYamlNode(file.readText()).mapping
                     ?: throw IllegalArgumentException("Layout is not a mapping: $layoutFile")
-            val complete = Node.Mapping(LinkedHashMap(node.pairs).apply {
-                putIfAbsent(Node.Scalar("name"), Node.Scalar(manifest.name))
-                putIfAbsent(Node.Scalar("style"), Node.Mapping())
-            })
-            val resolved = ThemeResolver.resolve(complete, standard)
-            merged = if (merged == null) resolved else merged.mergeSchemaLayout(resolved)
+            // Merge all layout fragments at the node level before resolving, so
+            // `__include` references can cross layout files within the package.
+            node.pairs.forEach { (key, value) ->
+                val keyName = key.string
+                if (keyName in mergeableSections) {
+                    val existing = combined[key] as? Node.Mapping
+                    val incoming = value as? Node.Mapping
+                    if (existing != null && incoming != null) {
+                        val merged = LinkedHashMap(existing.pairs)
+                        incoming.pairs.forEach { (k, v) -> merged[k] = v }
+                        combined[key] = Node.Mapping(merged)
+                    } else {
+                        combined[key] = value
+                    }
+                } else {
+                    combined[key] = value
+                }
+            }
         }
-        return merged ?: throw IllegalArgumentException("Package has no layout files")
+        combined.putIfAbsent(Node.Scalar("name"), Node.Scalar(manifest.name))
+        combined.putIfAbsent(Node.Scalar("style"), Node.Mapping())
+        return ThemeResolver.resolve(Node.Mapping(combined), standard)
     }
 
     private fun installDir(): File = File(DataManager.userDataDir, "schema-packages")

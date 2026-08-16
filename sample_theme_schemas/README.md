@@ -1,0 +1,43 @@
+# Sample theme/schema pair and the new three-tier model
+
+This directory contains the original full sample pair:
+
+- `简纯+14键.trime.yaml` — legacy monolithic theme
+- `14jian.schema.yaml` — Rime schema
+
+The refactored model splits definitions into three tiers. This README maps the
+legacy monolith's sections to the new tiers and explains what is kept where.
+
+## Mapping for `简纯+14键.trime.yaml`
+
+| Legacy section | New tier / destination |
+|---|---|
+| `name`, `author` | Tier 2 decoration theme |
+| `style` | Tier 2 decoration theme (`generalStyle`) |
+| `fallback_colors` | Tier 2 decoration theme |
+| `liquid_keyboard` | Tier 2 decoration theme |
+| `preset_color_schemes` | Tier 2 theme colors, or Tier 3 package colors if they are only used by the schema layout |
+| `preset_keyboards` (general: `default`, `letter`, `number`, `symbols`, sym/emoji/ywz) | Tier 2 theme custom keyboards, or promoted to Tier 1 standard catalog if they become app-standard |
+| `preset_keyboards` (schema-specific: `14jian`, `letter_14jian`, `14number`, `14symbols`, …) | Tier 3 schema-layout package |
+| `preset_keys` used by general keyboards | Tier 2 theme `preset_keys` |
+| `preset_keys` used only by schema-specific keyboards | Tier 3 package `preset_keys` |
+| `conf` | Legacy variable indirection — expand inline or replace with `__include` / explicit values |
+| `styl` | Legacy style indirection — expand inline or replace with `__include` / explicit values |
+| `__patch` | Legacy patching mechanism — expand inline or replace with explicit overrides |
+| `android_keys` | Legacy/ignored by current decoder; do not carry into new definitions |
+
+## Reference implementation
+
+`minimal-14jian/` is the cleaned, minimal version of the same idea:
+
+- `manifest.yaml` — package metadata; `layout_files` contains only the
+  schema-specific layout
+- `14jian.schema.yaml` — minimal Rime schema
+- `14jian.layout.yaml` — schema-specific layout: only the `14jian` keyboard and
+  its ascii companion `letter_14jian`, plus every referenced preset key that is
+  not already in the shipped standard catalog
+
+The full monolith should be treated as source material: its general decoration
+goes into a tier-2 theme, its schema-specific layouts go into a tier-3 package,
+and its `conf`/`styl`/`__patch` mechanisms are replaced by the new explicit
+definition model.

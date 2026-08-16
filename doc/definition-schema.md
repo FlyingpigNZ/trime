@@ -119,7 +119,13 @@ A normal Rime schema file. It must compile on its own.
 
 ### `14jian.layout.yaml`
 
-A layout fragment. It may reference standard components and/or define custom
+A layout fragment. A package may contain multiple layout fragments; `manifest.yaml`
+lists them in order, and later fragments override earlier ones. Definition
+sections (`preset_keys`, `preset_keyboards`, `preset_color_schemes`) are
+deep-merged so a schema-specific fragment can reference keyboards/keys defined
+in a shared fragment.
+
+A layout fragment may reference standard components and/or define custom
 components:
 
 ```yaml
@@ -146,6 +152,19 @@ Resources referenced by custom colors (e.g. background images) must be present
 in the package `resources` list and are unpacked with the package. Standard
 color schemes do not need package resources; they resolve from the standard
 catalog.
+
+## Canonical install workflow
+
+1. User selects a zip/archive containing a schema-layout package (see
+   `sample_theme_schemas/minimal-14jian/`).
+2. The app extracts the archive, merges the layout fragments with the standard
+   catalog, and copies package resources into the user backgrounds directory so
+   the singleton resource managers can access them.
+3. The app deploys the Rime schema, adds it to `default.custom.yaml` as the
+   default input method, and activates/switches to it.
+4. Legacy monolithic theme files are not used by this workflow. Runtime
+   definitions come from the standard catalog + the installed package + a
+   built-in decoration base.
 
 ## Validation summary
 

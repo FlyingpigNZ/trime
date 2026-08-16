@@ -7,6 +7,8 @@ schema_id: 14jian
 name: 小鹤双拼14键
 version: "0.1"
 schema_file: 14jian.schema.yaml
+# The schema-specific layout is self-contained for everything the 14jian
+# keyboards reference that is not already in the shipped standard catalog.
 layout_files:
   - 14jian.layout.yaml
 # Optional: the keyboard used when this schema becomes active.

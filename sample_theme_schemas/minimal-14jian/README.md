@@ -8,8 +8,9 @@ its custom keyboard layout(s).
 - `manifest.yaml` — package manifest: schema id, schema file, layout file(s),
   optional default keyboard.
 - `14jian.schema.yaml` — minimal Rime schema, stripped of rime-ice/Lua extras.
-- `14jian.layout.yaml` — minimal layout fragment, stripped of theme decoration
-  and the sample's `conf`/`__patch` machinery.
+- `14jian.layout.yaml` — schema-specific layout: only the `14jian` keyboard and
+  its ascii companion `letter_14jian`, plus every preset key those keyboards
+  reference that is not already in the shipped standard catalog.
 
 ## How to read it
 

@@ -1,13 +1,9 @@
-# Minimal tier-3 layout for the 14jian schema.
+# Schema-specific layout for the 14jian schema.
 #
-# Stripped from sample_theme_schemas/简纯+14键.trime.yaml:
-# - removed full theme decoration (style/preedit/window/colors/liquid keyboard)
-# - removed the `conf` indirection and `__patch` mechanics for this reference
-# - kept only the schema-specific preset_keys and the 14jian/letter_14jian
-#   keyboards, plus explicit references to standard tier-1 components.
-#
-# When loaded as a theme this file is intentionally minimal; the normal runtime
-# path will merge it on top of a decoration theme via ThemeResolver.
+# This file only defines the keyboards that belong to the 14jian schema
+# (14jian and its ascii companion letter_14jian). It references standard
+# keyboards/keys where possible and defines the additional preset keys that are
+# not available in the shipped standard catalog.
 
 name: 14键布局
 author: amzxyz
@@ -30,6 +26,11 @@ preset_keys:
   num9: {label: 9, send: 9}
   num0: {label: 0, send: 0}
 
+  # 通用键盘跳转
+  Keyboard_symbols: {label: "۞", send: Eisu_toggle, select: symbols}
+  Keyboard_number: {label: "123", send: Eisu_toggle, select: number}
+  BS: {label: "⌫", repeatable: true, send: BackSpace}
+
   # 14键共键单发
   14keyqw: {label: " Q W ", send: "q"}
   14keyer: {label: "E R", send: "e"}
@@ -46,14 +47,11 @@ preset_keys:
   14keybn: {label: "B N", send: "b"}
   14keym: {label: " M ", send: "m"}
 
-  # 键盘互相跳转
+  # 14键专用键盘跳转
   Keyboard_14jian: {label: 中, send: Eisu_toggle, select: letter_14jian}
   Keyboard_letter_14jian: {label: 英, send: Eisu_toggle, select: 14jian}
   Back14: {label: 返回, send: Eisu_toggle, select: 14jian}
   Back14en: {label: 返回, send: Eisu_toggle, select: letter_14jian}
-  Keyboard_symbols: {label: "۞", send: Eisu_toggle, select: symbols}
-  Keyboard_number: {label: "123", send: Eisu_toggle, select: number}
-  BS: {label: "⌫", repeatable: true, send: BackSpace}
 
 preset_keyboards:
   14jian:
