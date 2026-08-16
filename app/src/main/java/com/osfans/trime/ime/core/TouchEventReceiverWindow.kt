@@ -37,6 +37,7 @@ class TouchEventReceiverWindow(
         w: Int,
         h: Int,
     ) {
+        if (!contentView.isAttachedToWindow) return
         isWindowShowing = true
         if (window.isShowing) {
             window.update(x, y, w, h)
@@ -48,6 +49,7 @@ class TouchEventReceiverWindow(
     }
 
     fun show() {
+        if (!contentView.isAttachedToWindow) return
         val (x, y) = cachedLocation.also { contentView.getLocationInWindow(it) }
         val width = contentView.width
         val height = contentView.height

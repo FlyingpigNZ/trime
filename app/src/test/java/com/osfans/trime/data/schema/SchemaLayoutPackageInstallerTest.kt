@@ -21,10 +21,14 @@ class SchemaLayoutPackageInstallerTest :
             val manifest = SchemaLayoutPackageInstaller.install(packageFile, destDir)
 
             manifest.schemaId shouldBe "14jian"
+            manifest.themeFile shouldBe "theme.yaml"
             manifest.resources shouldBe listOf("backgrounds/14jian.png")
+            manifest.rimeFiles shouldBe listOf("rime/default.yaml")
             File(destDir, "14jian/14jian.schema.yaml").exists() shouldBe true
+            File(destDir, "14jian/theme.yaml").exists() shouldBe true
             File(destDir, "14jian/14jian.layout.yaml").exists() shouldBe true
             File(destDir, "14jian/backgrounds/14jian.png").exists() shouldBe true
+            File(destDir, "14jian/rime/default.yaml").exists() shouldBe true
         }
 
         "install fails when manifest is missing" {
@@ -65,11 +69,17 @@ private fun createPackage(includeManifest: Boolean): File {
         zip.putNextEntry(ZipEntry("14jian.schema.yaml"))
         zip.write("schema:\n  schema_id: 14jian\n".toByteArray())
         zip.closeEntry()
+        zip.putNextEntry(ZipEntry("theme.yaml"))
+        zip.write("name: 14键主题\nstyle: {}\n".toByteArray())
+        zip.closeEntry()
         zip.putNextEntry(ZipEntry("14jian.layout.yaml"))
         zip.write("name: 14键布局\nstyle: {}\n".toByteArray())
         zip.closeEntry()
         zip.putNextEntry(ZipEntry("backgrounds/14jian.png"))
         zip.write(byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47))
+        zip.closeEntry()
+        zip.putNextEntry(ZipEntry("rime/default.yaml"))
+        zip.write("config_version: 'test'\n".toByteArray())
         zip.closeEntry()
     }
     return packageFile
@@ -81,9 +91,12 @@ private val MANIFEST =
     name: 小鹤双拼14键
     version: "0.1"
     schema_file: 14jian.schema.yaml
+    theme_file: theme.yaml
     layout_files:
       - 14jian.layout.yaml
     default_keyboard: 14jian
     resources:
       - backgrounds/14jian.png
+    rime_files:
+      - rime/default.yaml
     """.trimIndent()

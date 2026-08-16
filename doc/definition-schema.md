@@ -106,16 +106,28 @@ schema_id: 14jian
 name: 小鹤双拼14键
 version: "0.1"
 schema_file: 14jian.schema.yaml
+theme_file: theme.yaml
 layout_files:
   - 14jian.layout.yaml
 default_keyboard: 14jian
 resources:
   - backgrounds/14jian.png
+rime_files:
+  - rime/default.yaml
+  - rime/cn_dicts/base.dict.yaml
 ```
 
 ### `14jian.schema.yaml`
 
 A normal Rime schema file. It must compile on its own.
+
+### `theme.yaml` (optional)
+
+A tier-2 decoration theme. When `manifest.yaml` lists `theme_file`, the app
+uses it as the base decoration theme for the installed package (style,
+fallback colors, liquid keyboard, chrome, and color schemes), so the package
+can look different from the standard delivery instead of only overriding
+keyboards/keys.
 
 ### `14jian.layout.yaml`
 
@@ -153,15 +165,25 @@ in the package `resources` list and are unpacked with the package. Standard
 color schemes do not need package resources; they resolve from the standard
 catalog.
 
+Rime files required by the schema (dictionaries, auxiliary schemas, Lua
+scripts, OpenCC data, `default.yaml`, `symbols_*.yaml`, etc.) are listed in
+`rime_files`. They are stored under `rime/` inside the zip; during install the
+app copies them into the Rime user data directory (the `rime/` prefix is
+stripped) before deploying the schema. This makes a full rime-ice based schema
+package self-contained.
+
 ## Canonical install workflow
 
 1. User selects a zip/archive containing a schema-layout package (see
    `sample_theme_schemas/minimal-14jian/`).
-2. The app extracts the archive, merges the layout fragments with the standard
-   catalog, and copies package resources into the user backgrounds directory so
-   the singleton resource managers can access them.
-3. The app deploys the Rime schema, adds it to `default.custom.yaml` as the
-   default input method, and activates/switches to it.
+2. The app extracts the archive, uses the optional package `theme_file` as the
+   decoration base, merges the layout fragments on top, and copies package
+   resources into the user backgrounds directory so the singleton resource
+   managers can access them.
+3. The app copies package `rime_files` into the Rime user data directory,
+   deploys auxiliary schemas first and then the main schema, adds it to
+   `default.custom.yaml` as the default input method, and activates/switches
+   to it.
 4. Legacy monolithic theme files are not used by this workflow. Runtime
    definitions come from the standard catalog + the installed package + a
    built-in decoration base.
@@ -173,4 +195,5 @@ catalog.
 - Missing `manifest.yaml` or required manifest fields → error
 - Unsafe zip paths → error
 - Empty `layout_files` → error
+- `rime_files` entries must be strings under `rime/` → error
 - Color scheme `dark:` may only contain known color keys (validator, item 14)

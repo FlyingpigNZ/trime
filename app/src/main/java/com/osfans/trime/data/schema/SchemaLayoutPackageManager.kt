@@ -20,10 +20,11 @@ import java.io.File
  * High-level manager for schema-layout packages.
  *
  * Install/select flow:
- * 1. unpack the zip into the user data dir
- * 2. compile the schema through Rime (JNI)
- * 3. add the schema to `default.custom.yaml` as the first/default input method
- * 4. keep the installed manifest in the registry so layouts can be merged and
+ * 1. unpack the zip into a workspace dir under the user data dir and copy theme resources
+ * 2. copy Rime files (`rime/...`) from the workspace into the Rime user data dir
+ * 3. deploy the auxiliary schemas first, then the main schema (existing JNI)
+ * 4. add the schema to `default.custom.yaml` as the first/default input method
+ * 5. keep the installed manifest in the registry so layouts can be merged and
  *    `KeyboardSwitcher` can resolve explicit bindings
  */
 object SchemaLayoutPackageManager {
@@ -35,6 +36,7 @@ object SchemaLayoutPackageManager {
     fun install(packageFile: File): SchemaLayoutManifest {
         val manifest = SchemaLayoutPackageInstaller.install(packageFile, installDir())
         copyPackageResources(manifest)
+        copyRimeFiles(manifest)
         installed[manifest.schemaId] = manifest
         return manifest
     }
@@ -53,11 +55,35 @@ object SchemaLayoutPackageManager {
         if (!schemaFile.isFile) {
             throw IllegalArgumentException("Schema file missing for package: $schemaId")
         }
-        if (!Rime.deployRimeSchemaFile(schemaFile.absolutePath)) {
-            throw IllegalStateException("Rime failed to deploy schema: $schemaId")
+        // Rime's user data dir is the canonical location for installed schema
+        // sources, so copy the customer schema there before deploying.
+        val userSchemaFile = File(DataManager.userDataDir, manifest.schemaFile)
+        schemaFile.copyTo(userSchemaFile, overwrite = true)
+        // Deploy auxiliary schemas first (e.g. melt_eng, radical_pinyin), then
+        // the main schema. Each deployRimeSchemaFile call builds that schema's
+        // compiled config and dictionary into the user data build dir.
+        val schemaFiles =
+            buildList {
+                manifest.rimeFiles
+                    .map { it.removePrefix("rime/") }
+                    .filter { it.endsWith(".schema.yaml") && it != manifest.schemaFile }
+                    .forEach { add(it) }
+                add(manifest.schemaFile)
+            }
+        schemaFiles.forEach { name ->
+            val file = File(DataManager.userDataDir, name)
+            if (!file.isFile) {
+                throw IllegalArgumentException("Schema file missing from user data dir: $name")
+            }
+            if (!Rime.deployRimeSchemaFile(file.absolutePath)) {
+                throw IllegalStateException("Rime failed to deploy schema: $name")
+            }
         }
         SchemaListUpdater.addSchema(customFile(), schemaId)
-        ThemeManager.applySchemaLayout(buildLayoutTheme(manifest))
+        ThemeManager.applySchemaLayout(
+            buildLayoutTheme(manifest),
+            replaceTheme = manifest.themeFile != null,
+        )
     }
 
     fun registry(): SchemaLayoutRegistry = SchemaLayoutRegistry(installed.toMap())
@@ -82,13 +108,48 @@ object SchemaLayoutPackageManager {
         }
     }
 
+    /**
+     * Make package Rime files visible to the engine by copying them from the
+     * package workspace into the Rime user data dir before the workspace
+     * deploy runs. Package paths like `rime/default.yaml` become
+     * `<user_data_dir>/default.yaml`.
+     */
+    private fun copyRimeFiles(manifest: SchemaLayoutManifest) {
+        val packageDir = File(installDir(), manifest.schemaId)
+        val userDataDir = DataManager.userDataDir
+        manifest.rimeFiles.forEach { rimeFile ->
+            val source = File(packageDir, rimeFile)
+            if (!source.isFile) {
+                throw IllegalArgumentException("Rime file missing from installed package: $rimeFile")
+            }
+            val relative = rimeFile.removePrefix("rime/")
+            val target = File(userDataDir, relative)
+            target.parentFile?.mkdirs()
+            source.copyTo(target, overwrite = true)
+        }
+    }
+
     private fun buildLayoutTheme(manifest: SchemaLayoutManifest): Theme {
         val standard =
             StandardCatalog.load(DataManager.sharedDataDir)
                 ?: throw IllegalStateException("Standard catalog unavailable")
+        val packageDir = File(installDir(), manifest.schemaId)
+        val base =
+            if (manifest.themeFile != null) {
+                val file = File(packageDir, manifest.themeFile)
+                Yaml.parseToYamlNode(file.readText()).mapping
+                    ?: throw IllegalArgumentException("Theme is not a mapping: ${manifest.themeFile}")
+            } else {
+                Node.Mapping(
+                    LinkedHashMap<Node, Node>().apply {
+                        put(Node.Scalar("name"), Node.Scalar(manifest.name))
+                        put(Node.Scalar("style"), Node.Mapping())
+                    },
+                )
+            }
         val combined = LinkedHashMap<Node, Node>()
         for (layoutFile in manifest.layoutFiles) {
-            val file = File(File(installDir(), manifest.schemaId), layoutFile)
+            val file = File(packageDir, layoutFile)
             val node =
                 Yaml.parseToYamlNode(file.readText()).mapping
                     ?: throw IllegalArgumentException("Layout is not a mapping: $layoutFile")
@@ -111,9 +172,7 @@ object SchemaLayoutPackageManager {
                 }
             }
         }
-        combined.putIfAbsent(Node.Scalar("name"), Node.Scalar(manifest.name))
-        combined.putIfAbsent(Node.Scalar("style"), Node.Mapping())
-        return ThemeResolver.resolve(Node.Mapping(combined), standard)
+        return ThemeResolver.mergeSchemaLayout(base, Node.Mapping(combined), standard)
     }
 
     private fun installDir(): File = File(DataManager.userDataDir, "schema-packages")

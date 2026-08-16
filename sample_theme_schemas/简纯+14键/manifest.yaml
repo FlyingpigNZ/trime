@@ -3,7 +3,46 @@ schema_id: 14jian
 name: 简纯+14键
 version: '0.1'
 schema_file: 14jian.schema.yaml
+theme_file: theme.yaml
 layout_files:
 - 14jian.layout.yaml
 default_keyboard: 14jian
 resources: []
+# Rime shared-data files required by the full rime-ice based schema. They are
+# stored under rime/ inside the zip and copied to the engine's shared data dir
+# during install. package_schema.py pulls them from the sibling rime.雾凇 folder
+# (or --rime-source) when they are not physically present in this directory.
+rime_files:
+- rime/default.yaml
+- rime/symbols_caps_v.yaml
+- rime/melt_eng.schema.yaml
+- rime/melt_eng.dict.yaml
+- rime/radical_pinyin.schema.yaml
+- rime/radical_pinyin.dict.yaml
+- rime/rime_ice.dict.yaml
+- rime/cn_dicts/8105.dict.yaml
+- rime/cn_dicts/base.dict.yaml
+- rime/cn_dicts/ext.dict.yaml
+- rime/cn_dicts/tencent.dict.yaml
+- rime/cn_dicts/others.dict.yaml
+- rime/en_dicts/en.dict.yaml
+- rime/en_dicts/en_ext.dict.yaml
+- rime/en_dicts/cn_en_flypy.txt
+- rime/custom_phrase_double.txt
+- rime/lua/autocap_filter.lua
+- rime/lua/calc_translator.lua
+- rime/lua/corrector.lua
+- rime/lua/date_translator.lua
+- rime/lua/force_gc.lua
+- rime/lua/lunar.lua
+- rime/lua/number_translator.lua
+- rime/lua/pin_cand_filter.lua
+- rime/lua/reduce_english_filter.lua
+- rime/lua/search.lua
+- rime/lua/select_character.lua
+- rime/lua/unicode.lua
+- rime/opencc/emoji.json
+- rime/opencc/emoji.txt
+- rime/opencc/emoji.ocd2
+- rime/opencc/others.txt
+- rime/opencc/others.ocd2

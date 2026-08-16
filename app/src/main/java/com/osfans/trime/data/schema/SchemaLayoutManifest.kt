@@ -13,9 +13,10 @@ import com.osfans.trime.util.yaml.string
  * Manifest inside a tier-3 schema-layout package.
  *
  * The package is a zip containing the Rime schema file, one or more layout
- * YAML fragments, and optional resources (background images, fonts, etc.) used
- * by those layouts. This model is pure JVM so it can be parsed and validated
- * without touching Android.
+ * YAML fragments, an optional tier-2 decoration theme, optional Rime
+ * shared-data files, and optional resources (background images, fonts, etc.)
+ * used by those layouts. This model is pure JVM so it can be parsed and
+ * validated without touching Android.
  */
 data class SchemaLayoutManifest(
     val schemaId: String,
@@ -24,8 +25,12 @@ data class SchemaLayoutManifest(
     val schemaFile: String,
     val layoutFiles: List<String>,
     val defaultKeyboard: String? = null,
+    /** Optional tier-2 decoration theme inside the package, e.g. `theme.yaml`. */
+    val themeFile: String? = null,
     /** File paths inside the package, e.g. `backgrounds/14jian.png`. */
     val resources: List<String> = emptyList(),
+    /** Rime shared-data files inside the package, e.g. `rime/default.yaml`. */
+    val rimeFiles: List<String> = emptyList(),
 ) {
     companion object {
         fun parse(node: Node.Mapping): SchemaLayoutManifest {
@@ -42,6 +47,10 @@ data class SchemaLayoutManifest(
             if (layoutFiles.isEmpty()) {
                 throw IllegalArgumentException("Field 'layout_files' must not be empty")
             }
+            val rimeFiles = node["rime_files"]?.sequence?.mapNotNull { it.string } ?: emptyList()
+            if (rimeFiles.any { !it.startsWith("rime/") }) {
+                throw IllegalArgumentException("Field 'rime_files' entries must be under 'rime/'")
+            }
             return SchemaLayoutManifest(
                 schemaId = schemaId,
                 name = name,
@@ -49,7 +58,9 @@ data class SchemaLayoutManifest(
                 schemaFile = schemaFile,
                 layoutFiles = layoutFiles,
                 defaultKeyboard = node["default_keyboard"]?.string,
+                themeFile = node["theme_file"]?.string,
                 resources = node["resources"]?.sequence?.mapNotNull { it.string } ?: emptyList(),
+                rimeFiles = rimeFiles,
             )
         }
 

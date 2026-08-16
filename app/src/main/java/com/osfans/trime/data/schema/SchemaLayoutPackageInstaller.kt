@@ -17,7 +17,9 @@ import java.util.zip.ZipFile
  * manifest.yaml
  * <schema>.schema.yaml
  * <layout>.layout.yaml
- * resources/...   (optional background images, fonts, etc.)
+ * theme.yaml     (optional tier-2 decoration theme)
+ * rime/...       (optional Rime shared-data files)
+ * resources/...  (optional background images, fonts, etc.)
  * ```
  *
  * The returned manifest is parsed from the package; callers can then compile
@@ -39,7 +41,7 @@ object SchemaLayoutPackageInstaller {
             val manifest = SchemaLayoutManifest.parse(manifestText)
 
             // Validate referenced files exist and layout files parse as YAML.
-            (listOf(manifest.schemaFile) + manifest.layoutFiles + manifest.resources).forEach { name ->
+            (listOf(manifest.schemaFile) + manifest.layoutFiles + manifest.resources + manifest.rimeFiles + listOfNotNull(manifest.themeFile)).forEach { name ->
                 if (zip.getEntry(name) == null) {
                     throw IllegalArgumentException("Package is missing referenced file: $name")
                 }
@@ -48,6 +50,12 @@ object SchemaLayoutPackageInstaller {
                 val text = zip.getInputStream(zip.getEntry(name)).bufferedReader().use { it.readText() }
                 if (Yaml.Default.parseToYamlNode(text).mapping == null) {
                     throw IllegalArgumentException("Layout file is not a YAML mapping: $name")
+                }
+            }
+            manifest.themeFile?.let { name ->
+                val text = zip.getInputStream(zip.getEntry(name)).bufferedReader().use { it.readText() }
+                if (Yaml.Default.parseToYamlNode(text).mapping == null) {
+                    throw IllegalArgumentException("Theme file is not a YAML mapping: $name")
                 }
             }
 

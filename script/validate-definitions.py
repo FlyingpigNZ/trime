@@ -37,6 +37,19 @@ def validate_manifest(data: dict) -> list[str]:
             errors.append(f"Missing required field '{field}'")
     if isinstance(data.get("layout_files"), list) and not data["layout_files"]:
         errors.append("Field 'layout_files' must not be empty")
+    theme_file = data.get("theme_file")
+    if theme_file is not None and not isinstance(theme_file, str):
+        errors.append("Field 'theme_file' must be a string")
+    rime_files = data.get("rime_files")
+    if rime_files is not None:
+        if not isinstance(rime_files, list):
+            errors.append("Field 'rime_files' must be a list")
+        else:
+            for name in rime_files:
+                if not isinstance(name, str):
+                    errors.append("Field 'rime_files' entries must be strings")
+                elif not name.startswith("rime/"):
+                    errors.append(f"Rime file '{name}' must be under 'rime/'")
     return errors
 
 

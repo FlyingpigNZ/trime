@@ -60,10 +60,13 @@ legacy monolith's sections to the new tiers and explains what is kept where.
   **not** bundled in app assets. They are delivered as a **zip** containing:
   - `manifest.yaml`
   - `14jian.schema.yaml`
+  - `theme.yaml` (optional tier-2 decoration theme)
   - `14jian.layout.yaml`
-  - optional `resources/`
+  - optional `rime/` (Rime files required by the schema; copied into the Rime user data dir on install)
+  - optional `resources/` (backgrounds, fonts)
 
-Generate the zip locally:
+Generate the zip locally. `rime_files` listed in the manifest are pulled from
+the sibling `rime.雾凇` working folder (or `--rime-source`) automatically:
 
 ```bash
 python3 script/package_schema.py sample_theme_schemas/简纯+14键

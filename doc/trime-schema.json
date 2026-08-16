@@ -107,6 +107,9 @@
         "schema_file": {
           "type": "string"
         },
+        "theme_file": {
+          "type": "string"
+        },
         "layout_files": {
           "type": "array",
           "items": {
@@ -121,6 +124,13 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "rime_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^rime/.+"
           }
         }
       },

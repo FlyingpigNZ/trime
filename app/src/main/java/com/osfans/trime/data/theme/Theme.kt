@@ -93,23 +93,22 @@ data class Theme(
             val metaKeys = setOf("light", "dark", "name")
 
             fun decodePalette(mapping: Node.Mapping?): MutableMap<String, String> =
-                if (mapping != null) {
-                    mapping.entries.associate { (k, v) -> k.string!! to v.string!! }.toMutableMap()
-                } else {
-                    node.pairs
+                mapping?.entries
+                    ?.associate { (k, v) -> k.string!! to v.string!! }
+                    ?.toMutableMap()
+                    ?: node.pairs
                         .mapNotNull { (k, v) ->
                             val key = k.string ?: return@mapNotNull null
                             if (key in metaKeys) null else key to v.string!!
                         }
                         .toMap()
                         .toMutableMap()
-                }
 
             val light = decodePalette(lightNode)
             val dark = decodePalette(darkNode).ifEmpty { light }.toMutableMap()
             topName?.let { name ->
-                light.putIfAbsent("name", name)
-                dark.putIfAbsent("name", name)
+                if ("name" !in light) light["name"] = name
+                if ("name" !in dark) dark["name"] = name
             }
             return ColorScheme(id, light, dark)
         }

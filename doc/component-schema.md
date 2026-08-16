@@ -92,9 +92,11 @@ components:
 | `version` | string | no | Version |
 | `schema_id` | string | no | Rime schema id (for schema packages) |
 | `schema_file` | string | no | Rime schema file in the package |
+| `theme_file` | string | no | Optional tier-2 decoration theme in the package |
 | `layout_files` | list[string] | no | Layout fragment files in the package |
 | `default_keyboard` | string | no | Default keyboard for the schema |
 | `resources` | list[string] | no | Package resources |
+| `rime_files` | list[string] | no | Rime shared-data files under `rime/` |
 | `components` | list[component-entry] | yes | Ordered composition list |
 
 ### 2.2 Component entry
@@ -241,6 +243,32 @@ resources:
   - backgrounds/14jian.png
   - fonts/custom.ttf
 ```
+
+### 3.9 `rime_files` (schema packages only)
+
+```yaml
+rime_files:
+  - rime/default.yaml
+  - rime/cn_dicts/base.dict.yaml
+  - rime/lua/select_character.lua
+```
+
+Entries are package paths under `rime/`. During schema-package install, each
+file is copied to the Rime user data directory with the `rime/` prefix
+removed, so the schema can be deployed with its dictionaries and Lua/OpenCC
+dependencies present.
+
+### 3.10 `theme_file` (schema packages only)
+
+```yaml
+theme_file: theme.yaml
+```
+
+An optional tier-2 decoration theme shipped with the package. When present, it
+replaces the current decoration theme during schema-package install, so the
+package can carry its own `style`, `fallback_colors`, `liquid_keyboard`,
+`preedit`/`window`/`tool_bar`, and color-scheme overrides. The layout files
+still overlay schema-specific preset keys/keyboards/colors on top of it.
 
 ---
 

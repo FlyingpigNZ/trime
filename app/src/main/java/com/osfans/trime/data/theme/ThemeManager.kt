@@ -148,9 +148,21 @@ object ThemeManager {
         prefs.selectedTheme.setValue(resolvedTheme.configId)
     }
 
-    /** Merge an installed schema-layout package onto the active theme. */
-    fun applySchemaLayout(layout: Theme) {
-        val theme = activeTheme.mergeSchemaLayout(layout)
+    /**
+     * Apply an installed schema-layout package. Packages that ship their own
+     * tier-2 `theme.yaml` replace the active decoration theme; packages without
+     * one keep the current theme and only merge layout definitions on top.
+     */
+    fun applySchemaLayout(
+        layout: Theme,
+        replaceTheme: Boolean = false,
+    ) {
+        val theme =
+            if (replaceTheme) {
+                layout
+            } else {
+                activeTheme.mergeSchemaLayout(layout)
+            }
         KeyActionManager.resetCache()
         FontManager.resetCache(theme)
         ColorManager.switchTheme(theme)
