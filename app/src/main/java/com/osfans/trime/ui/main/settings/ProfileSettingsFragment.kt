@@ -21,6 +21,8 @@ import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.schema.SchemaLayoutPackageManager
+import com.osfans.trime.data.theme.DefinitionValidator
+import com.osfans.trime.data.theme.StandardCatalog
 import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
 import com.osfans.trime.ui.common.withLoadingDialog
@@ -80,6 +82,7 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
     private lateinit var browseLauncher: ActivityResultLauncher<Uri?>
     private var launcherResultCallback: ((path: String) -> Unit)? = null
     private lateinit var packageLauncher: ActivityResultLauncher<String>
+    private lateinit var validateLauncher: ActivityResultLauncher<String>
 
     private lateinit var editSyncIntervalPreference: EditTextIntPreference
 
@@ -101,6 +104,9 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
         }
         packageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             if (uri != null) installSchemaLayoutPackage(uri)
+        }
+        validateLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) validateDefinitionFile(uri)
         }
     }
 
@@ -230,6 +236,12 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
                 ) {
                     packageLauncher.launch("application/zip")
                 }
+                addPreference(
+                    R.string.validate_definition_file,
+                    R.string.validate_definition_file_summary,
+                ) {
+                    validateLauncher.launch("*/*")
+                }
                 addPreference(R.string.reset, R.string.reset_hint) {
                     val items = ctx.assets.list("shared") ?: return@addPreference
                     val checked = BooleanArray(items.size) { false }
@@ -258,6 +270,34 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
                             }
                         }.show()
                 }
+            }
+        }
+    }
+
+    private fun validateDefinitionFile(uri: Uri) {
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            val text =
+                withContext(Dispatchers.IO) {
+                    ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                } ?: return@launch
+            val standard = StandardCatalog.load(DataManager.sharedDataDir)
+            val errors =
+                if (standard == null) {
+                    listOf("Standard catalog unavailable")
+                } else {
+                    DefinitionValidator.validateManifest(text)
+                        .ifEmpty { DefinitionValidator.validateTheme(text, standard) }
+                        .ifEmpty { DefinitionValidator.validateLayoutFragment(text, standard) }
+                }
+            if (errors.isEmpty()) {
+                ctx.toast(R.string.validate_definition_success)
+            } else {
+                AlertDialog.Builder(ctx)
+                    .setTitle(R.string.validate_definition_failure)
+                    .setMessage(errors.joinToString("\n"))
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
             }
         }
     }

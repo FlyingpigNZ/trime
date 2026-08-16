@@ -120,6 +120,10 @@
     <string name="install_schema_layout_package_summary">安装包含 Rime 方案、布局和可选资源的 .zip 文件</string>
     <string name="install_schema_layout_package_success">方案键盘布局包安装成功</string>
     <string name="install_schema_layout_package_failure">方案键盘布局包安装失败</string>
+    <string name="validate_definition_file">校验定义文件</string>
+    <string name="validate_definition_file_summary">按定义规范检查主题/布局/清单 YAML 文件</string>
+    <string name="validate_definition_success">定义文件有效</string>
+    <string name="validate_definition_failure">定义文件存在错误</string>
     <string name="loading">正在加载</string>
     <string name="reset">恢复默认设置</string>
     <string name="success">成功</string>

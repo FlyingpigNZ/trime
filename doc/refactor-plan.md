@@ -328,15 +328,14 @@ breaking format change ever happens, it can be handled ad-hoc.)
       renders (views, height flow, caps dispatch, broadcast handling). The
       deprecated global became `KeyboardSwitcherLegacy` (view-level bridge,
       deleted with item 10).
-14. **Validator + reference docs** (medium impact, medium effort)
-    - Build the **validator** (D2): checks a custom layout/theme against the
-      standard catalog — unknown standard references, malformed key actions,
-      invalid color keys, `__include` cycles, missing fields. **Delivered
-      both ways** (per the user's decision): a shared validation core exposed
-      as an **in-app** settings action and as a **CLI tool** (scripts/,
-      CI-runnable).
-    - Generate the reference catalog document from the standard files; extend
-      `doc/trime-schema.json` for editor support; ship a starter theme.
+14. **Validator + reference docs** (medium impact, medium effort) — **DONE**
+    - Pure `DefinitionValidator` core: theme/layout/manifest checks (unknown
+      standard refs, `__include`, missing fields).
+    - In-app action: Profile → Maintenance → “Validate definition file”.
+    - CLI tool: `script/validate-definitions.py` (supports `--check-shipped`
+      for CI).
+    - `doc/definition-schema.md` + updated `doc/trime-schema.json`.
+    - Starter/reference package: `sample_theme_schemas/minimal-14jian/`.
 
 ### Phase 3 — Decoration system (colors, backgrounds, chrome)
 
@@ -366,11 +365,10 @@ breaking format change ever happens, it can be handled ad-hoc.)
       the light palette.
     - `ColorManager` simply selects `darkColors` when night mode is active;
       the old `light_scheme`/`dark_scheme` 4-branch `when` is removed.
-    - **Data migration TODO (standard resource delivery)**: convert
-      `standard/colors.yaml` (and legacy themes such as `tongwenfeng`) to the
-      new `light:`/`dark:` shape. The built app must ship the new shape in a
-      working state; until then legacy flat schemes are accepted with dark
-      fallback = light.
+    - **Data migration**: `standard/colors.yaml` converted to the new
+      `light:` shape (dark fallback = light). Legacy themes such as
+      `tongwenfeng` are still accepted as flat overrides; converting them can
+      be part of standard resource delivery.
 20. **Decouple parsing from Parcelable** (low-medium impact, medium effort)
     - Plain immutable model + separate `decode` mapper with graceful errors
       (no `!!`); Parcelable kept only where truly needed (or dropped in favor

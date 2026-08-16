@@ -124,6 +124,10 @@
     <string name="install_schema_layout_package_summary">安裝包含 Rime 方案、佈局和可選資源的 .zip 檔案</string>
     <string name="install_schema_layout_package_success">方案鍵盤佈局包安裝成功</string>
     <string name="install_schema_layout_package_failure">方案鍵盤佈局包安裝失敗</string>
+    <string name="validate_definition_file">校驗定義檔</string>
+    <string name="validate_definition_file_summary">依定義規範檢查主題/佈局/清單 YAML 檔</string>
+    <string name="validate_definition_success">定義檔有效</string>
+    <string name="validate_definition_failure">定義檔存在錯誤</string>
     <string name="loading">正在載入</string>
     <string name="success">成功</string>
     <string name="failure">失敗</string>

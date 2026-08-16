@@ -84,13 +84,22 @@ easy to use — by splitting themes into a composable three-tier model.
     their light palette as the dark fallback. `ColorManager`'s 4-branch
     `light_scheme`/`dark_scheme` logic is removed; night mode just selects the
     scheme's `darkColors`.
-    **TODO (standard resource delivery)**: migrate `standard/colors.yaml` and
-    legacy themes such as `tongwenfeng` to the new shape before final delivery;
-    the built app must ship the new shape in working condition.
+    **Standard resource delivery**: `standard/colors.yaml` has been converted
+    to the new `light:` shape (dark fallback = light). Legacy themes such as
+    `tongwenfeng` are still accepted as flat overrides; converting them can be
+    part of final standard resource delivery.
 14. **Phase 3 item 18 DONE**: `ColorManager` now merges the builtin fallback
     table with theme `fallback_colors` once per theme switch and resolves from a
     single combined map; duplicated builtin fallback comments were removed from
     shipped theme files.
+15. **Definition spec + standard colors migration DONE**: added
+    `doc/definition-schema.md` and updated `doc/trime-schema.json` for the
+    three-tier YAML shapes (standard catalog, decoration theme, schema-layout
+    package manifest/fragment). Converted `standard/colors.yaml` to the new
+    self-contained `light:` shape.
+16. **Phase 2 item 14 DONE**: `DefinitionValidator` core, in-app “Validate
+    definition file” action, and `script/validate-definitions.py` CLI (with
+    `--check-shipped` for CI).
 
 ---
 
@@ -362,26 +371,25 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      dispatch); 11+12 DONE (import_preset flattened, __include inheritance at
      parse time with cycle detection); 12 DONE (schema-layout package install
      flow + UI action + layout merge); 13 DONE (KeyboardSwitcher extracted,
-     KeyboardWindow renders only); 14 (validator) NOT started.
+     KeyboardWindow renders only); 14 DONE (validator + CLI + in-app).
+   - **Phase 2 COMPLETE**.
    - **Phase 3 partial**: item 18 DONE (unified fallback tables); item 19 DONE
      (self-contained light/dark pairs); 15-17, 20, 21 NOT started.
-   - Commits on this branch: b1786358 (item 12 done) -> 15dd8947 (item 12
-     select flow + layout merge) -> bd71a067 (item 12 zip installer) ->
-     d0681490 (item 18 fallback tables) -> fa14cf80 (standard color migration
-     TODO) -> 35117fba (item 19 dark pairs) -> d7d1aac3 (keep Gradle temp) ->
-     835618ce (drop alphabet heuristic) -> 37fb3ded (item 12 manifest/binding)
-     -> a7d0a174 (schema-tier reference) -> 5cddcb88 (item 9) -> dc03bbed
-     (item 8 core) -> f0ebd2b9 (Phase 0.5 tests) -> 75d13157 (docs) ->
-     15f42b24 (10b) -> 8c05f7de (10a) -> b8114d2e (13) -> f94324d2 (7/11/12)
-     -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) -> f5503f1e (Phase 0) ->
-     d5c46822 (docs).
+   - Commits on this branch: 8405a3d4 (definition spec + standard colors) ->
+     b1786358 (item 12 done) -> 15dd8947 (item 12 select flow + layout merge)
+     -> bd71a067 (item 12 zip installer) -> d0681490 (item 18 fallback tables)
+     -> fa14cf80 (standard color migration TODO) -> 35117fba (item 19 dark
+     pairs) -> d7d1aac3 (keep Gradle temp) -> 835618ce (drop alphabet
+     heuristic) -> 37fb3ded (item 12 manifest/binding) -> a7d0a174
+     (schema-tier reference) -> 5cddcb88 (item 9) -> dc03bbed (item 8 core) ->
+     f0ebd2b9 (Phase 0.5 tests) -> 75d13157 (docs) -> 15f42b24 (10b) ->
+     8c05f7de (10a) -> b8114d2e (13) -> f94324d2 (7/11/12) -> a85102c2 (6) ->
+     61d35330 (5) -> 75eb8451 (4) -> f5503f1e (Phase 0) -> d5c46822 (docs).
 4. Next step options:
-   - (a) **Phase 2 item 12 (schema↔layout binding + zip delivery)** — completes
-     the schema tier deferred by item 8
-   - (b) Phase 2 item 14 (validator) — medium effort; the explicit-declaration
-     contract is now settled
-   - (c) Phase 3 (decoration system)
-   - (d) user may raise something else
+   - (a) **Phase 3 decoration system** — items 15-17, 20, 21 remain
+   - (b) **Automatic app-level testing** — design/implement instrumentation or
+     emulator-based tests outside unit tests
+   - (c) user may raise something else
 5. Build gotcha: home dir is read-only in this sandbox, and `/tmp` is wiped
    between shell commands. For repeated Gradle runs use a workspace-writable
    user home, e.g. `GRADLE_USER_HOME=$PWD/.gradle-test-home ./gradlew ...`.

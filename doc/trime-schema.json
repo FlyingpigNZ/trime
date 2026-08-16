@@ -47,11 +47,17 @@
           "default": []
         },
         "fg_normal": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null
         },
         "fg_highlight": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null
         },
         "font_size": {
@@ -85,6 +91,110 @@
           "default": ""
         }
       }
+    },
+    "schemaLayoutManifest": {
+      "type": "object",
+      "properties": {
+        "schema_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "schema_file": {
+          "type": "string"
+        },
+        "layout_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "default_keyboard": {
+          "type": "string"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "schema_id",
+        "name",
+        "version",
+        "schema_file",
+        "layout_files"
+      ],
+      "additionalProperties": false
+    },
+    "schemaLayoutFragment": {
+      "type": "object",
+      "properties": {
+        "standard_keyboards": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "standard_color_schemes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "use_standard_preset_keys": {
+          "type": "boolean"
+        },
+        "preset_keys": {
+          "type": "object"
+        },
+        "preset_keyboards": {
+          "type": "object"
+        },
+        "preset_color_schemes": {
+          "type": "object",
+          "patternProperties": {
+            "\\w+": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "light": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "dark": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "light"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": true
     }
   },
   "type": "object",
@@ -106,7 +216,11 @@
       "type": "object",
       "properties": {
         "auto_caps": {
-          "enum": [true, false, "ascii"],
+          "enum": [
+            true,
+            false,
+            "ascii"
+          ],
           "default": false,
           "description": "自动句首大写"
         },
@@ -479,13 +593,22 @@
           "type": "string",
           "default": "candidate_text_color"
         },
-        "border_color": { "type": "string", "default": "back_color" },
+        "border_color": {
+          "type": "string",
+          "default": "back_color"
+        },
         "candidate_separator_color": {
           "type": "string",
           "default": "border_color"
         },
-        "hilited_text_color": { "type": "string", "default": "text_color" },
-        "hilited_back_color": { "type": "string", "default": "back_color" },
+        "hilited_text_color": {
+          "type": "string",
+          "default": "text_color"
+        },
+        "hilited_back_color": {
+          "type": "string",
+          "default": "back_color"
+        },
         "hilited_candidate_text_color": {
           "type": "string",
           "default": "hilited_text_color"
@@ -531,8 +654,14 @@
           "type": "string",
           "default": "hilited_key_text_color"
         },
-        "key_back_color": { "type": "string", "default": "back_color" },
-        "key_border_color": { "type": "string", "default": "border_color" },
+        "key_back_color": {
+          "type": "string",
+          "default": "back_color"
+        },
+        "key_border_color": {
+          "type": "string",
+          "default": "border_color"
+        },
         "key_text_color": {
           "type": "string",
           "default": "candidate_text_color"
@@ -541,9 +670,18 @@
           "type": "string",
           "default": "comment_text_color"
         },
-        "label_color": { "type": "string", "default": "candidate_text_color" },
-        "off_key_back_color": { "type": "string", "default": "key_back_color" },
-        "off_key_text_color": { "type": "string", "default": "key_text_color" },
+        "label_color": {
+          "type": "string",
+          "default": "candidate_text_color"
+        },
+        "off_key_back_color": {
+          "type": "string",
+          "default": "key_back_color"
+        },
+        "off_key_text_color": {
+          "type": "string",
+          "default": "key_text_color"
+        },
         "on_key_back_color": {
           "type": "string",
           "default": "hilited_key_back_color"
@@ -552,9 +690,18 @@
           "type": "string",
           "default": "hilited_key_text_color"
         },
-        "preview_back_color": { "type": "string", "default": "key_back_color" },
-        "preview_text_color": { "type": "string", "default": "key_text_color" },
-        "shadow_color": { "type": "string", "default": "border_color" },
+        "preview_back_color": {
+          "type": "string",
+          "default": "key_back_color"
+        },
+        "preview_text_color": {
+          "type": "string",
+          "default": "key_text_color"
+        },
+        "shadow_color": {
+          "type": "string",
+          "default": "border_color"
+        },
         "root_background": {
           "type": "string",
           "default": "back_color",
@@ -591,229 +738,35 @@
       "type": "object",
       "patternProperties": {
         "\\w+": {
-          "name": {
-            "type": "string",
-            "description": "方案名稱"
-          },
-          "author": {
-            "type": "string",
-            "description": "作者資訊"
-          },
-          "back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xe4e7e9",
-            "description": "候選區背景"
-          },
-          "border_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xc1c7ca",
-            "description": "邊框"
-          },
-          "candidate_separator_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xc1c7ca",
-            "description": "候選分割背景"
-          },
-          "candidate_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x5a676e",
-            "description": "候選文字"
-          },
-          "comment_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x7b868c",
-            "description": "提示"
-          },
-          "hilited_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xccd3d7da",
-            "description": "標明編碼背景"
-          },
-          "hilited_candidate_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xd3d7da",
-            "description": "標明候選背景"
-          },
-          "hilited_candidate_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "description": "標明候選文字"
-          },
-          "hilited_comment_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "description": "標明提示"
-          },
-          "hilited_key_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xd3d7da",
-            "description": "標明按鍵背景"
-          },
-          "hilited_key_symbol_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "description": "標明按鍵符號"
-          },
-          "hilited_key_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "description": "標明按鍵文字"
-          },
-          "hilited_off_key_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xd3d7da",
-            "description": "標明按鍵關閉狀態背景"
-          },
-          "hilited_off_key_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "description": "標明按鍵關閉狀態文字"
-          },
-          "hilited_on_key_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xd3d7da",
-            "description": "標明按鍵打開狀態背景"
-          },
-          "hilited_on_key_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "description": "標明按鍵打開狀態文字"
-          },
-          "hilited_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x23948e",
-            "description": "標明編碼"
-          },
-          "key_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xeceff1",
-            "description": "按鍵背景"
-          },
-          "key_border_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xeceff1",
-            "description": "按鍵邊框"
-          },
-          "key_symbol_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x5f6b73",
-            "description": "按鍵符號"
-          },
-          "key_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x37474f",
-            "description": "按鍵文字"
-          },
-          "keyboard_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xffffff",
-            "description": "鍵盤背景"
-          },
-          "label_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "description": "標籤"
-          },
-          "off_key_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xd3d7da",
-            "description": "按鍵關閉狀態背景"
-          },
-          "off_key_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "description": "按鍵關閉狀態文字"
-          },
-          "on_key_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x23948e",
-            "description": "按鍵打開狀態背景"
-          },
-          "on_key_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x37474f",
-            "description": "按鍵打開狀態文字"
-          },
-          "preview_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x55bfbfbf",
-            "description": "按鍵提示背景"
-          },
-          "preview_text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x23948e",
-            "description": "按鍵提示文字"
-          },
-          "shadow_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "description": "按鍵文字陰影"
-          },
-          "text_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0x5a676e",
-            "description": "編碼"
-          },
-          "text_back_color": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 16777215,
-            "default": "0xcce4e7e9",
-            "description": "編碼區背景"
-          }
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "light": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "dark": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "light"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          ]
         }
       }
     },
@@ -823,12 +776,18 @@
         "author": {
           "type": "string"
         },
-        "row": { "type": "integer", "description": "每屏最多显示多少行按键" },
+        "row": {
+          "type": "integer",
+          "description": "每屏最多显示多少行按键"
+        },
         "row_land": {
           "type": "integer",
           "description": "横屏每屏最多显示多少行按键"
         },
-        "key_height": { "type": "integer", "description": "按键高度" },
+        "key_height": {
+          "type": "integer",
+          "description": "按键高度"
+        },
         "key_height_land": {
           "type": "integer",
           "description": "横屏模式按键高度"
@@ -837,13 +796,24 @@
           "type": "integer",
           "description": "single类型的按键宽度"
         },
-        "vertical_gap": { "type": "integer", "description": "纵向按键间隙" },
-        "margin_x": { "type": "number", "description": "左右按键间隙的1/2" },
+        "vertical_gap": {
+          "type": "integer",
+          "description": "纵向按键间隙"
+        },
+        "margin_x": {
+          "type": "number",
+          "description": "左右按键间隙的1/2"
+        },
         "fixed_key_bar": {
           "type": "object",
           "properties": {
             "position": {
-              "enum": ["top", "bottom", "left", "right"],
+              "enum": [
+                "top",
+                "bottom",
+                "left",
+                "right"
+              ],
               "description": "固定按键条摆放位置（相对滚动区域的上/下/左/右方位）"
             },
             "keys": {
@@ -852,7 +822,12 @@
             }
           }
         },
-        "keyboards": { "type": "array", "items": { "type": "string" } }
+        "keyboards": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "preset_keys": {
@@ -861,8 +836,26 @@
         "\\w+": {
           "type": "object",
           "properties": {
-            "label": { "oneOf": [{ "type": "string" }, { "type": "integer" }] },
-            "send": { "oneOf": [{ "type": "string" }, { "type": "integer" }] }
+            "label": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "send": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
           }
         }
       }
@@ -873,12 +866,24 @@
         "\\w+": {
           "type": "object",
           "properties": {
-            "name": { "type": "string" },
-            "author": { "type": "string" },
-            "ascii_mode": { "type": "integer" },
-            "width": { "type": "number" },
-            "height": { "type": "number" },
-            "lock": { "type": "boolean" },
+            "name": {
+              "type": "string"
+            },
+            "author": {
+              "type": "string"
+            },
+            "ascii_mode": {
+              "type": "integer"
+            },
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            },
+            "lock": {
+              "type": "boolean"
+            },
             "keys": {
               "type": "array",
               "items": {
@@ -886,27 +891,71 @@
                 "properties": {
                   "click": {
                     "oneOf": [
-                      { "type": "string" },
-                      { "type": "integer" },
-                      { "type": "boolean" }
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "boolean"
+                      }
                     ]
                   },
                   "long_click": {
-                    "oneOf": [{ "type": "string" }, { "type": "integer" }]
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
                   },
-                  "label": { "type": "string" },
-                  "width": { "type": "number" },
-                  "swipe_left": { "type": "string" },
-                  "swipe_right": { "type": "string" },
-                  "swipe_up": { "type": "string" },
-                  "swipe_down": { "type": "string" },
-                  "composing": { "type": "string" },
-                  "send_bindings": { "type": "boolean" }
+                  "label": {
+                    "type": "string"
+                  },
+                  "width": {
+                    "type": "number"
+                  },
+                  "swipe_left": {
+                    "type": "string"
+                  },
+                  "swipe_right": {
+                    "type": "string"
+                  },
+                  "swipe_up": {
+                    "type": "string"
+                  },
+                  "swipe_down": {
+                    "type": "string"
+                  },
+                  "composing": {
+                    "type": "string"
+                  },
+                  "send_bindings": {
+                    "type": "boolean"
+                  }
                 }
               }
             }
           }
         }
+      }
+    },
+    "use_standard_preset_keys": {
+      "type": "boolean"
+    },
+    "standard_keyboards": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "standard_color_schemes": {
+      "type": "array",
+      "items": {
+        "type": "string"
       }
     }
   }
