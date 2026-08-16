@@ -42,6 +42,7 @@ import splitties.views.dsl.core.view
 import splitties.views.dsl.core.wrapContent
 import splitties.views.gravityCenter
 import splitties.views.horizontalPadding
+import com.osfans.trime.data.theme.ThemeColor
 
 class CandidateItemUi(
     override val ctx: Context,
@@ -54,12 +55,12 @@ class CandidateItemUi(
     private val textFont = FontManager.getTypeface("candidate_font")
     private val commentFont = FontManager.getTypeface("comment_font")
 
-    private val textColor = ColorManager.getColor("candidate_text_color")
-    private val commentColor = ColorManager.getColor("comment_text_color")
+    private val textColor = ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR)
+    private val commentColor = ColorManager.getColor(ThemeColor.COMMENT_TEXT_COLOR)
 
-    private val hlCommentColor = ColorManager.getColor("hilited_comment_text_color")
-    private val hlTextColor = ColorManager.getColor("hilited_candidate_text_color")
-    private val hlBackColor = ColorManager.getColor("hilited_candidate_back_color")
+    private val hlCommentColor = ColorManager.getColor(ThemeColor.HILITED_COMMENT_TEXT_COLOR)
+    private val hlTextColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_TEXT_COLOR)
+    private val hlBackColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_BACK_COLOR)
 
     private val commentPosition = theme.generalStyle.commentPosition
     private val commentVerticalBias = theme.generalStyle.commentVerticalBias

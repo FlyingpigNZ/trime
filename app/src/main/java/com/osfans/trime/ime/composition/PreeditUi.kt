@@ -21,6 +21,7 @@ import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.view
+import com.osfans.trime.data.theme.ThemeColor
 
 open class PreeditUi(
     final override val ctx: Context,
@@ -28,8 +29,8 @@ open class PreeditUi(
     private val setupPreeditView: (TextView.() -> Unit)? = null,
     private val onMoveCursor: ((Int) -> Unit)? = null,
 ) : Ui {
-    private val textColor = ColorManager.getColor("text_color")
-    private val highlightTextColor = ColorManager.getColor("hilited_text_color")
+    private val textColor = ColorManager.getColor(ThemeColor.TEXT_COLOR)
+    private val highlightTextColor = ColorManager.getColor(ThemeColor.HILITED_TEXT_COLOR)
 
     val preedit =
         view(::PreeditTextView) {

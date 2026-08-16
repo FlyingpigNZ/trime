@@ -22,6 +22,7 @@ import splitties.views.dsl.core.matchParent
 import splitties.views.dsl.core.view
 import splitties.views.dsl.core.wrapContent
 import splitties.views.setPaddingDp
+import com.osfans.trime.data.theme.ThemeColor
 
 class LiquidItemUi(
     override val ctx: Context,
@@ -34,7 +35,7 @@ class LiquidItemUi(
         textSize = theme.generalStyle.keyTextSize
         typeface = FontManager.getTypeface("key_font")
         setPaddingDp(8, 4, 8, 4)
-        setTextColor(ColorManager.getColor("key_text_color"))
+        setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
     }
 
     override val root = view(::GestureFrame) {

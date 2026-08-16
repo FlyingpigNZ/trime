@@ -57,6 +57,7 @@ import splitties.views.dsl.core.matchParent
 import splitties.views.dsl.core.view
 import splitties.views.dsl.core.wrapContent
 import splitties.views.imageDrawable
+import com.osfans.trime.data.theme.ThemeColor
 
 /**
  * Successor of the old InputRoot
@@ -152,7 +153,7 @@ class InputView(
         // show KeyboardWindow by default
         windowManager.attachWindow(KeyboardWindow)
 
-        keyboardBackground.imageDrawable = ColorManager.getDrawable("keyboard_background")
+        keyboardBackground.imageDrawable = ColorManager.getDrawable(ThemeColor.KEYBOARD_BACKGROUND)
 
         keyboardView =
             constraintLayout {
@@ -289,6 +290,13 @@ class InputView(
         if (!restarting) {
             windowManager.attachWindow(KeyboardWindow)
         }
+    }
+
+    override fun restyle(theme: Theme) {
+        keyboardBackground.imageDrawable = ColorManager.getDrawable(ThemeColor.KEYBOARD_BACKGROUND)
+        keyboardView.invalidate()
+        inputBar.view.invalidate()
+        requestLayout()
     }
 
     fun updateEnterKeyLabel(info: EditorInfo) {

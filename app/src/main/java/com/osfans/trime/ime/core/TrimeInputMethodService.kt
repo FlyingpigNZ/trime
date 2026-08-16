@@ -121,7 +121,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     private val onColorChangeListener =
         ColorManager.OnColorChangeListener {
             ContextCompat.getMainExecutor(this).execute {
-                replaceInputViews(it)
+                restyleInputViews(it)
             }
         }
 
@@ -288,6 +288,12 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         replaceInputView(theme)
         replaceCandidateView(theme)
         inputView?.updateEnterKeyLabel(currentInputEditorInfo)
+    }
+
+    /** Incremental color restyle: update existing views instead of rebuilding. */
+    private fun restyleInputViews(theme: Theme) {
+        inputView?.restyle(theme)
+        candidatesView?.restyle(theme)
     }
 
     override fun onDestroy() {

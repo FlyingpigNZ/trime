@@ -33,6 +33,7 @@ import org.kodein.di.instance
 import splitties.dimensions.dp
 import splitties.views.dsl.recyclerview.recyclerView
 import kotlin.math.max
+import com.osfans.trime.data.theme.ThemeColor
 
 class CompactCandidateDelegate : InputBroadcastReceiver {
     private val di = InputDependencyManager.getInstance().di
@@ -142,7 +143,7 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
             val intrinsicSize = max(spacing, context.dp(spacing)).toInt()
             intrinsicWidth = intrinsicSize
             intrinsicHeight = intrinsicSize
-            paint.color = ColorManager.getColor("candidate_separator_color")
+            paint.color = ColorManager.getColor(ThemeColor.CANDIDATE_SEPARATOR_COLOR)
         }
     }
 

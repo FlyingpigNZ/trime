@@ -5,7 +5,6 @@
 
 package com.osfans.trime.data.theme.model
 
-import android.os.Parcelable
 import com.osfans.trime.ime.keyboard.KeyBehavior
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.boolean
@@ -15,9 +14,7 @@ import com.osfans.trime.util.yaml.int
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.sequence
 import com.osfans.trime.util.yaml.string
-import kotlinx.parcelize.Parcelize
 
-@Parcelize
 data class TextKeyboard(
     val name: String,
     val author: String,
@@ -47,13 +44,12 @@ data class TextKeyboard(
     val keyPressOffsetX: Float,
     val keyPressOffsetY: Float,
     val keys: List<TextKey>,
-) : Parcelable {
+) {
     enum class LabelTransform {
         NONE,
         UPPERCASE,
     }
 
-    @Parcelize
     data class TextKey(
         val width: Float,
         val height: Float,
@@ -82,7 +78,7 @@ data class TextKeyboard(
         val popup: List<String> = emptyList(),
         val behaviors: Map<KeyBehavior, KeyActionToken?>,
         val hasClickAction: Boolean = behaviors[KeyBehavior.CLICK] != null,
-    ) : Parcelable {
+    ) {
         companion object {
             fun decode(node: Node.Mapping): TextKey = TextKey(
                 width = node["width"]?.float ?: 0f,

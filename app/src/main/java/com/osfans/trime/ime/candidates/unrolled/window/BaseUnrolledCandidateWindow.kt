@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import org.kodein.di.instance
 import splitties.dimensions.dp
 import kotlin.math.max
+import com.osfans.trime.data.theme.ThemeColor
 
 abstract class BaseUnrolledCandidateWindow :
     BoardWindow.NoBarBoardWindow(),
@@ -58,7 +59,7 @@ abstract class BaseUnrolledCandidateWindow :
             val intrinsicSize = max(spacing, context.dp(spacing)).toInt()
             intrinsicWidth = intrinsicSize
             intrinsicHeight = intrinsicSize
-            paint.color = ColorManager.getColor("candidate_separator_color")
+            paint.color = ColorManager.getColor(ThemeColor.CANDIDATE_SEPARATOR_COLOR)
         }
     }
 

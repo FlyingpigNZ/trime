@@ -15,6 +15,7 @@ import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.data.theme.ThemePrefs
 import com.osfans.trime.util.ColorUtils
 import com.osfans.trime.util.DeviceUtils
+import com.osfans.trime.data.theme.ThemeColor
 
 class NavigationBarManager {
     private val navbarBackground by ThemeManager.prefs.navbarBackground
@@ -94,7 +95,7 @@ class NavigationBarManager {
     private fun update(window: Window) {
         val backColor =
             runCatching {
-                ColorManager.getColor("back_color")
+                ColorManager.getColor(ThemeColor.BACK_COLOR)
             }.getOrDefault(Color.BLACK)
         if (shouldUpdateNavbarForeground) {
             WindowCompat

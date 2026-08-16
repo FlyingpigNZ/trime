@@ -5,7 +5,6 @@
 
 package com.osfans.trime.data.theme
 
-import android.os.Parcelable
 import com.osfans.trime.data.theme.model.ColorScheme
 import com.osfans.trime.data.theme.model.GeneralStyle
 import com.osfans.trime.data.theme.model.LiquidKeyboard
@@ -17,10 +16,8 @@ import com.osfans.trime.data.theme.model.Window
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.string
-import kotlinx.parcelize.Parcelize
 
 /** 主题和样式配置  */
-@Parcelize
 data class Theme(
     val name: String,
     val generalStyle: GeneralStyle,
@@ -32,7 +29,7 @@ data class Theme(
     val colorSchemes: List<ColorScheme>,
     val fallbackColors: Map<String, String>,
     val toolBar: ToolBar,
-) : Parcelable {
+) {
     /**
      * Merge a schema-layout theme (already resolved against the standard
      * catalog) on top of this decoration theme. The layout contributes preset

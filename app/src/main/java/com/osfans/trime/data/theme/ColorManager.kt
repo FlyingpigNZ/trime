@@ -42,6 +42,7 @@ object ColorManager {
         private set(value) {
             if (this::_activeColorScheme.isInitialized && _activeColorScheme == value) return
             _activeColorScheme = value
+            rebuildResolvedPalette()
             fireChange()
         }
 
@@ -91,6 +92,9 @@ object ColorManager {
 
     /** Builtin fallback table merged with the theme's `fallback_colors`. */
     private var fallbackColors: Map<String, String> = emptyMap()
+
+    /** Precomputed resolved color strings for the active palette. */
+    private var resolvedPalette: Map<String, String> = emptyMap()
 
     private var bitmapCache: LruCache<String, Bitmap>? = null
 
@@ -156,13 +160,26 @@ object ColorManager {
     private val activePalette: Map<String, String>
         get() = if (isNightMode) activeColorScheme.darkColors else activeColorScheme.colors
 
+    private fun rebuildResolvedPalette() {
+        val keys = ThemeColor.entries.map { it.key }.toMutableSet()
+        keys += activePalette.keys
+        keys += fallbackColors.keys
+        resolvedPalette =
+            keys.mapNotNull { key ->
+                try {
+                    key to resolveValue(key) { it }
+                } catch (_: Exception) {
+                    null
+                }
+            }.toMap()
+    }
+
     @ColorInt
     private fun resolveColor(key: String): Int {
         val color =
             try {
-                resolveValue(key) { value ->
-                    ColorUtils.parseColor(value)
-                }
+                val value = resolvedPalette[key] ?: resolveValue(key) { it }
+                ColorUtils.parseColor(value)
             } catch (_: IllegalArgumentException) {
                 ColorUtils.parseColor(key)
             }
@@ -172,9 +189,8 @@ object ColorManager {
     private fun resolveDrawable(key: String): Drawable? {
         val drawable =
             try {
-                resolveValue(key) { value ->
-                    parseDrawable(value)
-                }
+                val value = resolvedPalette[key] ?: resolveValue(key) { it }
+                parseDrawable(value)
             } catch (_: IllegalArgumentException) {
                 parseDrawable(key)
             }
@@ -246,6 +262,19 @@ object ColorManager {
     fun getColor(key: String): Int = resolveColor(key)
 
     fun getDrawable(key: String): Drawable? = resolveDrawable(key)
+
+    @ColorInt
+    fun getColor(key: ThemeColor): Int = getColor(key.key)
+
+    fun getDrawable(key: ThemeColor): Drawable? = getDrawable(key.key)
+
+    fun getDecorDrawable(
+        colorKey: ThemeColor,
+        borderColorKey: ThemeColor? = null,
+        borderPx: Int = 0,
+        cornerRadius: Float = 0f,
+        alpha: Int = 255,
+    ): Drawable? = getDecorDrawable(colorKey.key, borderColorKey?.key, borderPx, cornerRadius, alpha)
 
     fun getDecorDrawable(
         colorKey: String,

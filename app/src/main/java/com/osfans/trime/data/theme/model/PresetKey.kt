@@ -5,15 +5,12 @@
 
 package com.osfans.trime.data.theme.model
 
-import android.os.Parcelable
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.boolean
 import com.osfans.trime.util.yaml.get
 import com.osfans.trime.util.yaml.sequence
 import com.osfans.trime.util.yaml.string
-import kotlinx.parcelize.Parcelize
 
-@Parcelize
 data class PresetKey(
     val command: String = "",
     val option: String = "",
@@ -31,7 +28,7 @@ data class PresetKey(
     val functional: Boolean = false,
     val states: List<String> = emptyList(),
     val send: String = "",
-) : Parcelable {
+) {
     companion object {
         fun decode(node: Node.Mapping): PresetKey = PresetKey(
             command = node["command"]?.string ?: "",

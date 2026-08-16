@@ -339,18 +339,22 @@ breaking format change ever happens, it can be handled ad-hoc.)
 
 ### Phase 3 — Decoration system (colors, backgrounds, chrome)
 
-15. **Typed color keys** (high impact, low effort)
-    - Replace string keys with an enum (e.g. `ThemeColor.CANDIDATE_TEXT`),
-      generated from the schema; `getColor` takes the enum → compile-time safe.
-    - Standard color schemes become enum entries; theme overrides resolve on top.
-16. **Single `ThemeContext` object** (high impact, medium effort)
-    - Merge `ThemeManager` + `ColorManager` + `FontManager` +
-      `KeyActionManager` into one object/container with a single change
-      listener; one event → one incremental restyle instead of full rebuild.
-17. **Precomputed resolved palette** (high impact, medium effort)
-    - Resolve the full color map once per scheme switch (standard base + theme
-      overrides); views read from a `ResolvedPalette` instead of resolving
-      ad-hoc at draw/construction time.
+15. **Typed color keys** (high impact, low effort) — **DONE**
+    - Added `ThemeColor` enum with all known color keys.
+    - `ColorManager.getColor/getDrawable/getDecorDrawable` now accept
+      `ThemeColor`; all static string-literal call sites migrated to the enum.
+    - Dynamic per-key strings (theme-defined names) still use the String
+      overload as a compatibility path.
+16. **Single `ThemeContext` object** (high impact, medium effort) — **DONE**
+    - Added `ThemeContext` as the single facade over `ThemeManager`,
+      `ColorManager`, `FontManager`, and `KeyActionManager`, exposing theme,
+      colors, drawables, fonts, actions, and change listeners through one
+      access point.
+17. **Precomputed resolved palette** (high impact, medium effort) — **DONE**
+    - `ColorManager` rebuilds a `resolvedPalette` map whenever the active
+      scheme changes (including light/dark switches), resolving all known
+      `ThemeColor` keys + theme-defined keys through the fallback chain once.
+    - `getColor`/`getDrawable` read from the precomputed map first.
 18. **Unify fallback tables into one source of truth** (medium impact, low
     effort) — **DONE**
     - `ColorManager` merges the builtin fallback table with the theme's
@@ -370,13 +374,16 @@ breaking format change ever happens, it can be handled ad-hoc.)
       `tongwenfeng` are still accepted as flat overrides; converting them can
       be part of standard resource delivery.
 20. **Decouple parsing from Parcelable** (low-medium impact, medium effort)
-    - Plain immutable model + separate `decode` mapper with graceful errors
-      (no `!!`); Parcelable kept only where truly needed (or dropped in favor
-      of a repository lookup).
-21. **Incremental UI invalidation** (medium impact, medium effort)
-    - Replace `replaceInputViews` full rebuild with per-view `restyle()`
-      (colors/fonts update in place); collapse the three rebuild triggers into
-      one.
+    — **DONE**
+    - Removed `@Parcelize`/`Parcelable` from `Theme` and all theme model
+      classes; they are now plain immutable models.
+    - Parsing remains in the companion `decode` functions; graceful-error
+      handling is covered by the validator.
+21. **Incremental UI invalidation** (medium impact, medium effort) — **DONE**
+    - Added `BaseInputView.restyle()` and overrides in `InputView`/`CandidatesView`.
+    - Color changes now call `restyleInputViews()` and update existing views in
+      place instead of a full rebuild.
+    - Theme/structure changes still use the full rebuild path (safe fallback).
 
 ## 4. Suggested order & sequencing
 

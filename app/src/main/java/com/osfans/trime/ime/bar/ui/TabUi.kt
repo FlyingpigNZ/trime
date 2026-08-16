@@ -26,6 +26,7 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.textView
 import splitties.views.dsl.core.wrapContent
 import splitties.views.gravityVerticalCenter
+import com.osfans.trime.data.theme.ThemeColor
 
 class TabUi(
     override val ctx: Context,
@@ -51,7 +52,7 @@ class TabUi(
         typeface = Typeface.defaultFromStyle(Typeface.BOLD)
         gravity = gravityVerticalCenter
         textSize = theme.generalStyle.candidateTextSize
-        setTextColor(ColorManager.getColor("key_text_color"))
+        setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
     }
 
     private var external: View? = null

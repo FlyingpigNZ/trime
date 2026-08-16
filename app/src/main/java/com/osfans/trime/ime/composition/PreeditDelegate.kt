@@ -20,6 +20,7 @@ import com.osfans.trime.ime.dependency.InputDependencyManager
 import org.kodein.di.instance
 import splitties.dimensions.dp
 import splitties.views.horizontalPadding
+import com.osfans.trime.data.theme.ThemeColor
 
 class PreeditDelegate : InputBroadcastReceiver {
 
@@ -39,7 +40,7 @@ class PreeditDelegate : InputBroadcastReceiver {
                     floatArrayOf(radiusSize, radiusSize, 0f, 0f, 0f, 0f, 0f, 0f)
                 }
                 background = GradientDrawable().apply {
-                    setColor(ColorManager.getColor("text_back_color"))
+                    setColor(ColorManager.getColor(ThemeColor.TEXT_BACK_COLOR))
                     shape = GradientDrawable.RECTANGLE
                     cornerRadii = radii
                 }

@@ -35,6 +35,7 @@ import splitties.views.dsl.core.view
 import splitties.views.dsl.core.wrapContent
 import splitties.views.gravityCenter
 import splitties.views.imageDrawable
+import com.osfans.trime.data.theme.ThemeColor
 
 class SwitchOptionEntryUi(
     override val ctx: Context,
@@ -72,7 +73,7 @@ class SwitchOptionEntryUi(
         textView {
             textSize = 12f
             gravity = gravityCenter
-            setTextColor(ColorManager.getColor("key_text_color"))
+            setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
         }
 
     override val root =
@@ -119,13 +120,13 @@ class SwitchOptionEntryUi(
             icon.visibility = View.VISIBLE
             textIcon.visibility = View.GONE
             icon.imageDrawable = ctx.drawable(entry.icon)!!.apply {
-                setTint(ColorManager.getColor("key_text_color"))
+                setTint(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
             }
         } else {
             icon.visibility = View.GONE
             textIcon.visibility = View.VISIBLE
             textIcon.text = getFirstCharacter(entry.label)
-            textIcon.setTextColor(ColorManager.getColor("key_text_color"))
+            textIcon.setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
         }
         label.text = entry.label
     }

@@ -100,6 +100,22 @@ easy to use — by splitting themes into a composable three-tier model.
 16. **Phase 2 item 14 DONE**: `DefinitionValidator` core, in-app “Validate
     definition file” action, and `script/validate-definitions.py` CLI (with
     `--check-shipped` for CI).
+17. **Phase 3 item 20 DONE**: removed `@Parcelize`/`Parcelable` from `Theme`
+    and all theme model classes; they are now plain immutable JVM-friendly
+    models.
+18. **Phase 3 item 15 DONE**: added `ThemeColor` enum and migrated all static
+    color/drawable string literals to typed enum calls.
+19. **Phase 3 item 17 DONE**: `ColorManager` precomputes a resolved palette on
+    scheme/light-dark switches and reads from it in `getColor`/`getDrawable`.
+20. **Phase 3 item 16 DONE**: added `ThemeContext` facade over
+    `ThemeManager`/`ColorManager`/`FontManager`/`KeyActionManager`.
+21. **Automated app testing**: added `doc/automated-testing.md` and a
+    compiling `SmokeTest` androidTest that launches `MainActivity` and checks
+    the default theme loads. Running `connectedDebugAndroidTest` still needs an
+    emulator/device.
+22. **Phase 3 item 21 DONE**: added `BaseInputView.restyle()` and overrides;
+    color changes now restyle existing input/candidate views in place. Theme
+    structure changes still use full rebuild as a safe fallback.
 
 ---
 
@@ -373,18 +389,24 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      flow + UI action + layout merge); 13 DONE (KeyboardSwitcher extracted,
      KeyboardWindow renders only); 14 DONE (validator + CLI + in-app).
    - **Phase 2 COMPLETE**.
-   - **Phase 3 partial**: item 18 DONE (unified fallback tables); item 19 DONE
-     (self-contained light/dark pairs); 15-17, 20, 21 NOT started.
-   - Commits on this branch: 8405a3d4 (definition spec + standard colors) ->
-     b1786358 (item 12 done) -> 15dd8947 (item 12 select flow + layout merge)
-     -> bd71a067 (item 12 zip installer) -> d0681490 (item 18 fallback tables)
-     -> fa14cf80 (standard color migration TODO) -> 35117fba (item 19 dark
-     pairs) -> d7d1aac3 (keep Gradle temp) -> 835618ce (drop alphabet
-     heuristic) -> 37fb3ded (item 12 manifest/binding) -> a7d0a174
-     (schema-tier reference) -> 5cddcb88 (item 9) -> dc03bbed (item 8 core) ->
-     f0ebd2b9 (Phase 0.5 tests) -> 75d13157 (docs) -> 15f42b24 (10b) ->
-     8c05f7de (10a) -> b8114d2e (13) -> f94324d2 (7/11/12) -> a85102c2 (6) ->
-     61d35330 (5) -> 75eb8451 (4) -> f5503f1e (Phase 0) -> d5c46822 (docs).
+   - **Phase 3 COMPLETE**: items 15-21 DONE (typed colors, ThemeContext,
+     resolved palette, fallback tables, light/dark pairs, Parcelable removal,
+     incremental color restyle).
+   - Commits on this branch: f3d9df3d (item 21 restyle) -> 13602d3a
+     (instrumentation smoke test) -> 9e53c2fb (automated testing docs) ->
+     36fb5912 (item 16 ThemeContext) -> 77ff33a1 (item 17 resolved palette) ->
+     b1b4fcb9 (item 15 typed colors) -> 91d1f78c (item 20 Parcelable removal)
+     -> fffe3c38 (item 14 validator) -> 8405a3d4 (definition spec + standard
+     colors) -> b1786358 (item 12 done) -> 15dd8947 (item 12 select flow +
+     layout merge) -> bd71a067 (item 12 zip installer) -> d0681490 (item 18
+     fallback tables) -> fa14cf80 (standard color migration TODO) ->
+     35117fba (item 19 dark pairs) -> d7d1aac3 (keep Gradle temp) ->
+     835618ce (drop alphabet heuristic) -> 37fb3ded (item 12 manifest/binding)
+     -> a7d0a174 (schema-tier reference) -> 5cddcb88 (item 9) -> dc03bbed
+     (item 8 core) -> f0ebd2b9 (Phase 0.5 tests) -> 75d13157 (docs) ->
+     15f42b24 (10b) -> 8c05f7de (10a) -> b8114d2e (13) -> f94324d2 (7/11/12)
+     -> a85102c2 (6) -> 61d35330 (5) -> 75eb8451 (4) -> f5503f1e (Phase 0) ->
+     d5c46822 (docs).
 4. Next step options:
    - (a) **Phase 3 decoration system** — items 15-17, 20, 21 remain
    - (b) **Automatic app-level testing** — design/implement instrumentation or

@@ -123,6 +123,13 @@ class CandidatesView(
         }
     }
 
+    override fun restyle(theme: Theme) {
+        super.restyle(theme)
+        // Candidate colors are resolved through ColorManager on draw; invalidating
+        // lets the new resolved palette take effect without recreating this view.
+        invalidate()
+    }
+
     private fun evaluateVisibility(): Boolean = !composition.preedit.isNullOrEmpty() ||
         candidates.candidates.isNotEmpty()
 

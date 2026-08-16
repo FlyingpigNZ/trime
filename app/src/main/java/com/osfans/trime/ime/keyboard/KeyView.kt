@@ -27,6 +27,7 @@ import com.osfans.trime.ime.popup.PopupDelegate
 import com.osfans.trime.util.sp
 import splitties.dimensions.dp
 import timber.log.Timber
+import com.osfans.trime.data.theme.ThemeColor
 
 @SuppressLint("ClickableViewAccessibility", "ViewConstructor")
 class KeyView(
@@ -301,7 +302,7 @@ class KeyView(
 
         if (bg is GradientDrawable) {
             (k.roundCorner ?: keyboard.roundCorner).takeIf { it > 0f }?.let { bg.cornerRadius = dp(it) }
-            (k.keyBorder ?: keyboard.keyBorder).takeIf { it > 0 }?.let { bg.setStroke(dp(it), ColorManager.getColor("key_border_color")) }
+            (k.keyBorder ?: keyboard.keyBorder).takeIf { it > 0 }?.let { bg.setStroke(dp(it), ColorManager.getColor(ThemeColor.KEY_BORDER_COLOR)) }
         }
 
         bg.setBounds(

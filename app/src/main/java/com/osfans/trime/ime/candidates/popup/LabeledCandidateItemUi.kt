@@ -21,6 +21,7 @@ import com.osfans.trime.util.sp
 import splitties.dimensions.dp
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.textView
+import com.osfans.trime.data.theme.ThemeColor
 
 class LabeledCandidateItemUi(
     override val ctx: Context,
@@ -32,13 +33,13 @@ class LabeledCandidateItemUi(
     private val labelFont = FontManager.getTypeface("label_font")
     private val textFont = FontManager.getTypeface("candidate_font")
     private val commentFont = FontManager.getTypeface("comment_font")
-    private val labelColor = ColorManager.getColor("label_color")
-    private val textColor = ColorManager.getColor("candidate_text_color")
-    private val commentColor = ColorManager.getColor("comment_text_color")
-    private val highlightLabelColor = ColorManager.getColor("hilited_label_color")
-    private val highlightCommentTextColor = ColorManager.getColor("hilited_comment_text_color")
-    private val highlightCandidateTextColor = ColorManager.getColor("hilited_candidate_text_color")
-    private val highlightCandidateBackColor = ColorManager.getColor("hilited_candidate_back_color")
+    private val labelColor = ColorManager.getColor(ThemeColor.LABEL_COLOR)
+    private val textColor = ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR)
+    private val commentColor = ColorManager.getColor(ThemeColor.COMMENT_TEXT_COLOR)
+    private val highlightLabelColor = ColorManager.getColor(ThemeColor.HILITED_LABEL_COLOR)
+    private val highlightCommentTextColor = ColorManager.getColor(ThemeColor.HILITED_COMMENT_TEXT_COLOR)
+    private val highlightCandidateTextColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_TEXT_COLOR)
+    private val highlightCandidateBackColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_BACK_COLOR)
 
     override val root =
         textView {

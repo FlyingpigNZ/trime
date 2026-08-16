@@ -22,6 +22,7 @@ import splitties.views.dsl.core.textView
 import splitties.views.dsl.core.wrapContent
 import splitties.views.gravityCenter
 import splitties.views.setPaddingDp
+import com.osfans.trime.data.theme.ThemeColor
 
 class SegmentUi(override val ctx: Context, theme: Theme) : Ui {
     private val spacing = ctx.dp(4)
@@ -39,8 +40,8 @@ class SegmentUi(override val ctx: Context, theme: Theme) : Ui {
                         intArrayOf(android.R.attr.state_selected),
                     ),
                     intArrayOf(
-                        ColorManager.getColor("key_text_color"),
-                        ColorManager.getColor("hilited_key_text_color"),
+                        ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR),
+                        ColorManager.getColor(ThemeColor.HILITED_KEY_TEXT_COLOR),
                     ),
                 ),
             )

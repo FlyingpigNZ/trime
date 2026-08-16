@@ -26,6 +26,7 @@ import splitties.views.dsl.recyclerview.recyclerView
 import splitties.views.gravityCenter
 import splitties.views.horizontalPadding
 import splitties.views.recyclerview.horizontalLayoutManager
+import com.osfans.trime.data.theme.ThemeColor
 
 class LiquidTabsUi(
     override val ctx: Context,
@@ -33,9 +34,9 @@ class LiquidTabsUi(
 ) : Ui {
     inner class TabUi : Ui {
         override val ctx = this@LiquidTabsUi.ctx
-        private val textColor = ColorManager.getColor("candidate_text_color")
-        private val hlTextColor = ColorManager.getColor("hilited_candidate_text_color")
-        private val hlBackColor = ColorManager.getColor("hilited_candidate_back_color")
+        private val textColor = ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR)
+        private val hlTextColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_TEXT_COLOR)
+        private val hlBackColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_BACK_COLOR)
         private val cornerRadius = ctx.dp(theme.generalStyle.candidateCornerRadius)
 
         val text =

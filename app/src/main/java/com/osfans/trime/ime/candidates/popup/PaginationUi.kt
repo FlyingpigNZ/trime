@@ -25,6 +25,7 @@ import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.imageView
 import splitties.views.imageDrawable
+import com.osfans.trime.data.theme.ThemeColor
 
 class PaginationUi(
     override val ctx: Context,
@@ -33,7 +34,7 @@ class PaginationUi(
     private fun createIcon(
         @DrawableRes icon: Int,
     ) = imageView {
-        imageTintList = ColorStateList.valueOf(ColorManager.getColor("key_text_color"))
+        imageTintList = ColorStateList.valueOf(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
         imageDrawable = drawable(icon)
         scaleType = ImageView.ScaleType.CENTER_CROP
     }

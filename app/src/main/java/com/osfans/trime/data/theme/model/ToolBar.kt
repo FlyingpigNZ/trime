@@ -5,34 +5,29 @@
 
 package com.osfans.trime.data.theme.model
 
-import android.os.Parcelable
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.float
 import com.osfans.trime.util.yaml.int
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.sequence
 import com.osfans.trime.util.yaml.string
-import kotlinx.parcelize.Parcelize
 
-@Parcelize
 data class ToolBar(
     val primaryButton: Button? = null,
     val buttons: List<Button> = emptyList(),
     val buttonSpacing: Int = 18,
     val buttonFont: List<String> = emptyList(),
     val backStyle: String = "ic@arrow-left",
-) : Parcelable {
+) {
 
-    @Parcelize
     data class Button(
         val background: Background = Background(),
         val foreground: Foreground = Foreground(),
         val action: String = "",
         val longPressAction: String = "",
         val size: List<Int> = emptyList(),
-    ) : Parcelable {
+    ) {
 
-        @Parcelize
         data class Background(
             val type: Type = Type.RECTANGLE,
             val cornerRadius: Float = 10f,
@@ -40,7 +35,7 @@ data class ToolBar(
             val highlight: String = "",
             val verticalInset: Int = 4,
             val horizontalInset: Int = 4,
-        ) : Parcelable {
+        ) {
             enum class Type {
                 RECTANGLE,
                 CIRCLE,
@@ -60,7 +55,6 @@ data class ToolBar(
             }
         }
 
-        @Parcelize
         data class Foreground(
             val style: String = "",
             val optionStyles: List<String> = emptyList(),
@@ -68,7 +62,7 @@ data class ToolBar(
             val highlight: String = "",
             val fontSize: Float = 18f,
             val padding: Int = 4,
-        ) : Parcelable {
+        ) {
             companion object {
                 fun decode(node: Node.Mapping): Foreground = Foreground(
                     style = node["style"]?.string ?: "",

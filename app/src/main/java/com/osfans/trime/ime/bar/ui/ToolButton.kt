@@ -34,6 +34,7 @@ import splitties.views.gravityCenter
 import splitties.views.imageDrawable
 import splitties.views.imageResource
 import splitties.views.padding
+import com.osfans.trime.data.theme.ThemeColor
 
 class ToolButton(context: Context) : GestureFrame(context) {
 
@@ -72,7 +73,7 @@ class ToolButton(context: Context) : GestureFrame(context) {
 
     constructor(context: Context, @DrawableRes icon: Int) : this(context) {
         val tintList = ColorStateList.valueOf(
-            ColorManager.getColor("candidate_text_color"),
+            ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR),
         )
         image.imageTintList = tintList
         image.padding = dp(4)

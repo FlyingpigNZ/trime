@@ -31,6 +31,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.kodein.di.instance
 import splitties.views.recyclerview.verticalLayoutManager
+import com.osfans.trime.data.theme.ThemeColor
 
 class ClipboardWindow(private val initialTab: Int = 0) : BoardWindow.BarBoardWindow() {
 
@@ -171,7 +172,7 @@ class ClipboardWindow(private val initialTab: Int = 0) : BoardWindow.BarBoardWin
                     setText(label)
                     textSize = theme.generalStyle.candidateTextSize
                     setTypeface(FontManager.getTypeface("candidate_font"), Typeface.BOLD)
-                    setTextColor(ColorManager.getColor("key_text_color"))
+                    setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
                 }
             }
             deleteAllButton.setOnClickListener {

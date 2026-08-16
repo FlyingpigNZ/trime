@@ -12,6 +12,7 @@ import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.model.TextKeyboard
 import splitties.bitflags.hasFlag
+import com.osfans.trime.data.theme.ThemeColor
 
 /** [鍵盤][Keyboard]中的各個按鍵，包含單擊、長按、滑動等多種[事件][KeyAction]  */
 class Key(
@@ -96,8 +97,8 @@ class Key(
     } ?: ColorManager.getDrawable(fallback)
 
     private val keyBackground by lazy { getDrawable({ keyBackColor }, "key_back_color") }
-    private val offKeyBackground by lazy { ColorManager.getDrawable("off_key_back_color") }
-    private val onKeyBackground by lazy { ColorManager.getDrawable("on_key_back_color") }
+    private val offKeyBackground by lazy { ColorManager.getDrawable(ThemeColor.OFF_KEY_BACK_COLOR) }
+    private val onKeyBackground by lazy { ColorManager.getDrawable(ThemeColor.ON_KEY_BACK_COLOR) }
 
     private val keyTextColor by lazy { getColor({ keyTextColor }, "key_text_color") }
     private val offKeyTextColor by lazy { getColor("off_key_text_color", keyTextColor) }
@@ -106,8 +107,8 @@ class Key(
     private val offKeySymbolColor by lazy { getColor("off_key_symbol_color", keySymbolColor) }
     private val onKeySymbolColor by lazy { getColor("on_key_symbol_color", keySymbolColor) }
     private val hlKeyBackground by lazy { getDrawable({ hlKeyBackColor }, "hilited_key_back_color") }
-    private val hlOffKeyBackground by lazy { ColorManager.getDrawable("hilited_off_key_back_color") }
-    private val hlOnKeyBackground by lazy { ColorManager.getDrawable("hilited_on_key_back_color") }
+    private val hlOffKeyBackground by lazy { ColorManager.getDrawable(ThemeColor.HILITED_OFF_KEY_BACK_COLOR) }
+    private val hlOnKeyBackground by lazy { ColorManager.getDrawable(ThemeColor.HILITED_ON_KEY_BACK_COLOR) }
     private val hlKeyTextColor by lazy { getColor({ hlKeyTextColor }, "hilited_key_text_color") }
     private val hlOffKeyTextColor by lazy { getColor("hilited_off_key_text_color", hlKeyTextColor) }
     private val hlOnKeyTextColor by lazy { getColor("hilited_on_key_text_color", hlKeyTextColor) }

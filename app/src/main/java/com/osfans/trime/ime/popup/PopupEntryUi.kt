@@ -29,6 +29,7 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.view
 import splitties.views.dsl.core.wrapContent
 import splitties.views.gravityCenter
+import com.osfans.trime.data.theme.ThemeColor
 
 class PopupEntryUi(override val ctx: Context, private val theme: Theme, keyHeight: Int, radius: Float) : Ui {
 
@@ -38,7 +39,7 @@ class PopupEntryUi(override val ctx: Context, private val theme: Theme, keyHeigh
         scaleMode = AutoScaleTextView.Mode.Proportional
         textSize = theme.generalStyle.popupTextSize
         gravity = gravityCenter
-        setTextColor(ColorManager.getColor("popup_text_color"))
+        setTextColor(ColorManager.getColor(ThemeColor.POPUP_TEXT_COLOR))
         typeface = FontManager.getTypeface("POPUP_FONT")
     }
 
@@ -49,7 +50,7 @@ class PopupEntryUi(override val ctx: Context, private val theme: Theme, keyHeigh
     override val root = constraintLayout {
         background = GradientDrawable().apply {
             cornerRadius = radius
-            setColor(ColorManager.getColor("popup_back_color"))
+            setColor(ColorManager.getColor(ThemeColor.POPUP_BACK_COLOR))
         }
         outlineProvider = ViewOutlineProvider.BACKGROUND
         elevation = dp(2f)
@@ -74,7 +75,7 @@ class PopupEntryUi(override val ctx: Context, private val theme: Theme, keyHeigh
             imageView.setImageDrawable(
                 IconicsDrawable(ctx, text.toIconName()).apply {
                     sizeDp = theme.generalStyle.popupTextSize.toInt()
-                    colorFilter = PorterDuffColorFilter(ColorManager.getColor("popup_text_color"), PorterDuff.Mode.SRC_IN)
+                    colorFilter = PorterDuffColorFilter(ColorManager.getColor(ThemeColor.POPUP_TEXT_COLOR), PorterDuff.Mode.SRC_IN)
                 },
             )
             imageView.isVisible = true

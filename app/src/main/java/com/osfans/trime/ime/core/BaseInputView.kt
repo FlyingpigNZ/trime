@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import splitties.dimensions.dp
 import splitties.views.dsl.core.withTheme
 import kotlin.math.max
+import com.osfans.trime.data.theme.ThemeColor
 
 abstract class BaseInputView(
     val service: TrimeInputMethodService,
@@ -37,6 +38,14 @@ abstract class BaseInputView(
     val theme: Theme,
 ) : ConstraintLayout(service) {
     protected abstract fun handleRimeMessage(it: RimeMessage<*>)
+
+    /**
+     * Incremental restyle hook. Subclasses should update theme-dependent
+     * resources in place instead of recreating the whole view hierarchy.
+     */
+    open fun restyle(theme: Theme) {
+        invalidate()
+    }
 
     private var messageHandlerJob: Job? = null
 
@@ -69,7 +78,7 @@ abstract class BaseInputView(
     fun showCandidateActionMenu(idx: Int, text: String, view: View, global: Boolean) {
         candidateActionMenu?.dismiss()
         candidateActionMenu = null
-        val highlightColor = ColorManager.getColor("hilited_candidate_text_color")
+        val highlightColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_TEXT_COLOR)
         val title = buildSpannedString {
             bold {
                 color(highlightColor) { append(text) }
