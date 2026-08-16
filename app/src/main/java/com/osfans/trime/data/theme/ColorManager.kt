@@ -45,10 +45,6 @@ object ColorManager {
             fireChange()
         }
 
-    private var lightModeColorScheme: ColorScheme? = null
-
-    private var darkModeColorScheme: ColorScheme? = null
-
     private val BuiltinFallbackColors =
         mapOf(
             "candidate_text_color" to "text_color",
@@ -93,6 +89,9 @@ object ColorManager {
             "long_text_back_color" to "key_back_color",
         )
 
+    /** Builtin fallback table merged with the theme's `fallback_colors`. */
+    private var fallbackColors: Map<String, String> = emptyMap()
+
     private var bitmapCache: LruCache<String, Bitmap>? = null
 
     fun interface OnColorChangeListener {
@@ -116,7 +115,7 @@ object ColorManager {
     private fun colorScheme(id: String) = theme.colorSchemes.find { it.id == id }
 
     fun init(configuration: Configuration) {
-        isNightMode = configuration.isNightMode()
+        isNightMode = configuration.isNightMode() && followSystemDayNight
         activeColorScheme = evaluateActiveColorScheme()
 
         val maxMemory = Runtime.getRuntime().maxMemory() / 1024
@@ -131,44 +130,20 @@ object ColorManager {
     }
 
     fun onSystemNightModeChange(isNight: Boolean) {
-        isNightMode = isNight
-        activeColorScheme = evaluateActiveColorScheme()
+        isNightMode = isNight && followSystemDayNight
+        fireChange()
     }
 
-    private fun evaluateActiveColorScheme(): ColorScheme = when {
-        followSystemDayNight -> {
-            val defaultModeScheme = if (isNightMode) darkModeColorScheme else lightModeColorScheme
-
-            fun resolveScheme(id: String?) = id?.let { colorScheme(it) } ?: defaultModeScheme
-
-            colorScheme(normalModeColor)?.let { userScheme ->
-                val lightSchemeId = userScheme.colors["light_scheme"]
-                val darkSchemeId = userScheme.colors["dark_scheme"]
-
-                when {
-                    lightSchemeId != null && darkSchemeId != null ->
-                        // 如果两者都指定了，根据当前模式选择对应的配色
-                        resolveScheme(if (isNightMode) darkSchemeId else lightSchemeId)
-                    lightSchemeId != null ->
-                        // 如果只指定了light_scheme，说明是暗色方案
-                        if (isNightMode) userScheme else resolveScheme(lightSchemeId)
-                    darkSchemeId != null ->
-                        // 如果只指定了dark_scheme，说明是亮色方案
-                        if (isNightMode) resolveScheme(darkSchemeId) else userScheme
-                    else -> defaultModeScheme
-                }
-            } ?: defaultModeScheme
-        }
-        else -> colorScheme(normalModeColor)
-    } ?: colorScheme("default") ?: theme.colorSchemes.first()
+    private fun evaluateActiveColorScheme(): ColorScheme =
+        colorScheme(normalModeColor)
+            ?: colorScheme("default")
+            ?: theme.colorSchemes.first()
 
     /** 每次切换主题后，都要调用此函数，初始化配色 */
     fun switchTheme(theme: Theme) {
         bitmapCache?.evictAll()
         this.theme = theme
-        val defaultScheme = colorScheme("default") ?: theme.colorSchemes.first()
-        lightModeColorScheme = defaultScheme.colors["light_scheme"]?.let { colorScheme(it) }
-        darkModeColorScheme = defaultScheme.colors["dark_scheme"]?.let { colorScheme(it) }
+        fallbackColors = BuiltinFallbackColors + theme.fallbackColors
         activeColorScheme = evaluateActiveColorScheme()
     }
 
@@ -176,6 +151,10 @@ object ColorManager {
         activeColorScheme = scheme
         normalModeColor = scheme.id
     }
+
+    /** The palette for the current day/night mode. */
+    private val activePalette: Map<String, String>
+        get() = if (isNightMode) activeColorScheme.darkColors else activeColorScheme.colors
 
     @ColorInt
     private fun resolveColor(key: String): Int {
@@ -209,19 +188,14 @@ object ColorManager {
         var currentKey = key
 
         while (true) {
-            val target = activeColorScheme.colors[currentKey]
+            val target = activePalette[currentKey]
             if (!target.isNullOrEmpty()) {
                 Timber.d("current: $currentKey, origin: $key, target: $target")
                 return parser(target)
             }
-            val fallback = theme.fallbackColors[currentKey]
+            val fallback = fallbackColors[currentKey]
             if (!fallback.isNullOrEmpty()) {
                 currentKey = fallback
-                continue
-            }
-            val altFallback = BuiltinFallbackColors[currentKey]
-            if (!altFallback.isNullOrEmpty()) {
-                currentKey = altFallback
             } else {
                 throw IllegalArgumentException("$key not found")
             }

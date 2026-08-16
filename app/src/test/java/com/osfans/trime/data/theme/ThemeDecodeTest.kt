@@ -28,6 +28,50 @@ class ThemeDecodeTest :
             theme.generalStyle.candidateFont shouldBe emptyList()
         }
 
+        "self-contained color scheme pair decodes light and dark palettes" {
+            val theme = decode(
+                """
+                name: test
+                style: {}
+                preset_color_schemes:
+                  default:
+                    light:
+                      name: 默认
+                      back_color: '#ffffff'
+                      text_color: '#000000'
+                    dark:
+                      name: 默认
+                      back_color: '#1e1e1e'
+                      text_color: '#e0e0e0'
+                """.trimIndent(),
+            )
+
+            val scheme = theme.colorSchemes.single()
+            scheme.id shouldBe "default"
+            scheme.displayName shouldBe "默认"
+            scheme.colors["back_color"] shouldBe "#ffffff"
+            scheme.colors["text_color"] shouldBe "#000000"
+            scheme.darkColors["back_color"] shouldBe "#1e1e1e"
+            scheme.darkColors["text_color"] shouldBe "#e0e0e0"
+        }
+
+        "legacy flat color scheme uses itself as dark fallback" {
+            val theme = decode(
+                """
+                name: test
+                style: {}
+                preset_color_schemes:
+                  default:
+                    name: 默认
+                    back_color: '#ffffff'
+                """.trimIndent(),
+            )
+
+            val scheme = theme.colorSchemes.single()
+            scheme.colors["back_color"] shouldBe "#ffffff"
+            scheme.darkColors["back_color"] shouldBe "#ffffff"
+        }
+
         "__include inherits base keyboard and child overrides win" {
             val theme = decode(
                 """

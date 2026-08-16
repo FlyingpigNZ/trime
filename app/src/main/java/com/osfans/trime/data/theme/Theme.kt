@@ -49,13 +49,8 @@ data class Theme(
                 TextKeyboard.decode(it.value)
             },
             colorSchemes =
-            node["preset_color_schemes"]?.mapping?.map {
-                ColorScheme(
-                    it.key.string!!,
-                    it.value.mapping!!.entries.associate { (k, v) ->
-                        k.string!! to v.string!!
-                    },
-                )
+            node["preset_color_schemes"]?.mapping?.map { (schemeKey, schemeValue) ->
+                decodeColorScheme(schemeKey.string!!, schemeValue.mapping!!)
             } ?: emptyList(),
             fallbackColors = node["fallback_colors"]?.mapping?.entries?.associate {
                 it.key.string!! to it.value.string!!
@@ -70,6 +65,37 @@ data class Theme(
          * keyboard's own fields taking precedence. Cycles and unknown targets
          * are reported instead of silently dropping the inheritance.
          */
+        private fun decodeColorScheme(
+            id: String,
+            node: Node.Mapping,
+        ): ColorScheme {
+            val lightNode = node["light"]?.mapping
+            val darkNode = node["dark"]?.mapping
+            val topName = node["name"]?.string
+            val metaKeys = setOf("light", "dark", "name")
+
+            fun decodePalette(mapping: Node.Mapping?): MutableMap<String, String> =
+                if (mapping != null) {
+                    mapping.entries.associate { (k, v) -> k.string!! to v.string!! }.toMutableMap()
+                } else {
+                    node.pairs
+                        .mapNotNull { (k, v) ->
+                            val key = k.string ?: return@mapNotNull null
+                            if (key in metaKeys) null else key to v.string!!
+                        }
+                        .toMap()
+                        .toMutableMap()
+                }
+
+            val light = decodePalette(lightNode)
+            val dark = decodePalette(darkNode).ifEmpty { light }.toMutableMap()
+            topName?.let { name ->
+                light.putIfAbsent("name", name)
+                dark.putIfAbsent("name", name)
+            }
+            return ColorScheme(id, light, dark)
+        }
+
         private fun resolveKeyboardIncludes(mapping: Node.Mapping?): Map<String, Node.Mapping> {
             if (mapping == null) return emptyMap()
             val raw = mapping.pairs.mapNotNull { (k, v) ->

@@ -341,12 +341,24 @@ breaking format change ever happens, it can be handled ad-hoc.)
       overrides); views read from a `ResolvedPalette` instead of resolving
       ad-hoc at draw/construction time.
 18. **Unify fallback tables into one source of truth** (medium impact, low
-    effort)
-    - Single table (schema-driven, standard catalog = base layer) instead of
-      three parallel maps; remove the duplicated comment in `trime.yaml`.
+    effort) — **DONE**
+    - `ColorManager` merges the builtin fallback table with the theme's
+      `fallback_colors` once per theme switch; runtime resolution uses one
+      combined map instead of two parallel lookups.
+    - Removed the duplicated builtin fallback comments from `trime.yaml` and
+      `tongwenfeng.trime.yaml`.
 19. **Data-driven light/dark scheme pairs** (low-medium impact, low effort)
-    - Replace the 4-branch `when` with declared `light_scheme`/`dark_scheme`
-      pairs; keep metadata out of the color namespace.
+    — **DONE**
+    - Each scheme is a self-contained pair: `light:` and `dark:` blocks.
+    - Legacy flat schemes are still accepted; their dark palette falls back to
+      the light palette.
+    - `ColorManager` simply selects `darkColors` when night mode is active;
+      the old `light_scheme`/`dark_scheme` 4-branch `when` is removed.
+    - **Data migration TODO (standard resource delivery)**: convert
+      `standard/colors.yaml` (and legacy themes such as `tongwenfeng`) to the
+      new `light:`/`dark:` shape. The built app must ship the new shape in a
+      working state; until then legacy flat schemes are accepted with dark
+      fallback = light.
 20. **Decouple parsing from Parcelable** (low-medium impact, medium effort)
     - Plain immutable model + separate `decode` mapper with graceful errors
       (no `!!`); Parcelable kept only where truly needed (or dropped in favor
