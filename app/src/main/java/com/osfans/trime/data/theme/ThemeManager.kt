@@ -63,7 +63,7 @@ object ThemeManager {
         ThemeFilesManager.findComponentManifest(id)?.let { manifest ->
             return try {
                 val standard = StandardCatalog.load(DataManager.sharedDataDir)
-                ComponentThemeLoader.loadTheme(manifest, standard)
+                ComponentThemeLoader.loadTheme(manifest, standard, DataManager.sharedDataDir)
             } catch (e: Exception) {
                 Timber.w(e, "Failed to load component theme '$id'")
                 null

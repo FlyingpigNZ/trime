@@ -168,6 +168,23 @@ easy to use — by splitting themes into a composable three-tier model.
     component themes (`<id>.component.yaml` or `<id>/component.yaml|manifest.yaml`)
     alongside monolithic `*.trime.yaml`; `ThemeManager` tries the component
     manifest before the legacy deployed file. Unit tests cover the loader.
+28. **Shipping boundary clarified**: app assets ship standard + `shared-aux` +
+    built-in themes. 简纯+14键/14jian is a **customer-defined input method
+    package** and must be delivered as a zip (manifest + schema + layout), not
+    bundled in app assets. The zip is generated from
+    `sample_theme_schemas/简纯+14键/` (see README).
+29. **Unified component validation DONE**: complete schema in
+    `doc/component-schema.json`, gap analysis in
+    `doc/component-validation-gaps.md`, `ComponentValidator` (per-file +
+    resolution + behavior + color), wired into theme load, in-app validator,
+    CLI (`--check-shipped`), and schema-package installer. Full unit tests
+    pass.
+30. **Data/schema fixes + repo rules**: tongwenfeng colors normalized to hex,
+    chrome `normal: 0` → `0x00`, schema-first key validation (keys are
+    non-empty mappings; spacers allowed), `CLAUDE.md` repository rules added
+    (no data-fix literals in code, no magic numbers, fix definitions before
+    hacking code). Component theme loading is validated end-to-end on-device;
+    user will continue refactor later.
 
 ---
 
@@ -446,7 +463,16 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      package resources are copied to user backgrounds on install.
    - **Automatic app testing**: `doc/automated-testing.md` + compiling
      `SmokeTest` androidTest; running requires an emulator/device.
-   - Commits on this branch: c5e1dd6a (full 14jian split) -> 9b900353
+   - Commits on this branch: b8ba95b1 (CLAUDE.md rules) -> 8496934a
+     (schema-first key validation) -> 7adca9d1 (spacer keys) -> c67cc11f
+     (validation docs) -> b97fd2d9 (validation wiring) -> 80b10c9c (unified
+     validator) -> 0746e312 (schema/gaps) -> 780504d6 (theme load validation)
+     -> 0e96ff77 (color validator) -> 7de1f3ae (color hex normalization) ->
+     09162e4a (standard root fix) -> 96964c42 (remove legacy asset) ->
+     554c952d (shipping boundary) -> 338f71d9 (remove customer asset) ->
+     b8aba90e (ship assets) -> 0d237347 (dup cleanup) -> 8104dfee (runtime
+     loading docs) -> 70036fb1 (runtime loading) -> 66eb0666 (behavior
+     verifier docs) -> ae2a925a (Kotlin behavior verifier) -> c5e1dd6a (full 14jian split) -> 9b900353
      (mode-boost cleanup) -> 89b05b02 (mode-boost notes) -> a751cf2f (dsh
      install complete) -> 5d333858 (docs refresh) -> d3ce11c6 (handoff update)
      -> afa48fc3 (package
@@ -484,6 +510,8 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      loading** so `ThemeManager` can consume component manifests instead of
      monolithic theme files~~ **DONE** — `ComponentThemeLoader` +
      `ThemeFilesManager` + `ThemeManager` integration
+   - (g) **Verify component tongwenfeng on-device** (menu tests) and then
+     decide whether to push / open a PR
 5. Build gotcha: home dir is read-only in this sandbox, and `/tmp` is wiped
    between shell commands. For repeated Gradle runs use a workspace-writable
    user home, e.g. `GRADLE_USER_HOME=$PWD/.gradle-test-home ./gradlew ...`.

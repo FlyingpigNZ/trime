@@ -4,8 +4,10 @@
 
 package com.osfans.trime.data.theme.component
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import java.io.File
 import java.nio.file.Files
 
@@ -71,5 +73,91 @@ class ComponentThemeLoaderTest :
                     """.trimIndent(),
                 )
             ComponentThemeLoader.isComponentManifest(manifest) shouldBe false
+        }
+
+        "resolves standard catalog from the fallback shared root" {
+            val sharedRoot = Files.createTempDirectory("shared-root").toFile()
+            write(
+                sharedRoot,
+                "standard/preset_keys.yaml",
+                """
+                preset_keys:
+                  BackSpace: {label: 退格, send: BackSpace}
+                """.trimIndent(),
+            )
+            write(
+                sharedRoot,
+                "standard/keyboards.yaml",
+                """
+                preset_keyboards:
+                  default:
+                    name: default
+                    keys: []
+                """.trimIndent(),
+            )
+            write(
+                sharedRoot,
+                "standard/colors.yaml",
+                """
+                preset_color_schemes:
+                  default:
+                    light:
+                      back_color: '#ffffff'
+                """.trimIndent(),
+            )
+
+            val themeDir = File(sharedRoot, "tongwenfeng")
+            val manifest =
+                write(
+                    themeDir,
+                    "component.yaml",
+                    """
+                    name: Component Tongwenfeng
+                    use_standard_preset_keys: true
+                    standard_keyboards: [default]
+                    standard_color_schemes: [default]
+                    components:
+                      - standard
+                      - style:
+                          override:
+                            keyboard_height: 200
+                    """.trimIndent(),
+                )
+
+            val theme = ComponentThemeLoader.loadTheme(manifest, null, sharedRoot)
+            theme.name shouldBe "Component Tongwenfeng"
+            theme.presetKeys.keys shouldBe setOf("BackSpace")
+            theme.presetKeyboards.keys shouldBe setOf("default")
+            theme.colorSchemes.map { it.id } shouldBe listOf("default")
+        }
+
+        "rejects invalid color literals during load" {
+            val root = Files.createTempDirectory("component-theme-bad-color").toFile()
+            write(
+                root,
+                "style.yaml",
+                """
+                tool_bar:
+                  primary_button:
+                    background:
+                      normal: 0
+                """.trimIndent(),
+            )
+            val manifest =
+                write(
+                    root,
+                    "component.yaml",
+                    """
+                    name: Bad Color Theme
+                    components:
+                      - style:
+                          file: style.yaml
+                    """.trimIndent(),
+                )
+            val error =
+                shouldThrow<IllegalArgumentException> {
+                    ComponentThemeLoader.loadTheme(manifest, null)
+                }
+            error.message shouldContain "tool_bar.primary_button.background.normal: invalid color '0'"
         }
     })

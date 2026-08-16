@@ -182,7 +182,7 @@ class ThemeResolverTest :
         }
 
         "shipped tongwenfeng theme resolves with shipped standard catalog" {
-            val themeNode = mapping(File("src/main/assets/shared/tongwenfeng.trime.yaml").readText())
+            val themeNode = mapping(File("../sample_theme_schemas/tongwenfeng.trime.yaml").readText())
             val theme = ThemeResolver.resolve(themeNode, shippedStandard())
 
             theme.name shouldBe "标准"

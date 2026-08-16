@@ -1,0 +1,5 @@
+# shared-aux component
+# Base: tongwenfeng.trime.yaml (Option A)
+name: shared-aux
+description: Shared helper keyboards, behaviors, styles, and colors derived from tongwenfeng.
+source: app/src/main/assets/shared/tongwenfeng.trime.yaml

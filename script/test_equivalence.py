@@ -39,6 +39,20 @@ def merge_dicts(*dicts: dict) -> dict:
     return out
 
 
+def hex_color(value):
+    if isinstance(value, int):
+        return f"0x{value:08x}" if value > 0xFFFFFF else f"0x{value:06x}"
+    return value
+
+
+def normalize_colors(obj):
+    if isinstance(obj, dict):
+        return {k: normalize_colors(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [normalize_colors(v) for v in obj]
+    return hex_color(obj)
+
+
 class EquivalenceTest(unittest.TestCase):
     def assertSectionsEqual(self, resolved: dict, expected: dict) -> None:
         for section in (
@@ -60,13 +74,13 @@ class EquivalenceTest(unittest.TestCase):
 
     def test_tongwenfeng_equivalence(self) -> None:
         resolved = resolve_file(ROOT / "sample_theme_schemas/tongwenfeng/manifest.yaml")
-        mono = load("app/src/main/assets/shared/tongwenfeng.trime.yaml")
+        mono = load("sample_theme_schemas/tongwenfeng.trime.yaml")
         standard_keys = load("app/src/main/assets/shared/standard/preset_keys.yaml")["preset_keys"]
 
         expected = {
             "preset_keys": merge_dicts(standard_keys, mono.get("preset_keys")),
             "preset_keyboards": mono.get("preset_keyboards", {}),
-            "preset_color_schemes": mono.get("preset_color_schemes", {}),
+            "preset_color_schemes": normalize_colors(mono.get("preset_color_schemes", {})),
             "fallback_colors": mono.get("fallback_colors", {}),
             "style": mono.get("style", {}),
             "liquid_keyboard": mono.get("liquid_keyboard", {}),

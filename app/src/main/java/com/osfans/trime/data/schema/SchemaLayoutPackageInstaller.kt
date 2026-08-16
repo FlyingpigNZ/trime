@@ -4,6 +4,8 @@
 
 package com.osfans.trime.data.schema
 
+import com.osfans.trime.util.yaml.Yaml
+import com.osfans.trime.util.yaml.mapping
 import java.io.File
 import java.util.zip.ZipFile
 
@@ -35,6 +37,19 @@ object SchemaLayoutPackageInstaller {
             val manifestText =
                 zip.getInputStream(manifestEntry).bufferedReader().use { it.readText() }
             val manifest = SchemaLayoutManifest.parse(manifestText)
+
+            // Validate referenced files exist and layout files parse as YAML.
+            (listOf(manifest.schemaFile) + manifest.layoutFiles + manifest.resources).forEach { name ->
+                if (zip.getEntry(name) == null) {
+                    throw IllegalArgumentException("Package is missing referenced file: $name")
+                }
+            }
+            manifest.layoutFiles.forEach { name ->
+                val text = zip.getInputStream(zip.getEntry(name)).bufferedReader().use { it.readText() }
+                if (Yaml.Default.parseToYamlNode(text).mapping == null) {
+                    throw IllegalArgumentException("Layout file is not a YAML mapping: $name")
+                }
+            }
 
             val targetDir = File(destDir, manifest.schemaId).apply { mkdirs() }
             val targetPath = targetDir.toPath().toAbsolutePath().normalize()

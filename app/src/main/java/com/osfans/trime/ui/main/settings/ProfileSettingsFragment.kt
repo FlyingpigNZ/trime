@@ -23,6 +23,7 @@ import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.schema.SchemaLayoutPackageManager
 import com.osfans.trime.data.theme.DefinitionValidator
 import com.osfans.trime.data.theme.StandardCatalog
+import com.osfans.trime.data.theme.component.ComponentSource
 import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
 import com.osfans.trime.ui.common.withLoadingDialog
@@ -285,6 +286,14 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
             val errors =
                 if (standard == null) {
                     listOf("Standard catalog unavailable")
+                } else if ("components:" in text) {
+                    val source =
+                        ctx.getFileFromUri(uri)?.parentFile?.let { ComponentSource.fromDirectory(it) }
+                    if (source != null) {
+                        DefinitionValidator.validateComponentManifest(text, source)
+                    } else {
+                        DefinitionValidator.validateComponentManifest(text)
+                    }
                 } else {
                     DefinitionValidator.validateManifest(text)
                         .ifEmpty { DefinitionValidator.validateTheme(text, standard) }

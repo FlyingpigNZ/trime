@@ -31,18 +31,34 @@ object ComponentThemeLoader {
         }.getOrDefault(false)
     }
 
-    /** Resolve [manifestFile] into a runtime [Theme]. */
+    /**
+     * Resolve [manifestFile] into a runtime [Theme].
+     *
+     * [fallbackRoot] is the shared data root used to resolve `standard/...`
+     * files when they are not relative to the manifest's own directory.
+     */
     fun loadTheme(
         manifestFile: File,
         standard: StandardCatalog?,
+        fallbackRoot: File? = null,
     ): Theme {
         val node = Yaml.Default.parseToYamlNode(manifestFile.readText()).mapping
             ?: throw IllegalArgumentException("Component manifest is not a mapping: $manifestFile")
         val manifest = ComponentManifest.parse(node)
-        val sections =
-            ComponentResolver(
-                ComponentSource.fromDirectory(manifestFile.parentFile ?: File(".")),
-            ).resolve(manifest)
+        val primary = ComponentSource.fromDirectory(manifestFile.parentFile ?: File("."))
+        val source =
+            if (fallbackRoot != null) {
+                ComponentSource.fallback(primary, ComponentSource.fromDirectory(fallbackRoot))
+            } else {
+                primary
+            }
+        val validationErrors = ComponentValidator.validate(manifestFile.readText(), source)
+        if (validationErrors.isNotEmpty()) {
+            throw IllegalArgumentException(
+                "Invalid component theme:\n" + validationErrors.joinToString("\n"),
+            )
+        }
+        val sections = ComponentResolver(source).resolve(manifest)
         val themeNode = buildThemeNode(manifest, sections)
         return if (standard != null) {
             ThemeResolver.resolve(themeNode, standard)

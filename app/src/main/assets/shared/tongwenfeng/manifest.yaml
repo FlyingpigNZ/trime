@@ -1,0 +1,22 @@
+# Component manifest for the tongwenfeng theme.
+#
+# shared-aux provides the shared helper keyboards and behaviors.
+# Style, color, liquid, and chrome are theme-specific.
+
+name: tongwenfeng
+author: 风花絮
+version: "1.0"
+
+use_standard_preset_keys: true
+standard_keyboards: [default, letter, number, symbols]
+standard_color_schemes: [default]
+
+components:
+  - standard
+  - ../shared-aux
+  - style:
+      file: style.yaml
+  - color:
+      file: color.yaml
+  - style:
+      file: chrome.yaml

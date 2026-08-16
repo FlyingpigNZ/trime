@@ -61,10 +61,17 @@ def validate_layout(data: dict, keyboards: dict, colors: dict) -> list[str]:
 
 def validate_component_manifest(data: dict, path: Path) -> list[str]:
     try:
-        ComponentResolver(path.parent).resolve_manifest(data)
+        sections = ComponentResolver(path.parent).resolve_manifest(data)
     except ComponentError as exc:
         return [str(exc)]
-    return []
+
+    from behavior_verifier import verify as verify_behavior
+    from color_verifier import verify as verify_colors
+
+    errors: list[str] = []
+    errors += verify_behavior(sections)
+    errors += verify_colors(sections)
+    return errors
 
 
 def validate_file(path: Path, kind: str | None) -> list[str]:
@@ -125,7 +132,7 @@ def check_shipped() -> int:
             errors.append(f"{path.relative_to(ROOT)}: Missing expected top-level key '{expected_key}'")
     for path in [
         ROOT / "app/src/main/assets/shared/trime.yaml",
-        ROOT / "app/src/main/assets/shared/tongwenfeng.trime.yaml",
+        ROOT / "sample_theme_schemas/tongwenfeng.trime.yaml",
     ]:
         found = validate_file(path, "theme")
         if found:
