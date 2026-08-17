@@ -17,6 +17,7 @@ import com.osfans.trime.core.RimeKeyEvent
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.ThemeManager
@@ -352,6 +353,7 @@ class CommonKeyboardActionListener {
                 keyEventCode: Int,
                 metaState: Int,
             ) {
+                if (ImePackageManager.isActivating()) return
                 val name = KeyCode.codeToKeyName(keyEventCode) ?: "VoidSymbol"
                 val value = RimeKeyEvent.getKeycodeByName(name)
                 val m = if (keyEventCode in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_EQUALS) {
@@ -382,6 +384,7 @@ class CommonKeyboardActionListener {
 
             override fun onText(input: String) {
                 if (input.isEmpty()) return
+                if (ImePackageManager.isActivating()) return
                 Timber.d("onText: $input")
                 val status = rime.uiState.value.status
                 if (!input[0].isAsciiPrintable() && status.isComposing) {

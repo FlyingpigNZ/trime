@@ -40,4 +40,32 @@ object SchemaListUpdater {
         customFile.parentFile?.mkdirs()
         customFile.writeText(yaml.dump(root))
     }
+
+    /**
+     * Replace the schema list with exactly the given schemas. Used when
+     * switching IME packages so schemas from the previous package are removed
+     * from `default.custom.yaml` and no mixture remains.
+     */
+    fun setSchemas(
+        customFile: File,
+        schemaIds: List<String>,
+    ) {
+        val yaml = Yaml()
+        val root = LinkedHashMap<String, Any?>()
+        if (customFile.exists()) {
+            val loaded = yaml.load<Any?>(customFile.readText())
+            if (loaded is Map<*, *>) {
+                loaded.forEach { (key, value) -> root[key.toString()] = value }
+            }
+        }
+
+        val patch =
+            root["patch"] as? MutableMap<String, Any?>
+                ?: LinkedHashMap<String, Any?>().also { root["patch"] = it }
+        patch["schema_list"] =
+            schemaIds.distinct().map { mapOf("schema" to it) }
+
+        customFile.parentFile?.mkdirs()
+        customFile.writeText(yaml.dump(root))
+    }
 }

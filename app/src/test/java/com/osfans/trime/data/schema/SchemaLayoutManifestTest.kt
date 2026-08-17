@@ -110,4 +110,41 @@ class SchemaLayoutManifestTest :
             registry.defaultKeyboardFor("luna_pinyin") shouldBe null
             registry.defaultKeyboards shouldBe mapOf("14jian" to "14jian")
         }
+
+        "registry can be built from raw default-keyboard bindings" {
+            val registry =
+                SchemaLayoutRegistry.fromDefaultKeyboards(
+                    mapOf("14jian" to "14jian"),
+                )
+
+            registry.defaultKeyboardFor("14jian") shouldBe "14jian"
+            registry.defaultKeyboards shouldBe mapOf("14jian" to "14jian")
+            registry.isEmpty() shouldBe false
+        }
+
+        "registry plus merges manifest and extra bindings" {
+            val manifestRegistry =
+                SchemaLayoutRegistry.fromManifests(
+                    SchemaLayoutManifest.parse(
+                        """
+                        schema_id: 14jian
+                        name: 14键
+                        version: "1"
+                        schema_file: 14jian.schema.yaml
+                        layout_files: [14jian.layout.yaml]
+                        default_keyboard: 14jian
+                        """.trimIndent(),
+                    ),
+                )
+            val extraRegistry =
+                SchemaLayoutRegistry.fromDefaultKeyboards(
+                    mapOf("luna_pinyin" to "default"),
+                )
+
+            val merged = manifestRegistry + extraRegistry
+
+            merged.defaultKeyboardFor("14jian") shouldBe "14jian"
+            merged.defaultKeyboardFor("luna_pinyin") shouldBe "default"
+            merged.isEmpty() shouldBe false
+        }
     })

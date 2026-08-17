@@ -220,6 +220,14 @@
     "colorFile": {
       "type": "object",
       "properties": {
+        "colors": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/colorPalette" }
+        },
+        "color_schemes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/colorSchemePair" }
+        },
         "preset_color_schemes": {
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/colorScheme" }
@@ -229,6 +237,17 @@
           "additionalProperties": { "type": "string" }
         }
       },
+      "additionalProperties": false
+    },
+    "colorSchemePair": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "author": { "type": "string" },
+        "light": { "type": "string" },
+        "dark": { "type": "string" }
+      },
+      "required": ["light"],
       "additionalProperties": false
     },
     "colorScheme": {

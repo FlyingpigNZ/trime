@@ -135,6 +135,7 @@ object ColorManager {
 
     fun onSystemNightModeChange(isNight: Boolean) {
         isNightMode = isNight && followSystemDayNight
+        rebuildResolvedPalette()
         fireChange()
     }
 

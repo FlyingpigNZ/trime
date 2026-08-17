@@ -20,6 +20,7 @@ import com.osfans.trime.R
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.schema.SchemaLayoutPackageManager
 import com.osfans.trime.data.theme.DefinitionValidator
 import com.osfans.trime.data.theme.StandardCatalog
@@ -313,16 +314,16 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
 
     private fun installSchemaLayoutPackage(uri: Uri) {
         val ctx = requireContext()
-        lifecycleScope.launch {
+        lifecycleScope.withLoadingDialog(ctx, R.string.deploy_progress) {
             try {
                 val tempFile = File.createTempFile("schema-package-", ".zip", ctx.cacheDir)
                 withContext(Dispatchers.IO) {
                     ctx.contentResolver.openInputStream(uri)!!.use { input ->
                         tempFile.outputStream().use { input.copyTo(it) }
                     }
-                    SchemaLayoutPackageManager.selectPackage(tempFile)
+                    val imported = ImePackageManager.importPackage(tempFile)
+                    ImePackageManager.activate(imported)
                 }
-                viewModel.rime.launchOnReady { it.deploy() }
                 ctx.toast(R.string.install_schema_layout_package_success)
             } catch (_: Exception) {
                 ctx.toast(R.string.install_schema_layout_package_failure)

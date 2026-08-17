@@ -10,6 +10,51 @@ from typing import Any
 
 HEX_PREFIXES = ("0x", "0X", "#")
 
+# Color keys the runtime resolves through its builtin fallback table even when
+# a self-contained package does not redefine them in every color scheme.
+BUILTIN_FALLBACK_KEYS = {
+    "candidate_text_color",
+    "comment_text_color",
+    "border_color",
+    "candidate_separator_color",
+    "hilited_text_color",
+    "hilited_back_color",
+    "hilited_candidate_text_color",
+    "hilited_candidate_back_color",
+    "hilited_candidate_button_color",
+    "hilited_label_color",
+    "hilited_comment_text_color",
+    "hilited_key_back_color",
+    "hilited_key_text_color",
+    "hilited_key_symbol_color",
+    "hilited_off_key_back_color",
+    "hilited_on_key_back_color",
+    "hilited_off_key_text_color",
+    "hilited_on_key_text_color",
+    "key_back_color",
+    "key_border_color",
+    "key_text_color",
+    "key_symbol_color",
+    "label_color",
+    "off_key_back_color",
+    "off_key_text_color",
+    "on_key_back_color",
+    "on_key_text_color",
+    "popup_back_color",
+    "popup_text_color",
+    "hilited_popup_back_color",
+    "hilited_popup_text_color",
+    "shadow_color",
+    "root_background",
+    "candidate_background",
+    "keyboard_back_color",
+    "keyboard_background",
+    "liquid_keyboard_background",
+    "text_back_color",
+    "long_text_color",
+    "long_text_back_color",
+}
+
 
 def is_hex_color(value: str) -> bool:
     if not isinstance(value, str):
@@ -79,9 +124,7 @@ def _validate_tool_bar(sections: dict[str, Any], known: set[str]) -> list[str]:
 
 
 def verify(sections: dict[str, Any]) -> list[str]:
-    known = {
-        "hilited_candidate_button_color",
-    }
+    known = set(BUILTIN_FALLBACK_KEYS)
     errors: list[str] = []
     errors += _collect_palette_keys(sections, known)
     errors += _validate_fallback(sections, known)

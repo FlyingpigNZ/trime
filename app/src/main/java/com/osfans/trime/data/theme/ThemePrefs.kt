@@ -23,6 +23,14 @@ class ThemePrefs(
             R.string.selected_theme_summary,
         )
 
+    val selectedIme =
+        string(
+            R.string.selected_ime,
+            SELECTED_IME,
+            "",
+            R.string.selected_ime_summary,
+        )
+
     val normalModeColor =
         string(
             R.string.normal_mode_color,
@@ -66,6 +74,7 @@ class ThemePrefs(
 
     companion object {
         const val SELECTED_THEME = "selected_theme"
+        const val SELECTED_IME = "selected_ime"
         const val NORMAL_MODE_COLOR = "normal_mode_color"
         const val FOLLOW_SYSTEM_DAY_NIGHT = "follow_system_day_night"
         const val NAVBAR_BACKGROUND = "navbar_background"

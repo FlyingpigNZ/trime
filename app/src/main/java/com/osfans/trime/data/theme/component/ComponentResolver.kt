@@ -120,11 +120,12 @@ class ComponentResolver(
         data: Node.Mapping,
         onlySection: String? = null,
     ) {
+        val resolvedData = resolveColorSchemes(data)
         val sectionsToApply =
             if (onlySection != null) listOf(onlySection)
             else SECTION_NAMES
         sectionsToApply.forEach { section ->
-            data[section]?.mapping?.let { value ->
+            resolvedData[section]?.mapping?.let { value ->
                 if (section in NAMED_SECTIONS) {
                     val result = LinkedHashMap(sections.getValue(section).pairs)
                     value.pairs.forEach { (key, entry) -> result[key] = entry }
@@ -199,6 +200,33 @@ class ComponentResolver(
                 "fallback_colors",
                 "resources",
             )
+
+        private fun resolveColorSchemes(data: Node.Mapping): Node.Mapping {
+            val colors = data["colors"]?.mapping ?: return data
+            val schemes = data["color_schemes"]?.mapping ?: return data
+            val palettes = LinkedHashMap<String, Node.Mapping>()
+            colors.pairs.forEach { (key, value) ->
+                key.string?.let { name -> palettes[name] = value as? Node.Mapping ?: Node.Mapping() }
+            }
+            val resolved = LinkedHashMap<Node, Node>()
+            schemes.pairs.forEach { (schemeKey, schemeValue) ->
+                val pair = schemeValue.mapping ?: return@forEach
+                val id = schemeKey.string ?: return@forEach
+                val lightName = pair["light"]?.string ?: return@forEach
+                val darkName = pair["dark"]?.string ?: lightName
+                val light = palettes[lightName] ?: Node.Mapping()
+                val dark = palettes[darkName] ?: light
+                val scheme = LinkedHashMap<Node, Node>()
+                pair["name"]?.let { scheme[Node.Scalar("name")] = it }
+                pair["author"]?.let { scheme[Node.Scalar("author")] = it }
+                scheme[Node.Scalar("light")] = light
+                scheme[Node.Scalar("dark")] = dark
+                resolved[Node.Scalar(id)] = Node.Mapping(scheme)
+            }
+            val newPairs = LinkedHashMap(data.pairs)
+            newPairs[Node.Scalar("preset_color_schemes")] = Node.Mapping(resolved)
+            return Node.Mapping(newPairs)
+        }
 
         private fun mergeMappings(base: Node.Mapping, override: Node.Mapping): Node.Mapping {
             val result = LinkedHashMap<Node, Node>(base.pairs)

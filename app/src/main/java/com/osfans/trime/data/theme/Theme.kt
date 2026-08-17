@@ -66,10 +66,7 @@ data class Theme(
             resolveKeyboardIncludes(node["preset_keyboards"]?.mapping).mapValues {
                 TextKeyboard.decode(it.value)
             },
-            colorSchemes =
-            node["preset_color_schemes"]?.mapping?.map { (schemeKey, schemeValue) ->
-                decodeColorScheme(schemeKey.string!!, schemeValue.mapping!!)
-            } ?: emptyList(),
+            colorSchemes = decodeColorSchemes(node),
             fallbackColors = node["fallback_colors"]?.mapping?.entries?.associate {
                 it.key.string!! to it.value.string!!
             } ?: emptyMap(),
@@ -83,12 +80,56 @@ data class Theme(
          * keyboard's own fields taking precedence. Cycles and unknown targets
          * are reported instead of silently dropping the inheritance.
          */
+        private fun decodeColorSchemes(node: Node.Mapping): List<ColorScheme> {
+            val palettes =
+                node["colors"]?.mapping?.pairs
+                    ?.mapNotNull { (key, value) ->
+                        val name = key.string ?: return@mapNotNull null
+                        val palette = value as? Node.Mapping ?: return@mapNotNull null
+                        name to palette
+                    }
+                    ?.toMap()
+                    ?: emptyMap()
+            val schemes = mutableListOf<ColorScheme>()
+
+            node["color_schemes"]?.mapping?.pairs?.forEach { (schemeKey, schemeValue) ->
+                val id = schemeKey.string ?: return@forEach
+                val pair = schemeValue.mapping ?: return@forEach
+                val lightName = pair["light"]?.string ?: return@forEach
+                val darkName = pair["dark"]?.string ?: lightName
+                val lightPalette = palettes[lightName] ?: Node.Mapping()
+                val darkPalette = palettes[darkName] ?: lightPalette
+                val topName = pair["name"]?.string
+                val light = decodePaletteMapping(lightPalette).toMutableMap()
+                val dark = decodePaletteMapping(darkPalette).toMutableMap()
+                topName?.let { name ->
+                    if ("name" !in light) light["name"] = name
+                    if ("name" !in dark) dark["name"] = name
+                }
+                schemes += ColorScheme(id, light, dark)
+            }
+
+            node["preset_color_schemes"]?.mapping?.pairs?.forEach { (schemeKey, schemeValue) ->
+                schemeKey.string?.let { id ->
+                    schemeValue.mapping?.let { schemeNode ->
+                        schemes += decodeColorScheme(id, schemeNode, palettes)
+                    }
+                }
+            }
+            return schemes
+        }
+
         private fun decodeColorScheme(
             id: String,
             node: Node.Mapping,
+            palettes: Map<String, Node.Mapping>,
         ): ColorScheme {
-            val lightNode = node["light"]?.mapping
-            val darkNode = node["dark"]?.mapping
+            val lightNode =
+                node["light"]?.mapping
+                    ?: node["light"]?.string?.let { palettes[it] }
+            val darkNode =
+                node["dark"]?.mapping
+                    ?: node["dark"]?.string?.let { palettes[it] }
             val topName = node["name"]?.string
             val metaKeys = setOf("light", "dark", "name")
 
@@ -112,6 +153,9 @@ data class Theme(
             }
             return ColorScheme(id, light, dark)
         }
+
+        private fun decodePaletteMapping(mapping: Node.Mapping): Map<String, String> =
+            mapping.entries.associate { (k, v) -> k.string!! to v.string!! }
 
         private fun resolveKeyboardIncludes(mapping: Node.Mapping?): Map<String, Node.Mapping> {
             if (mapping == null) return emptyMap()

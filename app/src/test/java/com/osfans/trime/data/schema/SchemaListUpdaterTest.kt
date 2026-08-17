@@ -48,6 +48,25 @@ class SchemaListUpdaterTest :
             schemaList.map { (it as Map<*, *>)["schema"] } shouldBe listOf("14jian", "luna_pinyin")
         }
 
+        "setSchemas replaces the previous schema list" {
+            val customFile = File(Files.createTempDirectory("schema-list").toFile(), "default.custom.yaml")
+            customFile.writeText(
+                """
+                patch:
+                  schema_list:
+                    - schema: luna_pinyin
+                    - schema: 14jian
+                """.trimIndent(),
+            )
+
+            SchemaListUpdater.setSchemas(customFile, listOf("14jian", "melt_eng", "radical_pinyin"))
+
+            val data = Yaml().load<Map<String, Any?>>(customFile.readText())
+            val schemaList = (data["patch"] as Map<*, *>)["schema_list"] as List<*>
+            schemaList.map { (it as Map<*, *>)["schema"] } shouldBe
+                listOf("14jian", "melt_eng", "radical_pinyin")
+        }
+
         "creates default.custom.yaml when missing" {
             val customFile = File(Files.createTempDirectory("schema-list").toFile(), "default.custom.yaml")
 

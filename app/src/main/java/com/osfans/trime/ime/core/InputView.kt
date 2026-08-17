@@ -21,6 +21,7 @@ import com.osfans.trime.core.CompositionProto
 import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.schema.SchemaLayoutPackageManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
@@ -98,7 +99,7 @@ class InputView(
             theme,
             service,
             rime,
-            SchemaLayoutPackageManager.registry(),
+            SchemaLayoutPackageManager.registry() + ImePackageManager.registry(),
         )
     private val di = inputDepMgr.di
     private val broadcaster: InputBroadcaster by di.instance()

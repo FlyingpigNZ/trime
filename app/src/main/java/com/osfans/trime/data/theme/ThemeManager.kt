@@ -137,6 +137,13 @@ object ThemeManager {
         ColorManager.init(configuration)
     }
 
+    /** Initialize the active theme if the IME view is created before Rime is ready. */
+    fun ensureInitialized(configuration: Configuration) {
+        if (!::_activeTheme.isInitialized) {
+            init(configuration)
+        }
+    }
+
     fun selectTheme(configId: String) {
         val resolvedTheme = getThemeById(configId)
         val theme = resolvedTheme.theme

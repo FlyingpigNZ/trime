@@ -48,6 +48,37 @@ class ComponentError(ValueError):
     """Raised for invalid component composition."""
 
 
+def resolve_color_schemes(data: dict[str, Any]) -> dict[str, Any]:
+    """Convert flat `colors` + `color_schemes` into inline `preset_color_schemes`."""
+    colors = data.get("colors")
+    schemes = data.get("color_schemes")
+    if not isinstance(colors, dict) or not isinstance(schemes, dict):
+        return data
+    if not isinstance(colors, dict) or not all(isinstance(v, dict) for v in colors.values()):
+        raise ComponentError("'colors' must be a mapping of palette name to palette mapping")
+    resolved: dict[str, Any] = {}
+    for name, pair in schemes.items():
+        if not isinstance(pair, dict):
+            raise ComponentError(f"color_schemes.{name}: must be a mapping")
+        light_name = pair.get("light")
+        dark_name = pair.get("dark", light_name)
+        if not isinstance(light_name, str) or light_name not in colors:
+            raise ComponentError(f"color_schemes.{name}: unknown light palette '{light_name}'")
+        if dark_name is not None and dark_name not in colors:
+            raise ComponentError(f"color_schemes.{name}: unknown dark palette '{dark_name}'")
+        light = colors[light_name]
+        dark = colors.get(dark_name, light) if dark_name is not None else light
+        scheme = {"light": light, "dark": dark}
+        if "name" in pair:
+            scheme["name"] = pair["name"]
+        if "author" in pair:
+            scheme["author"] = pair["author"]
+        resolved[name] = scheme
+    out = dict(data)
+    out["preset_color_schemes"] = resolved
+    return out
+
+
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     out = dict(base)
     for key, value in override.items():
@@ -111,9 +142,15 @@ class ComponentResolver:
         return expanded
 
     def load_standard(self) -> None:
-        keys_data = load_yaml(STANDARD_DIR / "preset_keys.yaml")
-        keyboards_data = load_yaml(STANDARD_DIR / "keyboards.yaml")
-        colors_data = load_yaml(STANDARD_DIR / "colors.yaml")
+        # Self-contained packages carry their own standard/ component. Fall
+        # back to the app-shipped standard only for legacy manifests that
+        # still use the magic `standard` reference without a local directory.
+        standard_dir = self.manifest_dir / "standard"
+        if not standard_dir.is_dir():
+            standard_dir = STANDARD_DIR
+        keys_data = load_yaml(standard_dir / "preset_keys.yaml")
+        keyboards_data = load_yaml(standard_dir / "keyboards.yaml")
+        colors_data = load_yaml(standard_dir / "colors.yaml")
 
         if self.use_standard_preset_keys:
             self.sections["preset_keys"] = deep_merge(
@@ -146,6 +183,7 @@ class ComponentResolver:
             self.apply_component_data(data)
 
     def apply_component_data(self, data: dict[str, Any]) -> None:
+        data = resolve_color_schemes(data)
         section_map = {
             "preset_keys": data.get("preset_keys", {}),
             "preset_keyboards": data.get("preset_keyboards", {}),

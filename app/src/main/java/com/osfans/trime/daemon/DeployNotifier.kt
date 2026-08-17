@@ -44,6 +44,43 @@ class DeployNotifier(
         }
     }
 
+    /** Surface an ongoing Rime deploy (used by IME package activation). */
+    fun notifyDeployStart() {
+        sendNotification(MESSAGE_ID) {
+            setSmallIcon(R.drawable.ic_baseline_refresh_reversed_24)
+            setContentText(appContext.getString(R.string.deploy_progress))
+            setProgress(0, 0, true)
+            setOngoing(true)
+            setAutoCancel(false)
+            setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        }
+    }
+
+    /** Surface a finished Rime deploy (used by IME package activation). */
+    fun notifyDeploySuccess() {
+        sendNotification(MESSAGE_ID) {
+            setSmallIcon(R.drawable.ic_baseline_refresh_reversed_24)
+            setColor(Color.GREEN)
+            setContentText(appContext.getString(R.string.deploy_finish))
+            setOngoing(false)
+            setTimeoutAfter(3000L)
+            setAutoCancel(true)
+            setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        }
+    }
+
+    /** Surface a failed Rime deploy (used by IME package activation). */
+    fun notifyDeployFailure() {
+        sendNotification(MESSAGE_ID) {
+            setSmallIcon(R.drawable.ic_baseline_warning_24)
+            setColor(Color.YELLOW)
+            setContentText(appContext.getString(R.string.deploy_failure))
+            setOngoing(false)
+            setAutoCancel(true)
+            setPriority(NotificationCompat.PRIORITY_HIGH)
+        }
+    }
+
     /** Returns a notification id representing the ongoing restart. */
     fun notifyRestartStarted(): Int {
         val id = restartId++

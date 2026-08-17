@@ -1,17 +1,24 @@
-# Schema-layout package manifest (full 简纯+14键 conversion)
-schema_id: 14jian
+# 简纯+14键 self-contained IME package manifest
 name: 简纯+14键
-version: '0.1'
-schema_file: 14jian.schema.yaml
-theme_file: theme.yaml
-layout_files:
-- 14jian.layout.yaml
+author: amzxyz
+version: '1.0'
+schema_id: 14jian
 default_keyboard: 14jian
-resources: []
-# Rime shared-data files required by the full rime-ice based schema. They are
-# stored under rime/ inside the zip and copied to the engine's shared data dir
-# during install. package_schema.py pulls them from the sibling rime.雾凇 folder
-# (or --rime-source) when they are not physically present in this directory.
+components:
+- schema:
+    file: 14jian.schema.yaml
+- keyboard:
+    file: keyboard.yaml
+- behavior:
+    file: behavior.yaml
+- color:
+    file: color.yaml
+- style:
+    file: style.yaml
+- style:
+    file: liquid_keyboard.yaml
+# Rime files required by the full rime-ice based schema. They are stored under
+# rime/ inside the zip and copied to the Rime user data dir during install.
 rime_files:
 - rime/default.yaml
 - rime/symbols_caps_v.yaml

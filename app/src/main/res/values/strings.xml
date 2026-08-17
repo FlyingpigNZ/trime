@@ -21,6 +21,8 @@
     <string name="build_info_format">Builder: %1$s\nBuild Git Hash: %2$s\nBuild Time: %3$s</string>
     <string name="selected_theme">Themes</string>
     <string name="selected_theme_summary">Select desired theme</string>
+    <string name="selected_ime">IME packages</string>
+    <string name="selected_ime_summary">Select self-contained IME package</string>
     <string name="normal_mode_color">Colors</string>
     <string name="normal_mode_color_summary">Select desired color</string>
     <string name="reset">Reset</string>

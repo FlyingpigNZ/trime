@@ -6,6 +6,7 @@ package com.osfans.trime.data.theme.component
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import java.io.File
@@ -129,6 +130,20 @@ class ComponentThemeLoaderTest :
             theme.presetKeys.keys shouldBe setOf("BackSpace")
             theme.presetKeyboards.keys shouldBe setOf("default")
             theme.colorSchemes.map { it.id } shouldBe listOf("default")
+        }
+
+        "loads the real split 14jian package style" {
+            val manifest = File("../sample_theme_schemas/简纯+14键/manifest.yaml")
+            if (manifest.isFile) {
+                val theme = ComponentThemeLoader.loadTheme(manifest, null, manifest.parentFile)
+                theme.generalStyle.keyboardHeight shouldBe 240
+                theme.generalStyle.keyWidth shouldBe 12
+                theme.generalStyle.keyHeight shouldBe 50
+                theme.generalStyle.horizontalGap shouldBe 0
+                theme.generalStyle.verticalGap shouldBe 0
+                theme.generalStyle.keyboardPadding shouldBe 3
+                theme.presetKeyboards.keys shouldContain "14jian"
+            }
         }
 
         "rejects invalid color literals during load" {

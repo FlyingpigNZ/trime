@@ -88,6 +88,11 @@ object SchemaLayoutPackageManager {
 
     fun registry(): SchemaLayoutRegistry = SchemaLayoutRegistry(installed.toMap())
 
+    /** Drop all in-memory schema-layout packages (used when switching IME packages). */
+    fun clearInstalled() {
+        installed.clear()
+    }
+
     fun installedPackage(schemaId: String): SchemaLayoutManifest? = installed[schemaId]
 
     /**

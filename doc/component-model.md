@@ -1,15 +1,16 @@
 # Component Model for Trime Definitions
 
-Status: **proposed design** (brainstormed 2026-08-16)
+Status: **accepted package model** (revised 2026-08-17)
 
 This document replaces the mental model of "one theme = one monolithic YAML"
-with a **component composition model**. The goal is to make a complete input
-method definition a small manifest that reuses shared components and overrides
-only what is different.
+with a **self-contained component package model**. A complete input method is
+a zip that contains all required YAML definitions (keyboards, colors, style,
+theme/chrome, Rime schemas, resources) and composes them locally. Packages do
+not inherit from an app-shipped global "standard" catalog.
 
 The design is intentionally incremental: the runtime can keep producing the
-same `Theme` object we already have; only the authoring/validation layer
-changes first.
+same `Theme` object we already have; only the authoring/validation/package
+layer changes first.
 
 ---
 
@@ -31,9 +32,49 @@ improvements do not propagate between themes.
 
 The desired model:
 
-> A complete input method definition is a **composition of small named
-> components**, each owning one concern. A concrete theme/package declares what
-> it includes, adds, overrides, or removes.
+> A complete input method definition is a **self-contained package**: a zip
+> containing a composition of small named components, each owning one concern.
+> A package declares what it includes, adds, overrides, or removes **inside the
+> package**. It does not override or inherit from an app-shipped standard
+> catalog.
+
+### 1.5 Self-contained packages
+
+- Every input-method package contains all YAML definitions it needs: keyboards,
+  behaviors, colors, style/chrome, theme data, Rime schemas, and resources.
+- Reuse is achieved by including local components inside the package (or by
+  copying them into the package), not by referencing a global standard layer.
+- Overriding is allowed only within the package.
+- The app-shipped default IME package (tongwenfeng + the built-in Rime schemas
+  such as `luna_*`) is itself a self-contained package delivered through the
+  same package path as customer packages.
+- Legacy monolithic `*.trime.yaml` files remain loadable during the transition,
+  but new packages are expected to use the self-contained component shape.
+
+### 1.6 IME package lifecycle (`/rime/IMEs`)
+
+IME selection is package selection, not theme selection:
+
+- `/rime/IMEs/` is a **persistent** folder that survives install/uninstall and
+  app restarts. It holds the available package zips and manifests.
+- Initially `/rime` is empty. The first selected package (normally
+  `Default.zip`) is extracted into `/rime` and compiled by Rime.
+- The active package's manifest is kept in `/rime/IMEs/` (e.g.
+  `active-manifest.yaml`) and doubles as the **uninstall manifest**.
+- Switching to another package:
+  1. Read the active manifest.
+  2. Delete the files it lists as package-installed files from `/rime`.
+  3. Clear `/rime/build/` (compiled artifacts are derived, not user data).
+  4. Extract the new package into `/rime`.
+  5. Run the Rime deploy/compile.
+- User/generated data is never deleted on switch:
+  - user dictionaries (`*.userdb`, userdb files)
+  - custom phrase files
+  - `user.yaml`
+  - logs / installation metadata
+  - any file not listed in the active manifest
+- `/rime/IMEs/` remains untouched by extraction/deletion, so packages and
+  manifests survive switches.
 
 ---
 
@@ -60,7 +101,7 @@ The exact file names are a convention; what matters is that each concern can be
 A concrete input method (theme + schema package) is described by a manifest:
 
 ```yaml
-# sample_theme_schemas/简纯+14键/manifest.yaml (target shape)
+# sample_theme_schemas/简纯+14键/component.yaml (self-contained package shape)
 name: 简纯+14键
 author: amzxyz
 version: "1.0"
@@ -69,11 +110,12 @@ schema_id: 14jian
 default_keyboard: 14jian
 
 components:
-  - standard                 # app-shipped standard catalog
-  - shared-aux               # tongwenfeng-derived shared helper keyboards/behaviors
+  - standard               # local sibling component, included in the package zip
+  - shared-aux             # local sibling component, included in the package zip
   - schema:
       file: 14jian.schema.yaml
   - keyboard:
+      file: keyboard.yaml
       add:
         - 14jian
         - letter_14jian
@@ -83,6 +125,7 @@ components:
         - 14symbolsen
         - letter_18jian
   - behavior:
+      file: behavior.yaml
       add:
         - 14keyqw
         - 14keyer
@@ -92,6 +135,7 @@ components:
         - Keyboard_symbols
       remove: []
   - color:
+      file: color.yaml
       override:
         default:
           light: { ... }
@@ -100,6 +144,7 @@ components:
         google_white: { ... }
         google_black: { ... }
   - style:
+      file: style.yaml
       override:
         keyboard_height: 240
         key_height: 50
@@ -108,15 +153,15 @@ components:
 
 ### 3.1 Composition order
 
-Later components override earlier ones. The canonical order is:
+Later components override earlier ones. Within a self-contained package the
+order is:
 
-1. `standard`
-2. `shared-aux`
-3. theme components (`style`, `color`, `behavior`, `keyboard`)
-4. schema-package components (`schema`, `keyboard`, `behavior`, `color`, `resources`)
+1. local base components (`standard`, `shared-aux`, or any package-local component)
+2. theme components (`style`, `color`, `behavior`, `keyboard`)
+3. package-specific components (`schema`, `keyboard`, `behavior`, `color`, `resources`)
 
-For a schema package installed on top of an active theme, the schema package
-is the last layer and wins.
+All referenced components are packed into the zip, so the installed package
+never needs to reach outside itself for definitions.
 
 ---
 
@@ -223,19 +268,28 @@ style:
 
 ### Color
 
-`color.yaml` owns `preset_color_schemes` and `fallback_colors`.
+`color.yaml` owns a flat list of named palettes plus thin scheme pairs:
 
-Colors are referenced by name:
+```yaml
+colors:
+  A:
+    back_color: 0xe4e7e9
+    text_color: 0x5a676e
+  B:
+    back_color: 0x1e1e1e
+    text_color: 0xe0e0e0
+color_schemes:
+  ColorA/B:
+    light: A
+    dark: B
+```
 
-- If a color scheme already exists in a base component, use `override`.
-- If it is new, use `add`.
-- If a schema package needs colors that only exist for that schema, the
-  package may ship its own `color.yaml`; package colors are the last layer.
-
-Open question: whether a theme's `color.yaml` should be a companion file to
-`style.yaml` (requiring a small loader change) or a layout fragment listed in
-the package manifest. The component model treats them as separate components,
-so the runtime loader will need to merge both.
+- `colors` defines complete palettes using the existing color-key names.
+- `color_schemes` entries reference palette names; missing `dark` falls back
+  to `light`.
+- The UI shows the scheme/pair name, not the raw palette contents.
+- Legacy `preset_color_schemes` with inline `light:`/`dark:` palettes remains
+  accepted for compatibility.
 
 ---
 
@@ -366,10 +420,14 @@ A first real component extraction exists:
 - `sample_theme_schemas/shared-aux/` — component files extracted from
   `tongwenfeng.trime.yaml` plus the normalized helper keyboards/behaviors from
   `简纯+14键` (`keyboard.yaml`, `behavior.yaml`, `style.yaml`, `color.yaml`).
-- `sample_theme_schemas/tongwenfeng/manifest.yaml` — a thin component manifest
-  that reproduces tongwenfeng as `standard` + `../shared-aux` + `chrome.yaml`.
-- `sample_theme_schemas/简纯+14键/component.yaml` — a thin component manifest
-  that composes `standard` + `../shared-aux` + schema package files and only
+- `sample_theme_schemas/standard/` — local copy of the standard keyboards /
+  preset keys / colors, so component manifests can reference it as a local
+  sibling component instead of an app-shipped global.
+- `sample_theme_schemas/tongwenfeng/manifest.yaml` — a component manifest that
+  reproduces tongwenfeng as `standard` + `shared-aux` + `chrome.yaml`;
+  this is the app-provided default IME package once Rime schemas are added.
+- `sample_theme_schemas/简纯+14键/component.yaml` — a component manifest that
+  composes `standard` + `shared-aux` + schema package files and only
   overrides the same-name keyboards/behaviors/colors/style/liquid that differ
   from the shared base.
 
@@ -408,8 +466,8 @@ PY
 
 | Existing | Role after migration |
 |---|---|
-| `app/src/main/assets/shared/standard/*` | `standard` component (already exists) |
-| `app/src/main/assets/shared/tongwenfeng.trime.yaml` | source for `shared-aux`; eventually a thin manifest |
+| `app/src/main/assets/shared/standard/*` | source for the local `sample_theme_schemas/standard/` component; not a global inheritance layer |
+| `app/src/main/assets/shared/tongwenfeng.trime.yaml` | source for `shared-aux`; the default package is a self-contained component manifest |
 | `sample_theme_schemas/简纯+14键/` | first real consumer of `standard` + `shared-aux` + schema package |
 | `script/split_legacy_theme.py` | temporary conversion tool; superseded by component migration |
 | `script/validate-definitions.py` | extended to validate component manifests |

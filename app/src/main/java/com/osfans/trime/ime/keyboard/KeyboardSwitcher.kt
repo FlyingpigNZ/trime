@@ -84,7 +84,7 @@ class KeyboardSwitcher(
     }
 
     private fun resolveDefaultKeyboard(): String {
-        // Explicit tier-3 package binding wins.
+        // Explicit tier-3/IME-package binding wins.
         val currentSchema = rime.uiState.value.schemaId
         schemaLayouts.defaultKeyboardFor(currentSchema)?.let { bound ->
             if (presetKeyboardIds.contains(bound)) {

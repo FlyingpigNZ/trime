@@ -15,7 +15,7 @@ conf:
     hilited_key_back_color: hilited_main_back_color
   main:
     height: 52 #按键高度
-    horizontal_gap: 16 #按键水平间距
+    horizontal_gap: 8 #按键水平间距
     vertical_gap: 8 #按键行距
     key_symbol_offset_x: 9
     key_hint_offset_x: 0
@@ -3437,7 +3437,7 @@ preset_keyboards:
       - { click: '，', label: '，', long_click: '、', width: 10, key_symbol_offset_x: 4, __include: styl/key,  } 
       - { click: space, swipe_up: 'Escape', swipe_down: liquid_keyboard_clipboard, key_symbol_offset_x: 0, width: 30, key_back_color: space_back_color, hilited_key_back_color: hilited_space_back_color }
       - { click: '.', label: '。', long_click: '？', width: 10, key_symbol_offset_x: 4, __include: styl/key }
-      - { click: Keyboard_letter_14jian, long_click: Menu, label: '中', composing: "CommitScriptText", width: 11.5, __include: styl/off_key }
+      - { click: Keyboard_letter_14jian, long_click: Menu, label: '中', composing: "CommitScriptText", width: 11, __include: styl/off_key }
       - {
           click: Return,
           long_click: kb_func,

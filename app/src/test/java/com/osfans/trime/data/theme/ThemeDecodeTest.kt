@@ -55,6 +55,38 @@ class ThemeDecodeTest :
             scheme.darkColors["text_color"] shouldBe "#e0e0e0"
         }
 
+        "flat colors + color_schemes decode palette references" {
+            val theme = decode(
+                """
+                name: test
+                style: {}
+                colors:
+                  A:
+                    back_color: '#ffffff'
+                    text_color: '#000000'
+                  B:
+                    back_color: '#1e1e1e'
+                    text_color: '#e0e0e0'
+                color_schemes:
+                  Pair:
+                    name: 浅色 / 深色
+                    light: A
+                    dark: B
+                  Single:
+                    light: A
+                """.trimIndent(),
+            )
+
+            theme.colorSchemes.size shouldBe 2
+            val pair = theme.colorSchemes.first { it.id == "Pair" }
+            pair.displayName shouldBe "浅色 / 深色"
+            pair.colors["back_color"] shouldBe "#ffffff"
+            pair.darkColors["back_color"] shouldBe "#1e1e1e"
+            val single = theme.colorSchemes.first { it.id == "Single" }
+            single.colors["text_color"] shouldBe "#000000"
+            single.darkColors["text_color"] shouldBe "#000000"
+        }
+
         "legacy flat color scheme uses itself as dark fallback" {
             val theme = decode(
                 """

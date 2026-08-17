@@ -203,4 +203,35 @@ class ComponentResolverTest :
             sections.getValue("preset_keyboards")["default"] shouldNotBe null
             sections.getValue("preset_color_schemes")["default"] shouldNotBe null
         }
+
+        "flat colors and color_schemes resolve to preset_color_schemes" {
+            val sections =
+                resolve(
+                    """
+                    name: test
+                    components:
+                      - color:
+                          file: color.yaml
+                    """.trimIndent(),
+                    mapOf(
+                        "color.yaml" to
+                            mapping(
+                                """
+                                colors:
+                                  A:
+                                    back_color: '#ffffff'
+                                  B:
+                                    back_color: '#1e1e1e'
+                                color_schemes:
+                                  Pair:
+                                    light: A
+                                    dark: B
+                                """.trimIndent(),
+                            ),
+                    ),
+                )
+            val pair = sections.getValue("preset_color_schemes")["Pair"]?.mapping!!
+            pair["light"]?.mapping!!["back_color"]?.string shouldBe "#ffffff"
+            pair["dark"]?.mapping!!["back_color"]?.string shouldBe "#1e1e1e"
+        }
     })

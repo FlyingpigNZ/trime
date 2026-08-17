@@ -1,199 +1,211 @@
-# Trime Definition Schema (three-tier model)
+# Trime Definition Schema (self-contained IME packages)
 
-This document defines the YAML shapes for the three definition tiers after the
-refactor. It is the source of truth for both the shipped standard resources and
-customer-provided packages.
+This document defines the YAML shapes for **self-contained input-method
+packages**. Each package is a zip that contains all required definitions:
+keyboards, behaviors, colors, style/chrome, Rime schemas, and resources.
+Packages do **not** inherit from or override an app-shipped global standard
+catalog. Overriding is allowed only within the package.
 
-## Tier 1 — Standard catalog (app-shipped)
+The app-shipped default IME package (tongwenfeng + built-in Rime schemas such
+as `luna_*`) is itself a self-contained package delivered through the same
+package path as customer packages. Legacy monolithic `*.trime.yaml` files
+remain loadable during the transition.
 
-Files under `app/src/main/assets/shared/standard/`.
+---
 
-### `preset_keys.yaml`
+## Package layout
+
+A package is a zip (or an on-disk package directory) with this shape:
+
+```text
+manifest.yaml              # package identity + component composition
+keyboard.yaml              # preset_keyboards
+behavior.yaml              # preset_keys / switches / switching policy
+color.yaml                 # preset_color_schemes + fallback_colors
+style.yaml                 # style / preedit / window / tool_bar / liquid_keyboard
+chrome.yaml                # optional chrome split (or folded into style.yaml)
+rime/                      # Rime schema files, dictionaries, Lua, OpenCC, ...
+resources/                 # backgrounds, fonts, sounds, images (optional)
+components/                # optional local components referenced by the manifest
+```
+
+Component files may also live in sibling directories outside the package
+source tree (e.g. `standard`, `shared-aux`); the packaging tool must copy
+them into the zip so the installed package is self-contained.
+
+## `manifest.yaml`
+
+A component manifest drives the package composition:
+
+```yaml
+name: 简纯+14键
+author: amzxyz
+version: "1.0"
+
+schema_id: 14jian
+default_keyboard: 14jian
+
+components:
+  - standard            # local standard keyboards/keys/colors, included in zip
+  - shared-aux          # local shared helper keyboards/behaviors, included in zip
+  - schema:
+      file: rime/14jian.schema.yaml
+  - keyboard:
+      file: keyboard.yaml
+  - behavior:
+      file: behavior.yaml
+  - color:
+      file: color.yaml
+  - style:
+      file: style.yaml
+```
+
+Rules:
+
+- Every component entry must resolve inside the package (after packaging).
+- No `standard` magic reference is allowed for customer packages; the default
+  app package may contain a local `standard` component directory.
+- Later components override earlier ones. `add` / `override` / `remove` are
+  validated within the composed package only.
+
+## Split YAML files
+
+### `keyboard.yaml`
+
+```yaml
+preset_keyboards:
+  default:
+    name: 預設
+    width: 10
+    height: 44
+    keys: [...]
+  14jian:
+    name: 14键
+    keys: [...]
+```
+
+`__include` remains the only inheritance mechanism and must resolve inside the
+package.
+
+### `behavior.yaml`
 
 ```yaml
 preset_keys:
   BackSpace: {label: 退格, repeatable: true, send: BackSpace}
   space: {repeatable: false, functional: false, send: space}
+  Mode_switch:
+    command: mode_switch
+    option: ascii_mode
+    states: [中, 英]
 ```
 
-Each entry is a `PresetKey`:
+### `color.yaml`
 
-| field | type | description |
-|---|---|---|
-| `label` | string | display label |
-| `send` | string | key to send |
-| `command` | string | typed command name |
-| `option` / `select` / `toggle` / `commit` / `text` / `shift_lock` / `preview` | string | command arguments |
-| `states` | list[string] | toggle state labels |
-| `sticky` / `repeatable` / `functional` / `slide_cursor` / `slide_delete` | bool | behavior flags |
-
-### `keyboards.yaml`
+Colors are a **flat list of named palettes**, and color schemes are thin pairs
+that reference palettes by name:
 
 ```yaml
-preset_keyboards:
-  default:
-    name: 預設40鍵
-    width: 10
-    height: 44
-    keys: [...]
-  letter:
-    __include: /preset_keyboards/default
-    ascii_mode: 1
-```
-
-`__include` is the only inheritance mechanism. Unknown include targets fail
-validation.
-
-### `colors.yaml`
-
-Each scheme is a **self-contained light/dark pair**.
-
-```yaml
-preset_color_schemes:
-  default:
-    light:
-      name: 預設／default
-      back_color: 0xe4e7e9
-      text_color: 0x5a676e
-    # dark is optional; missing dark falls back to light
-    dark:
-      back_color: 0x1e1e1e
-      text_color: 0xe0e0e0
-```
-
-Legacy flat schemes (without `light:`/`dark:`) are still accepted for
-compatibility, but new resources must use the paired shape.
-
-## Tier 2 — Decoration theme
-
-Example: `app/src/main/assets/shared/trime.yaml`.
-
-```yaml
-name: 預設
-author: osfans
-use_standard_preset_keys: true
-standard_keyboards: [default, letter, number, symbols]
-standard_color_schemes: [default, ink]
-
-style: { ... }
-preedit: { ... }
-window: { ... }
+colors:
+  A:
+    name: 浅色
+    back_color: 0xe4e7e9
+    text_color: 0x5a676e
+    key_back_color: 0xfbfbfc
+    ...
+  B:
+    name: 深色
+    back_color: 0x1e1e1e
+    text_color: 0xe0e0e0
+    key_back_color: 0x263238
+    ...
+color_schemes:
+  ColorA/B:
+    name: 浅色 / 深色
+    light: A
+    dark: B
+  Single:
+    light: A
 fallback_colors:
   candidate_text_color: text_color
-liquid_keyboard: { ... }
-tool_bar: { ... }
 ```
 
 Rules:
 
-- `standard_keyboards` / `standard_color_schemes` are explicit-by-name
-  references into the tier-1 catalog.
-- `use_standard_preset_keys: true` opts into the standard preset-key set.
-- A theme may still define its own `preset_keyboards`, `preset_keys`, and
-  `preset_color_schemes`; those override/extend the selected standard entries.
-- No alphabet heuristic is used at runtime. Unbound schemas use the theme's
-  `default` keyboard.
+- `colors` is a flat map of palette names → full color-key definitions.
+- `color_schemes` entries reference palette names via `light` / `dark`.
+- If `dark` is omitted, both light and dark use the `light` palette.
+- The UI shows the color **pair name** (e.g. `ColorA/B`), not the palette
+  contents.
+- The legacy `preset_color_schemes` shape (inline `light:`/`dark:` palettes)
+  is still accepted for compatibility, but new resources should use the flat
+  `colors` + `color_schemes` shape.
 
-## Tier 3 — Schema-layout package (customer-provided)
+### `style.yaml` / `chrome.yaml`
 
-A package is a zip containing a manifest, a Rime schema, layout fragment(s),
-and optional resources.
+`style.yaml` owns `style`, `preedit`, `window`, `tool_bar`, and optionally
+`liquid_keyboard`. `chrome.yaml` may hold the `preedit` / `window` /
+`tool_bar` sections separately; the resolver merges them.
 
-### `manifest.yaml`
+## Rime files
 
-```yaml
-schema_id: 14jian
-name: 小鹤双拼14键
-version: "0.1"
-schema_file: 14jian.schema.yaml
-theme_file: theme.yaml
-layout_files:
-  - 14jian.layout.yaml
-default_keyboard: 14jian
-resources:
-  - backgrounds/14jian.png
-rime_files:
-  - rime/default.yaml
-  - rime/cn_dicts/base.dict.yaml
-```
+Rime schema files, dictionaries, Lua scripts, OpenCC data, `default.yaml`,
+`symbols_*.yaml`, etc. are stored under `rime/` inside the package. During
+install the app copies them into the Rime user data directory (the `rime/`
+prefix is stripped) before deploying the schemas.
 
-### `14jian.schema.yaml`
+## Default app package
 
-A normal Rime schema file. It must compile on its own.
+The app-provided default IME package is assembled from:
 
-### `theme.yaml` (optional)
+- the split tongwenfeng components (`standard`, `shared-aux`,
+  `style.yaml`, `color.yaml`, `chrome.yaml`), and
+- the built-in Rime schemas from `app/src/main/assets/shared/` (`luna_*`,
+  `stroke`, `pinyin`, etc.).
 
-A tier-2 decoration theme. When `manifest.yaml` lists `theme_file`, the app
-uses it as the base decoration theme for the installed package (style,
-fallback colors, liquid keyboard, chrome, and color schemes), so the package
-can look different from the standard delivery instead of only overriding
-keyboards/keys.
+It is shipped as a self-contained package and loaded through the same path as
+customer packages.
 
-### `14jian.layout.yaml`
+## Canonical IME workflow (`/rime/IMEs`)
 
-A layout fragment. A package may contain multiple layout fragments; `manifest.yaml`
-lists them in order, and later fragments override earlier ones. Definition
-sections (`preset_keys`, `preset_keyboards`, `preset_color_schemes`) are
-deep-merged so a schema-specific fragment can reference keyboards/keys defined
-in a shared fragment.
+`/rime/IMEs/` is the persistent package library. It survives installation,
+uninstallation, and app restarts, and it holds the available package zips plus
+the active package manifest.
 
-A layout fragment may reference standard components and/or define custom
-components:
+### First install / activation
 
-```yaml
-standard_keyboards: [default, letter, number, symbols]
-use_standard_preset_keys: true
-
-preset_keys:
-  14keyqw: {label: " Q W ", send: "q"}
-
-preset_keyboards:
-  14jian:
-    name: 14键
-    keys: [...]
-
-preset_color_schemes:
-  custom:
-    light:
-      back_color: "#123456"
-    dark:
-      back_color: "#000000"
-```
-
-Resources referenced by custom colors (e.g. background images) must be present
-in the package `resources` list and are unpacked with the package. Standard
-color schemes do not need package resources; they resolve from the standard
-catalog.
-
-Rime files required by the schema (dictionaries, auxiliary schemas, Lua
-scripts, OpenCC data, `default.yaml`, `symbols_*.yaml`, etc.) are listed in
-`rime_files`. They are stored under `rime/` inside the zip; during install the
-app copies them into the Rime user data directory (the `rime/` prefix is
-stripped) before deploying the schema. This makes a full rime-ice based schema
-package self-contained.
-
-## Canonical install workflow
-
-1. User selects a zip/archive containing a schema-layout package (see
-   `sample_theme_schemas/minimal-14jian/`).
-2. The app extracts the archive, uses the optional package `theme_file` as the
-   decoration base, merges the layout fragments on top, and copies package
-   resources into the user backgrounds directory so the singleton resource
-   managers can access them.
+1. User selects a package zip from `/rime/IMEs/` (normally `Default.zip`).
+2. The app extracts the archive into `/rime`, resolves the package component
+   manifest into a complete `Theme` (all definitions come from inside the
+   package), and copies package resources into the user backgrounds directory.
 3. The app copies package `rime_files` into the Rime user data directory,
-   deploys auxiliary schemas first and then the main schema, adds it to
-   `default.custom.yaml` as the default input method, and activates/switches
-   to it.
-4. Legacy monolithic theme files are not used by this workflow. Runtime
-   definitions come from the standard catalog + the installed package + a
-   built-in decoration base.
+   deploys auxiliary schemas first and then the main schema(s), adds the
+   schema to `default.custom.yaml` as the default input method, and
+   activates/switches to it.
+4. The active package manifest is stored in `/rime/IMEs/active-manifest.yaml`
+   for later uninstall/switch.
+
+### Switching to another package
+
+1. Read the active manifest.
+2. Delete the files it lists as package-installed files from `/rime`.
+3. Clear `/rime/build/` (compiled artifacts are derived, not user data).
+4. Extract the new package into `/rime`.
+5. Run the Rime deploy/compile.
+6. Update `/rime/IMEs/active-manifest.yaml`.
+
+User/generated data — user dictionaries, custom phrase files, `user.yaml`,
+logs, installation metadata — is never deleted by a switch. Files not listed
+in the active manifest are preserved.
+
+Legacy monolithic theme files remain loadable during the transition, but new
+packages are expected to use the self-contained component shape.
 
 ## Validation summary
 
-- Unknown `standard_keyboards` / `standard_color_schemes` names → error
-- Unknown `__include` target → error
-- Missing `manifest.yaml` or required manifest fields → error
-- Unsafe zip paths → error
-- Empty `layout_files` → error
-- `rime_files` entries must be strings under `rime/` → error
-- Color scheme `dark:` may only contain known color keys (validator, item 14)
+- Package manifest must exist and have valid component entries.
+- All referenced components/files must exist inside the packaged zip.
+- Unknown local component paths or `__include` targets → error.
+- Unsafe zip paths → error.
+- Empty keyboard/behavior/color/style sections → error only when required by the package.
+- `rime_files` entries must be strings under `rime/` → error.
+- Color scheme `dark:` may only contain known color keys.

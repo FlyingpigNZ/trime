@@ -56,8 +56,8 @@ default_keyboard: 14jian
 resources: []
 
 components:
-  - standard
-  - shared-aux
+  - standard           # local component, included in the package zip
+  - shared-aux         # local component, included in the package zip
   - schema:
       file: 14jian.schema.yaml
   - keyboard:
@@ -83,6 +83,11 @@ components:
       remove: [ ... ]
 ```
 
+> **Self-contained packages:** every string component must be a path that the
+> packaging tool includes in the zip. There is no implicit app-shipped
+> `standard` component for customer packages; the default app package may use a
+> local directory named `standard`.
+
 ### 2.1 Top-level fields
 
 | Field | Type | Required | Description |
@@ -103,9 +108,12 @@ components:
 
 Each entry is either:
 
-1. A **string** naming a built-in or sibling component:
-   - `standard` — app-shipped standard catalog.
-   - Any relative directory path, e.g. `shared-aux`, `../shared-aux`.
+1. A **string** naming a local/sibling component directory that is included in
+   the package:
+   - Any relative directory path, e.g. `shared-aux`, `shared-aux`,
+     `components/base`.
+   - The name `standard` is not special for customer packages; it is only a
+     conventional local directory inside the app-shipped default package.
 2. A **single-key mapping**:
 
 | Key | Spec | Semantics |
@@ -212,16 +220,34 @@ keyboard_switch_policy:
 
 This is the single source for `KeyboardSwitcher` behavior.
 
-### 3.5 `preset_color_schemes`
+### 3.5 `colors` and `color_schemes`
 
-Same shape as today's `standard/colors.yaml`:
+Colors are a flat list of named palettes; schemes reference palettes by name:
 
 ```yaml
-preset_color_schemes:
-  default:
-    light: { ... }
-    dark: { ... }
+colors:
+  A:
+    back_color: 0xe4e7e9
+    text_color: 0x5a676e
+  B:
+    back_color: 0x1e1e1e
+    text_color: 0xe0e0e0
+color_schemes:
+  ColorA/B:
+    light: A
+    dark: B
+  Single:
+    light: A
 ```
+
+Rules:
+
+- `colors` values are full palettes using the existing color-key names.
+- `color_schemes` values reference palette names; `dark` is optional and falls
+  back to `light`.
+- The UI displays the scheme/pair name, not raw palette contents.
+- Legacy `preset_color_schemes` with inline `light:`/`dark:` palettes remains
+  accepted for compatibility.
 
 ### 3.6 `fallback_colors`
 
@@ -286,8 +312,8 @@ still overlay schema-specific preset keys/keyboards/colors on top of it.
    - `fallback_colors = {}`
    - `resources = []`
 2. For each entry in `components` in order:
-   - String `standard` → load standard catalog files.
-   - String path → load component directory files.
+   - String path → load that component directory's files (must exist inside
+     the packaged zip; no global `standard` magic).
    - `schema` → record schema file (not merged into Theme).
    - `keyboard` / `behavior` / `color` / `style` / `resources` → load file(s)
      then apply operations.
@@ -303,7 +329,7 @@ The resolved output maps to the existing runtime `Theme` object unchanged.
 | # | Rule |
 |---|---|
 | 1 | `components` must be a non-empty list |
-| 2 | Every component string must resolve to `standard` or an existing directory |
+| 2 | Every component string must resolve to an existing directory inside the package |
 | 3 | `add` IDs must not already exist |
 | 4 | `override` IDs must already exist |
 | 5 | `remove` IDs must already exist |
@@ -331,7 +357,7 @@ standard_color_schemes: [default]
 
 components:
   - standard
-  - ../shared-aux
+  - shared-aux
   - style:
       file: style.yaml      # style + liquid keyboard
   - color:
@@ -360,7 +386,7 @@ version: "1.0"
 
 components:
   - standard
-  - ../shared-aux
+  - shared-aux
   - schema:
       file: 14jian.schema.yaml
   - keyboard:

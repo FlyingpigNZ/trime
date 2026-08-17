@@ -21,6 +21,8 @@
     <string name="build_info_format">建構者：%1$s\n建構 Git 雜湊值：%2$s\n建構時間：%3$s</string>
     <string name="selected_theme">主題</string>
     <string name="selected_theme_summary">選取想要的主題</string>
+    <string name="selected_ime">輸入法包</string>
+    <string name="selected_ime_summary">選擇自包含輸入法包</string>
     <string name="normal_mode_color">配色</string>
     <string name="normal_mode_color_summary">選取想要的配色</string>
     <string name="reset">回廠</string>

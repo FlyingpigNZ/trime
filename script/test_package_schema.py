@@ -62,6 +62,77 @@ rime_files:
                     "name: base\n",
                 )
 
+    def test_component_package_includes_all_local_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "my-ime"
+            write(
+                pkg / "manifest.yaml",
+                """schema_id: my
+name: My IME
+version: "1"
+schema_file: my.schema.yaml
+""",
+            )
+            write(
+                pkg / "component.yaml",
+                """name: My IME
+components:
+  - standard
+  - keyboard:
+      file: keyboard.yaml
+""",
+            )
+            write(pkg / "my.schema.yaml", "schema:\n  schema_id: my\n")
+            write(pkg / "keyboard.yaml", "preset_keyboards:\n  default:\n    name: default\n")
+            write(pkg / "standard/preset_keys.yaml", "preset_keys: {}\n")
+            write(pkg / "standard/keyboards.yaml", "preset_keyboards:\n  default:\n    name: default\n")
+            write(pkg / "standard/colors.yaml", "preset_color_schemes: {}\n")
+
+            self.assertEqual(
+                package_schema.main([str(pkg)]),
+                0,
+            )
+
+            with zipfile.ZipFile(pkg.with_suffix(".zip")) as z:
+                names = z.namelist()
+                self.assertIn("component.yaml", names)
+                self.assertIn("keyboard.yaml", names)
+                self.assertIn("standard/preset_keys.yaml", names)
+                self.assertIn("standard/keyboards.yaml", names)
+                self.assertIn("standard/colors.yaml", names)
+                self.assertIn("my.schema.yaml", names)
+
+    def test_manifest_with_components_includes_all_local_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "my-manifest-ime"
+            write(
+                pkg / "manifest.yaml",
+                """name: My Manifest IME
+components:
+  - standard
+  - style:
+      file: style.yaml
+""",
+            )
+            write(pkg / "style.yaml", "style:\n  keyboard_height: 200\n")
+            write(pkg / "standard/preset_keys.yaml", "preset_keys: {}\n")
+            write(pkg / "standard/keyboards.yaml", "preset_keyboards: {}\n")
+            write(pkg / "standard/colors.yaml", "preset_color_schemes: {}\n")
+
+            self.assertEqual(
+                package_schema.main([str(pkg)]),
+                0,
+            )
+
+            with zipfile.ZipFile(pkg.with_suffix(".zip")) as z:
+                names = z.namelist()
+                self.assertIn("style.yaml", names)
+                self.assertIn("standard/preset_keys.yaml", names)
+                self.assertIn("standard/keyboards.yaml", names)
+                self.assertIn("standard/colors.yaml", names)
+
     def test_missing_rime_source_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

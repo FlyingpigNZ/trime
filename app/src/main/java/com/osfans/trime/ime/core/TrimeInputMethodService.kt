@@ -42,6 +42,7 @@ import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.data.prefs.PreferenceDelegateProvider
+import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeManager
@@ -183,6 +184,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         lifecycleScope.launch {
             rime.runOnReady {
                 ThemeManager.init(resources.configuration)
+                ImePackageManager.restoreActiveTheme()
                 ThemeManager.addOnChangedListener(onThemeChangeListener)
                 ColorManager.addOnChangedListener(onColorChangeListener)
             }
@@ -259,7 +261,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                 }
             is RimeMessage.DeployMessage -> {
                 if (it.data == RimeMessage.DeployMessage.State.Success) {
-                    ThemeManager.selectTheme(ThemeManager.prefs.selectedTheme.getValue())
+                    if (ImePackageManager.activePackageFileName() != null) {
+                        lifecycleScope.launch { ImePackageManager.restoreActiveTheme() }
+                    } else {
+                        ThemeManager.selectTheme(ThemeManager.prefs.selectedTheme.getValue())
+                    }
                 }
             }
             else -> {}
@@ -287,7 +293,9 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         navBarManager.evaluate(window.window!!, inputDeviceManager.useVirtualKeyboard)
         replaceInputView(theme)
         replaceCandidateView(theme)
-        inputView?.updateEnterKeyLabel(currentInputEditorInfo)
+        currentInputEditorInfo?.let { editorInfo ->
+            inputView?.updateEnterKeyLabel(editorInfo)
+        }
     }
 
     /** Incremental color restyle: update existing views instead of rebuilding. */
@@ -486,6 +494,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     override fun onCreateInputView(): View? {
         Timber.d("onCreateInputView")
+        ThemeManager.ensureInitialized(resources.configuration)
         replaceInputViews(ThemeManager.activeTheme)
         // We will call `setInputView` by ourselves. This is fine.
         return null
@@ -713,6 +722,8 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun forwardKeyEvent(event: KeyEvent): Boolean {
+        // Block typing while an IME package is being replaced/deployed.
+        if (ImePackageManager.isActivating()) return true
         val keyVal = event.toKeyValue()
         if (keyVal.value != RimeKeyMapping.RimeKey_VoidSymbol) {
             val modifiers = event.toKeyModifiers()

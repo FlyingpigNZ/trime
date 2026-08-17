@@ -51,6 +51,15 @@ def locate_file(
     return None
 
 
+def local_package_files(src: Path) -> list[str]:
+    """All regular files inside a self-contained component package source."""
+    return sorted(
+        path.relative_to(src).as_posix()
+        for path in src.rglob("*")
+        if path.is_file() and path.suffix.lower() != ".zip"
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -82,14 +91,24 @@ def main(argv: list[str] | None = None) -> int:
     resources = manifest.get("resources", [])
     rime_files = manifest.get("rime_files", [])
 
-    files = ["manifest.yaml"]
-    if schema_file:
-        files.append(schema_file)
-    if theme_file:
-        files.append(theme_file)
-    files.extend(layout_files)
-    files.extend(resources)
-    files.extend(rime_files)
+    has_component = (src / "component.yaml").is_file() or "components" in manifest
+    if has_component:
+        # Self-contained component packages include every local definition file.
+        files = ["manifest.yaml"] + [
+            name for name in local_package_files(src) if name != "manifest.yaml"
+        ]
+    else:
+        files = ["manifest.yaml"]
+        if schema_file:
+            files.append(schema_file)
+        if theme_file:
+            files.append(theme_file)
+        files.extend(layout_files)
+        files.extend(resources)
+    # Rime files may come from the sibling rime.雾凇 source and are always added.
+    for name in rime_files:
+        if name not in files:
+            files.append(name)
 
     rime_source = Path(args.rime_source).resolve() if args.rime_source else None
     missing = [name for name in files if locate_file(src, name, rime_source) is None]

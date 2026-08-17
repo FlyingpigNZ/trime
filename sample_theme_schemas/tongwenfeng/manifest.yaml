@@ -1,22 +1,45 @@
-# Component manifest for the tongwenfeng theme.
+# Component manifest for the tongwenfeng default IME package.
 #
-# shared-aux provides the shared helper keyboards and behaviors.
-# Style, color, liquid, and chrome are theme-specific.
+# The package is self-contained: all definition YAMLs live at the package
+# root (keyboard.yaml, behavior.yaml, color.yaml, style.yaml,
+# liquid_keyboard.yaml, chrome.yaml).
 
 name: tongwenfeng
 author: 风花絮
 version: "1.0"
 
-use_standard_preset_keys: true
-standard_keyboards: [default, letter, number, symbols]
-standard_color_schemes: [default]
+schema_id: luna_pinyin
+default_keyboard: default
 
 components:
-  - standard
-  - ../shared-aux
-  - style:
-      file: style.yaml
+  - keyboard:
+      file: keyboard.yaml
+  - behavior:
+      file: behavior.yaml
   - color:
       file: color.yaml
   - style:
+      file: style.yaml
+  - style:
+      file: liquid_keyboard.yaml
+  - style:
       file: chrome.yaml
+
+# Built-in Rime schemas and resources that make this the default IME package.
+# package_schema.py pulls them from --rime-source (normally
+# app/src/main/assets/shared).
+rime_files:
+  - rime/default.yaml
+  - rime/key_bindings.yaml
+  - rime/punctuation.yaml
+  - rime/symbols.yaml
+  - rime/essay.txt
+  - rime/pinyin.yaml
+  - rime/luna_pinyin.schema.yaml
+  - rime/luna_pinyin.dict.yaml
+  - rime/luna_pinyin_fluency.schema.yaml
+  - rime/luna_pinyin_simp.schema.yaml
+  - rime/luna_pinyin_tw.schema.yaml
+  - rime/luna_quanpin.schema.yaml
+  - rime/stroke.schema.yaml
+  - rime/stroke.dict.yaml

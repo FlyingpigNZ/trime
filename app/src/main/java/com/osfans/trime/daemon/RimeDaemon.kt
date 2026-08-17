@@ -83,6 +83,15 @@ object RimeDaemon {
         deployNotifier.start(realRime.messageFlow)
     }
 
+    /** Show the ongoing deploy notification (used by IME package activation). */
+    fun notifyDeployStart() = deployNotifier.notifyDeployStart()
+
+    /** Show the deploy-finished notification (used by IME package activation). */
+    fun notifyDeploySuccess() = deployNotifier.notifyDeploySuccess()
+
+    /** Show the deploy-failed notification (used by IME package activation). */
+    fun notifyDeployFailure() = deployNotifier.notifyDeployFailure()
+
     private fun establish(name: String) = object : RimeSession {
         private inline fun <T> ensureEstablished(block: () -> T) = if (name in sessions) {
             block()
