@@ -486,3 +486,11 @@ app/src/main/jni/boost/
 .npm-global/
 .npm-cache/
 .dsh-routing-suite/
+
+# Local sandbox / generated artifacts (not part of the repo)
+.gradle-test-home/
+app/release/
+app/src/main/assets/prelude/
+sample_theme_schemas/rime.雾凇/
+__pycache__/
+*.pyc
