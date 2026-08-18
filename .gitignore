@@ -494,3 +494,6 @@ app/src/main/assets/prelude/
 sample_theme_schemas/rime.雾凇/
 __pycache__/
 *.pyc
+
+# Local VSCode workspace settings
+.vscode/
