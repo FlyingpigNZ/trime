@@ -29,7 +29,6 @@ import timber.log.Timber
 class Rime(
     private val inputOptions: InputOptions,
     private val environment: () -> RimeEnvironment,
-    private val isStorageAvailable: () -> Boolean = { true },
     private val onBeforeStart: () -> Unit = {},
     private val onDeployStart: () -> Unit = {},
 ) :
@@ -371,10 +370,6 @@ class Rime(
     }
 
     fun startup() {
-        if (!isStorageAvailable()) {
-            Timber.w("Skip starting rime: storage not available!")
-            return
-        }
         if (lifecycle.currentState != RimeLifecycle.State.STOPPED) {
             Timber.w("Skip starting rime: not at stopped state!")
             return

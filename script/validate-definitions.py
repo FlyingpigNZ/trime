@@ -18,7 +18,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-STANDARD_DIR = ROOT / "app/src/main/assets/shared/standard"
+STANDARD_DIR = ROOT / "sample_theme_schemas/standard"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from component_resolver import ComponentError, ComponentResolver  # noqa: E402
@@ -144,7 +144,6 @@ def check_shipped() -> int:
         if not isinstance(data, dict) or expected_key not in data:
             errors.append(f"{path.relative_to(ROOT)}: Missing expected top-level key '{expected_key}'")
     for path in [
-        ROOT / "app/src/main/assets/shared/trime.yaml",
         ROOT / "sample_theme_schemas/tongwenfeng.trime.yaml",
     ]:
         found = validate_file(path, "theme")

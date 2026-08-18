@@ -121,6 +121,10 @@ object ColorManager {
     fun init(configuration: Configuration) {
         isNightMode = configuration.isNightMode() && followSystemDayNight
         activeColorScheme = evaluateActiveColorScheme()
+        // activeColorScheme's setter skips rebuild when the scheme instance is
+        // unchanged; init may be the first time isNightMode is known, so force
+        // the palette rebuild to apply the correct day/night colors.
+        rebuildResolvedPalette()
 
         val maxMemory = Runtime.getRuntime().maxMemory() / 1024
         val cacheSize = maxMemory / 8

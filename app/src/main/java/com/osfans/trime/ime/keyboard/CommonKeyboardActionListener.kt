@@ -32,7 +32,6 @@ import com.osfans.trime.ime.symbol.LiquidWindow
 import com.osfans.trime.ime.window.BoardWindowManager
 import com.osfans.trime.ui.main.settings.ColorPickerDialog
 import com.osfans.trime.ui.main.settings.SoundEffectPickerDialog
-import com.osfans.trime.ui.main.settings.ThemePickerDialog
 import com.osfans.trime.util.AppUtils
 import com.osfans.trime.util.InputMethodUtils
 import com.osfans.trime.util.buildIntentFromAction
@@ -62,14 +61,6 @@ class CommonKeyboardActionListener {
         rime.launchOnReady { api ->
             service.lifecycleScope.launch {
                 service.showDialog(dialog(api))
-            }
-        }
-    }
-
-    private fun showThemePicker() {
-        showDialog { api ->
-            ThemePickerDialog.build(service.lifecycleScope, context) {
-                api.commitComposition()
             }
         }
     }
@@ -181,7 +172,6 @@ class CommonKeyboardActionListener {
                     KeyActionCommand.MenuKeyboard -> windowManager.attachWindow(SwitchOptionWindow())
                     KeyActionCommand.ClipboardWindow -> handleClipboardWindow(arg)
                     KeyActionCommand.SetColorScheme -> handleColorScheme(arg)
-                    KeyActionCommand.SetTheme -> handleTheme(arg)
                     KeyActionCommand.Broadcast -> service.sendBroadcast(Intent(arg))
                     KeyActionCommand.Clipboard -> handleClipboard()
                     KeyActionCommand.Commit -> service.commitText(arg)
@@ -224,19 +214,6 @@ class CommonKeyboardActionListener {
                 ThemeManager.activeTheme.colorSchemes
                     .find { it.id == arg }
                     ?.let { ColorManager.setColorScheme(it) }
-            }
-
-            private fun handleTheme(arg: String) {
-                if (arg.isEmpty()) {
-                    // 参数为空时，刷新当前主题
-                    ThemeManager.selectTheme(ThemeManager.prefs.selectedTheme.getValue())
-                } else {
-                    // 通过主题名称查找对应的配置ID并切换主题
-                    ThemeManager.getAllThemes()
-                        .find { it.name.equals(arg, ignoreCase = true) }?.let {
-                            ThemeManager.selectTheme(it.configId)
-                        }
-                }
             }
 
             private fun handleClipboard() {
@@ -294,7 +271,6 @@ class CommonKeyboardActionListener {
 
             private fun handleSettings(action: KeyAction) {
                 when (action.option) {
-                    "theme" -> showThemePicker()
                     "color" -> showColorPicker()
                     "schema" -> AppUtils.launchMainToSchemaList(context)
                     "sound" -> showSoundEffectPicker()

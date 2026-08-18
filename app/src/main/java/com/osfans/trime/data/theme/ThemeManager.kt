@@ -6,29 +6,19 @@
 package com.osfans.trime.data.theme
 
 import android.content.res.Configuration
-import com.osfans.trime.core.Rime
-import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.prefs.AppPrefs
-import com.osfans.trime.data.theme.component.ComponentThemeLoader
 import com.osfans.trime.ime.symbol.LiquidData
 import com.osfans.trime.util.WeakHashSet
-import com.osfans.trime.util.yaml.Yaml
-import com.osfans.trime.util.yaml.mapping
-import timber.log.Timber
-import java.io.File
 
 object ThemeManager {
     fun interface OnThemeChangeListener {
         fun onThemeChange(theme: Theme)
     }
 
-    fun getAllThemes(): List<ThemeItem> {
-        val sharedThemes = ThemeFilesManager.listThemes(DataManager.sharedDataDir)
-        val userThemes = ThemeFilesManager.listThemes(DataManager.userDataDir)
-        return sharedThemes + userThemes
-    }
-
     private lateinit var _activeTheme: Theme
+
+    val isInitialized: Boolean
+        get() = ::_activeTheme.isInitialized
 
     var activeTheme: Theme
         get() = _activeTheme
@@ -54,86 +44,8 @@ object ThemeManager {
 
     val prefs = AppPrefs.defaultInstance().registerProvider(::ThemePrefs)
 
-    private data class ResolvedTheme(
-        val configId: String,
-        val theme: Theme,
-    )
-
-    private fun loadThemeByIdOrNull(id: String): Theme? {
-        ThemeFilesManager.findComponentManifest(id)?.let { manifest ->
-            return try {
-                val standard = StandardCatalog.load(DataManager.sharedDataDir)
-                ComponentThemeLoader.loadTheme(manifest, standard, DataManager.sharedDataDir)
-            } catch (e: Exception) {
-                Timber.w(e, "Failed to load component theme '$id'")
-                null
-            }
-        }
-
-        if (!Rime.deployRimeConfigFile(id, "config_version")) {
-            Timber.w("Failed to deploy theme config file '$id.yaml'")
-        }
-        val file = File(DataManager.resolveDeployedResourcePath(id))
-        if (!file.exists()) {
-            Timber.w("Theme file not found for '$id'")
-            return null
-        }
-        return try {
-            val node = Yaml.parseToYamlNode(file.readText())
-            val mapping = node.mapping
-            if (mapping == null) {
-                Timber.w("Failed to load theme '$id': YAML root is not a mapping")
-                null
-            } else {
-                val standard = StandardCatalog.load(DataManager.sharedDataDir)
-                if (standard != null) {
-                    ThemeResolver.resolve(mapping, standard)
-                } else {
-                    Theme.decode(mapping)
-                }
-            }
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to load theme '$id'")
-            null
-        }
-    }
-
-    private fun getThemeById(id: String): ResolvedTheme {
-        loadThemeByIdOrNull(id)?.let { return ResolvedTheme(id, it) }
-
-        if (id != "trime") {
-            loadThemeByIdOrNull("trime")?.let {
-                Timber.w("Theme '$id' is unavailable, fallback to default theme 'trime'")
-                return ResolvedTheme("trime", it)
-            }
-        }
-
-        for (fallbackId in getAllThemes().map { it.configId }.distinct()) {
-            loadThemeByIdOrNull(fallbackId)?.let {
-                Timber.w("Theme '$id' is unavailable, fallback to available theme '$fallbackId'")
-                return ResolvedTheme(fallbackId, it)
-            }
-        }
-
-        error("No valid theme available")
-    }
-
-    private fun evaluateActiveTheme(): Theme {
-        val selectedThemeId = prefs.selectedTheme.getValue()
-        val resolvedTheme = getThemeById(selectedThemeId)
-        val newTheme = resolvedTheme.theme
-        if (resolvedTheme.configId != selectedThemeId) {
-            prefs.selectedTheme.setValue(resolvedTheme.configId)
-        }
-        KeyActionManager.resetCache()
-        FontManager.resetCache(newTheme)
-        ColorManager.switchTheme(newTheme)
-        LiquidData.init(newTheme)
-        return newTheme
-    }
-
     fun init(configuration: Configuration) {
-        _activeTheme = evaluateActiveTheme()
+        check(::_activeTheme.isInitialized) { "No active IME package theme" }
         ColorManager.init(configuration)
     }
 
@@ -144,21 +56,9 @@ object ThemeManager {
         }
     }
 
-    fun selectTheme(configId: String) {
-        val resolvedTheme = getThemeById(configId)
-        val theme = resolvedTheme.theme
-        KeyActionManager.resetCache()
-        FontManager.resetCache(theme)
-        ColorManager.switchTheme(theme)
-        LiquidData.init(theme)
-        activeTheme = theme
-        prefs.selectedTheme.setValue(resolvedTheme.configId)
-    }
-
     /**
-     * Apply an installed schema-layout package. Packages that ship their own
-     * tier-2 `theme.yaml` replace the active decoration theme; packages without
-     * one keep the current theme and only merge layout definitions on top.
+     * Apply an installed IME package. Self-contained packages replace the whole
+     * Theme; there is no separate theme-selection concept anymore.
      */
     fun applySchemaLayout(
         layout: Theme,

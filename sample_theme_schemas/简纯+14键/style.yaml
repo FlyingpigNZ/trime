@@ -82,15 +82,15 @@ style:
   - func
   - edit
   candidate_use_cursor: true
-  candidate_view_height: 18
-  candidate_padding: 6
-  candidate_spacing: 0.5
+  candidate_view_height: 28
+  candidate_padding: 5
+  candidate_spacing: 0.0
   candidate_font: han.ttf
   candidate_text_size: 18
   comment_on_top: true
-  comment_height: 18
+  comment_height: 12
   comment_font: comment.ttf
-  comment_text_size: 12
+  comment_text_size: 10
   proximity_correction: true
   vertical_correction: -5
   horizontal_gap: 0

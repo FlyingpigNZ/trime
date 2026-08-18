@@ -16,6 +16,21 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val buildDefaultPackage by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Build the bundled Default.zip IME package from shared/Default"
+    workingDir = rootProject.projectDir
+    commandLine("python3", "script/build_default_package.py")
+    inputs.dir(rootProject.layout.projectDirectory.dir("app/src/main/assets/shared/Default"))
+    inputs.file(rootProject.layout.projectDirectory.file("script/build_default_package.py"))
+    inputs.file(rootProject.layout.projectDirectory.file("script/package_schema.py"))
+    outputs.file(rootProject.layout.projectDirectory.file("app/src/main/assets/shared/Default.zip"))
+}
+
+tasks.named("generateDataChecksums") {
+    dependsOn(buildDefaultPackage)
+}
+
 android {
     namespace = "com.osfans.trime"
     compileSdk = 36
@@ -78,6 +93,10 @@ android {
             @Suppress("UnstableApiUsage")
             vcsInfo.include = false
         }
+    }
+
+    androidResources {
+        ignoreAssetsPatterns.add("Default")
     }
 
     compileOptions {

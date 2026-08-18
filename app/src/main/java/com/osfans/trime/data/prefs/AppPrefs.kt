@@ -9,7 +9,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.annotation.Keep
 import com.osfans.trime.R
-import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.ime.candidates.compact.CompactCandidateMode
 import com.osfans.trime.ime.candidates.popup.PopupCandidatesLayout
 import com.osfans.trime.ime.candidates.popup.PopupCandidatesMode
@@ -364,7 +363,6 @@ class AppPrefs(
             const val LAST_BACKGROUND_SYNC_TIME = "last_background_sync_time"
         }
 
-        val userDataDir = string(USER_DATA_DIR, DataManager.defaultDataDir.path)
         val periodicBackgroundSync = bool(PERIODIC_BACKGROUND_SYNC, false)
         val periodicBackgroundSyncInterval = int(PERIODIC_BACKGROUND_SYNC_INTERVAL, 30)
         val lastBackgroundSyncStatus = bool(LAST_BACKGROUND_SYNC_STATUS, false)

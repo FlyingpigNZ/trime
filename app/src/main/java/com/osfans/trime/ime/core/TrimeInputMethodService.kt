@@ -60,6 +60,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import splitties.bitflags.hasFlag
 import splitties.systemservices.clipboardManager
 import splitties.systemservices.inputMethodManager
@@ -183,8 +184,8 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         // ensure theme and color managers are initialized after rime is ready
         lifecycleScope.launch {
             rime.runOnReady {
+                ImePackageManager.ensureDefaultPackageReady()
                 ThemeManager.init(resources.configuration)
-                ImePackageManager.restoreActiveTheme()
                 ThemeManager.addOnChangedListener(onThemeChangeListener)
                 ColorManager.addOnChangedListener(onColorChangeListener)
             }
@@ -264,7 +265,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                     if (ImePackageManager.activePackageFileName() != null) {
                         lifecycleScope.launch { ImePackageManager.restoreActiveTheme() }
                     } else {
-                        ThemeManager.selectTheme(ThemeManager.prefs.selectedTheme.getValue())
+                        lifecycleScope.launch { ImePackageManager.ensureDefaultPackageReady() }
                     }
                 }
             }
@@ -298,10 +299,13 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         }
     }
 
-    /** Incremental color restyle: update existing views instead of rebuilding. */
+    /**
+     * Color changes rebuild the input/candidate views. Rebuilding re-creates the
+     * DI graph and all delegates/views, which is the only reliable way to clear
+     * the many color/drawable caches scattered across the IME UI.
+     */
     private fun restyleInputViews(theme: Theme) {
-        inputView?.restyle(theme)
-        candidatesView?.restyle(theme)
+        replaceInputViews(theme)
     }
 
     override fun onDestroy() {
@@ -494,6 +498,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     override fun onCreateInputView(): View? {
         Timber.d("onCreateInputView")
+        // If Rime is not ready yet and no package has been activated, force the
+        // bundled default package now so a Theme exists before building views.
+        if (!ThemeManager.isInitialized) {
+            runBlocking { ImePackageManager.ensureDefaultPackageReady() }
+        }
         ThemeManager.ensureInitialized(resources.configuration)
         replaceInputViews(ThemeManager.activeTheme)
         // We will call `setInputView` by ourselves. This is fine.

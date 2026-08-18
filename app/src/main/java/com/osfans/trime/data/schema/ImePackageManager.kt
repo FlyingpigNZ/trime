@@ -16,6 +16,8 @@ import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.string
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.yaml.snakeyaml.Yaml as SnakeYaml
 import timber.log.Timber
 import java.io.File
@@ -25,13 +27,15 @@ import java.util.zip.ZipFile
 /**
  * IME package manager for the self-contained package model.
  *
- * Packages live in `/rime/IMEs/` as zip files. Activating a package extracts
- * its `rime/...` files into the Rime user data dir, extracts its definition files
- * into a persistent per-package state dir under `/rime/IMEs/`, deploys the
- * Rime schemas, and writes an active manifest that doubles as the uninstall
- * manifest.
+ * Packages live in the app-managed Rime user data dir under `IMEs/` as zip
+ * files. Activating a package extracts its `rime/...` files into the Rime user
+ * data dir, extracts its definition files into a persistent per-package state
+ * dir under `IMEs/`, deploys the Rime schemas, and writes an active manifest
+ * that doubles as the uninstall manifest.
  */
 object ImePackageManager {
+    const val DEFAULT_PACKAGE_FILE_NAME = "Default.zip"
+
     @Volatile
     private var activating = false
 
@@ -70,6 +74,44 @@ object ImePackageManager {
 
     fun packageFile(fileName: String): File = File(imesDir, fileName)
 
+    /**
+     * Install the application-delivered Default.zip from the synced shared data
+     * dir into the persistent app-managed IME package library. No-op when the
+     * bundled package is already up to date.
+     */
+    fun installBundledDefaultPackage() {
+        val source = File(DataManager.sharedDataDir, DEFAULT_PACKAGE_FILE_NAME)
+        if (!source.isFile) return
+        val target = File(imesDir, DEFAULT_PACKAGE_FILE_NAME)
+        if (target.isFile && sha256(target) == sha256(source)) return
+        source.copyTo(target, overwrite = true)
+    }
+
+    /**
+     * Make sure an IME package is active before any theme-dependent UI is
+     * created. If the app-managed IME library already has an active manifest,
+     * restore its theme. Otherwise install and activate the
+     * application-delivered Default.zip.
+     */
+    suspend fun ensureDefaultPackageReady() {
+        if (activeManifestFile.isFile) {
+            restoreActiveTheme()
+            return
+        }
+        installBundledDefaultPackage()
+        val defaultPackage = packageFile(DEFAULT_PACKAGE_FILE_NAME)
+        if (!defaultPackage.isFile) {
+            Timber.w("Bundled Default.zip is missing; no IME package can be activated")
+            return
+        }
+        withContext(Dispatchers.IO) {
+            activate(defaultPackage, applyThemeAfter = false)
+        }
+        // activate() writes the active manifest on the IO thread; restore now on
+        // the main thread so the package theme is available synchronously.
+        restoreActiveTheme()
+    }
+
     /** Registry view of the active IME package's explicit schema→keyboard binding. */
     fun registry(): SchemaLayoutRegistry {
         val active = activeManifestFile
@@ -96,8 +138,9 @@ object ImePackageManager {
 
     /**
      * Restore the active package's theme after app startup. The extracted files
-     * and compiled Rime data already exist under `/rime`; this only reloads the
-     * package's component manifest and applies it as the active theme.
+     * and compiled Rime data already exist in the app-managed Rime data dir;
+     * this only reloads the package's component manifest and applies it as the
+     * active theme.
      */
     suspend fun restoreActiveTheme() {
         val active = activeManifestFile
@@ -118,7 +161,7 @@ object ImePackageManager {
         applyTheme(theme)
     }
 
-    /** Copy a package zip into the persistent `/rime/IMEs/` library. */
+    /** Copy a package zip into the persistent app-managed IME package library. */
     fun importPackage(source: File): File {
         val meta = readPackageMeta(source)
         val target = File(imesDir, "${meta.schemaId}.zip")
@@ -126,8 +169,29 @@ object ImePackageManager {
         return target
     }
 
+    /** True when [fileName] is the app-shipped default package. */
+    fun isDefaultPackage(fileName: String): Boolean = fileName == DEFAULT_PACKAGE_FILE_NAME
+
+    /**
+     * Delete a non-default, non-active IME package zip and its extracted state.
+     * Returns false when the package is the default, is currently active, or no
+     * longer exists.
+     */
+    fun deletePackage(fileName: String): Boolean {
+        if (isDefaultPackage(fileName)) return false
+        val packageFile = packageFile(fileName)
+        if (!packageFile.isFile) return false
+        if (isActivePackage(packageFile)) return false
+        packageFile.delete()
+        File(imesDir, packageFile.nameWithoutExtension).deleteRecursively()
+        return true
+    }
+
     /** Activate a package zip, replacing the currently active package. */
-    fun activate(packageFile: File) {
+    fun activate(
+        packageFile: File,
+        applyThemeAfter: Boolean = true,
+    ) {
         if (!packageFile.isFile) {
             throw IllegalArgumentException("IME package not found: $packageFile")
         }
@@ -135,6 +199,7 @@ object ImePackageManager {
         activating = true
         try {
             uninstallActive()
+            cleanLegacySchemas()
             val meta = readPackageMeta(packageFile)
             val packageId = packageFile.nameWithoutExtension
             val stateDir = File(imesDir, packageId).apply { mkdirs() }
@@ -182,10 +247,13 @@ object ImePackageManager {
                             ids.add(0, meta.schemaId)
                         }
                 SchemaListUpdater.setSchemas(customFile(), schemaIds)
+                // Reload Rime config so the new schema list is visible to the
+                // Schemata settings screen immediately after activation.
+                RimeDaemon.getFirstSessionOrNull()?.run { updateConfig() }
                 RimeDaemon.getFirstSessionOrNull()?.run { selectSchema(meta.schemaId) }
                 val theme = loadPackageTheme(stateDir, manifestNode, meta.name)
                 writeActiveManifest(meta, rimeFiles)
-                applyTheme(theme)
+                if (applyThemeAfter) applyTheme(theme)
             }
         } finally {
             activating = false
@@ -225,6 +293,21 @@ object ImePackageManager {
         buildDir.listFiles()?.forEach { it.deleteRecursively() }
 
         active.delete()
+    }
+
+    /**
+     * Remove schema files and legacy schema-layout package state that may have
+     * been left behind by previous packages or manual schema-list edits. A
+     * self-contained IME package owns the whole Rime schema set, so switching
+     * packages must start from a clean schema section.
+     */
+    private fun cleanLegacySchemas() {
+        DataManager.userDataDir.listFiles { file ->
+            file.isFile && file.name.endsWith(".schema.yaml")
+        }?.forEach { file ->
+            file.delete()
+        }
+        File(DataManager.userDataDir, "schema-packages").deleteRecursively()
     }
 
     private fun readPackageMeta(packageFile: File): ImePackageMeta {
@@ -359,8 +442,12 @@ object ImePackageManager {
      * which must happen on the thread that created the view hierarchy.
      */
     private fun applyTheme(theme: Theme) {
-        Handler(Looper.getMainLooper()).post {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
             ThemeManager.applySchemaLayout(theme, replaceTheme = true)
+        } else {
+            Handler(Looper.getMainLooper()).post {
+                ThemeManager.applySchemaLayout(theme, replaceTheme = true)
+            }
         }
     }
 

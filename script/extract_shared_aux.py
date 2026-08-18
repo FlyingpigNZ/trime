@@ -5,8 +5,8 @@
 """Build the shared-aux component from tongwenfeng (Option A).
 
 Reads:
-  app/src/main/assets/shared/tongwenfeng.trime.yaml   (base)
-  app/src/main/assets/shared/standard/*.yaml          (to drop exact duplicates)
+  sample_theme_schemas/tongwenfeng.trime.yaml   (base)
+  sample_theme_schemas/standard/*.yaml          (to drop exact duplicates)
 
 Writes:
   sample_theme_schemas/shared-aux/
@@ -30,8 +30,8 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / "app/src/main/assets/shared/tongwenfeng.trime.yaml"
-STANDARD_DIR = ROOT / "app/src/main/assets/shared/standard"
+SOURCE = ROOT / "sample_theme_schemas/tongwenfeng.trime.yaml"
+STANDARD_DIR = ROOT / "sample_theme_schemas/standard"
 OUT_DIR = ROOT / "sample_theme_schemas/shared-aux"
 
 
@@ -71,7 +71,7 @@ def main() -> int:
             {
                 "name": "shared-aux",
                 "description": "Shared helper keyboards, behaviors, styles, and colors derived from tongwenfeng.",
-                "source": "app/src/main/assets/shared/tongwenfeng.trime.yaml",
+                "source": "sample_theme_schemas/tongwenfeng.trime.yaml",
             }
         ),
         encoding="utf-8",

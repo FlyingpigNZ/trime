@@ -14,6 +14,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.db.ClipboardHelper
 import com.osfans.trime.data.db.CollectionHelper
 import com.osfans.trime.data.prefs.AppPrefs
@@ -129,6 +130,7 @@ class TrimeApplication : Application() {
             }
             val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
             val appPrefs = AppPrefs.initDefault(sharedPreferences)
+            DataManager.migrateLegacyUserDataIfNeeded()
             // record last pid for crash logs
             appPrefs.internal.pid.apply {
                 val currentPid = Process.myPid()

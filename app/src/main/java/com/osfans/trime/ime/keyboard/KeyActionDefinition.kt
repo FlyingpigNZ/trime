@@ -187,7 +187,6 @@ sealed interface KeyActionCommand {
     data object MenuKeyboard : KeyActionCommand
     data object ClipboardWindow : KeyActionCommand
     data object SetColorScheme : KeyActionCommand
-    data object SetTheme : KeyActionCommand
     data object Broadcast : KeyActionCommand
     data object Clipboard : KeyActionCommand
     data object Commit : KeyActionCommand
@@ -206,7 +205,6 @@ sealed interface KeyActionCommand {
             "menu_keyboard" -> MenuKeyboard
             "clipboard_window" -> ClipboardWindow
             "set_color_scheme" -> SetColorScheme
-            "set_theme" -> SetTheme
             "broadcast" -> Broadcast
             "clipboard" -> Clipboard
             "commit" -> Commit

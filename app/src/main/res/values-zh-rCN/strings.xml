@@ -122,6 +122,9 @@
     <string name="install_schema_layout_package_summary">安装包含 Rime 方案、布局和可选资源的 .zip 文件</string>
     <string name="install_schema_layout_package_success">方案键盘布局包安装成功</string>
     <string name="install_schema_layout_package_failure">方案键盘布局包安装失败</string>
+    <string name="ime_package_deleted">输入方案包已删除</string>
+    <string name="cannot_delete_default_ime_package">默认输入方案包不可删除</string>
+    <string name="cannot_delete_active_ime_package">请先切换到其他输入方案包再删除当前方案</string>
     <string name="validate_definition_file">校验定义文件</string>
     <string name="validate_definition_file_summary">按定义规范检查主题/布局/清单 YAML 文件</string>
     <string name="validate_definition_success">定义文件有效</string>

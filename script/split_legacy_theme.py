@@ -309,7 +309,7 @@ def main() -> int:
     if not SCHEMA_KEYBOARDS.issubset(all_keyboards):
         raise RuntimeError(f"missing schema keyboards: {SCHEMA_KEYBOARDS - all_keyboards}")
 
-    standard_keys_path = ROOT / "app/src/main/assets/shared/standard/preset_keys.yaml"
+    standard_keys_path = ROOT / "sample_theme_schemas/standard/preset_keys.yaml"
     with open(standard_keys_path, encoding="utf-8") as f:
         standard_keys = set(yaml.safe_load(f)["preset_keys"])
     schema_used = set()

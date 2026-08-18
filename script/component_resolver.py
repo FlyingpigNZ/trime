@@ -26,7 +26,7 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-STANDARD_DIR = ROOT / "app/src/main/assets/shared/standard"
+STANDARD_DIR = ROOT / "sample_theme_schemas/standard"
 
 SECTION_FILES = {
     "keyboard": "keyboard.yaml",

@@ -51,21 +51,26 @@ The desired model:
 - Legacy monolithic `*.trime.yaml` files remain loadable during the transition,
   but new packages are expected to use the self-contained component shape.
 
-### 1.6 IME package lifecycle (`/rime/IMEs`)
+### 1.6 IME package lifecycle (app-managed Rime data)
 
 IME selection is package selection, not theme selection:
 
-- `/rime/IMEs/` is a **persistent** folder that survives install/uninstall and
-  app restarts. It holds the available package zips and manifests.
-- Initially `/rime` is empty. The first selected package (normally
-  `Default.zip`) is extracted into `/rime` and compiled by Rime.
-- The active package's manifest is kept in `/rime/IMEs/` (e.g.
+- The Rime user data directory is app-managed
+  (`getExternalFilesDir(null)/rime`), so no broad storage permission is
+  needed. Its `IMEs/` subdirectory is a **persistent** folder that survives
+  install/uninstall and app restarts and holds the available package zips and
+  manifests.
+- Initially the managed Rime data directory is empty. The first selected
+  package (normally `Default.zip`) is extracted into it and compiled by Rime.
+- The active package's manifest is kept in `IMEs/` (e.g.
   `active-manifest.yaml`) and doubles as the **uninstall manifest**.
 - Switching to another package:
   1. Read the active manifest.
-  2. Delete the files it lists as package-installed files from `/rime`.
-  3. Clear `/rime/build/` (compiled artifacts are derived, not user data).
-  4. Extract the new package into `/rime`.
+  2. Delete the files it lists as package-installed files from the Rime user
+     data directory.
+  3. Clear the `build/` subdirectory (compiled artifacts are derived, not user
+     data).
+  4. Extract the new package into the Rime user data directory.
   5. Run the Rime deploy/compile.
 - User/generated data is never deleted on switch:
   - user dictionaries (`*.userdb`, userdb files)
@@ -73,8 +78,8 @@ IME selection is package selection, not theme selection:
   - `user.yaml`
   - logs / installation metadata
   - any file not listed in the active manifest
-- `/rime/IMEs/` remains untouched by extraction/deletion, so packages and
-  manifests survive switches.
+- `IMEs/` remains untouched by extraction/deletion, so packages and manifests
+  survive switches.
 
 ---
 

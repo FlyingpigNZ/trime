@@ -17,9 +17,9 @@ import com.osfans.trime.core.whenReady
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.opencc.OpenCCDictManager
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.ime.core.InlinePreeditMode
 import com.osfans.trime.util.appContext
-import com.osfans.trime.util.isStorageAvailable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -64,8 +64,10 @@ object RimeDaemon {
                     versionName = BuildConfig.BUILD_VERSION_NAME,
                 )
             },
-            isStorageAvailable = { appContext.isStorageAvailable() },
-            onBeforeStart = { DataManager.sync() },
+            onBeforeStart = {
+                DataManager.sync()
+                ImePackageManager.installBundledDefaultPackage()
+            },
             onDeployStart = { OpenCCDictManager.buildOpenCCDict() },
         )
     }

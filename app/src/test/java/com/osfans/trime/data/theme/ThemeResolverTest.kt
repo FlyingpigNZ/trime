@@ -191,18 +191,6 @@ class ThemeResolverTest :
             theme.colorSchemes.all { "light" in it.colors || it.colors.isNotEmpty() } shouldBe true
         }
 
-        "shipped decoration-only trime.yaml resolves with shipped standard catalog" {
-            val themeNode = mapping(File("src/main/assets/shared/trime.yaml").readText())
-            val theme = ThemeResolver.resolve(themeNode, shippedStandard())
-
-            theme.name shouldBe "預設"
-            theme.presetKeys.isNotEmpty() shouldBe true
-            theme.presetKeyboards.isNotEmpty() shouldBe true
-            theme.presetKeyboards.keys shouldContain "default"
-            theme.colorSchemes.isNotEmpty() shouldBe true
-            theme.colorSchemes.map { it.id } shouldContain "default"
-        }
-
         "decoded layout theme merges onto active theme" {
             val base = ThemeResolver.resolve(mapping("name: base\nstyle: {}"), standardCatalog())
             val layout =
@@ -274,9 +262,9 @@ class ThemeResolverTest :
 
 private fun shippedStandard(): StandardCatalog =
     StandardCatalog(
-        presetKeys = section(File("src/main/assets/shared/standard/preset_keys.yaml").readText()),
-        presetKeyboards = section(File("src/main/assets/shared/standard/keyboards.yaml").readText()),
-        presetColorSchemes = section(File("src/main/assets/shared/standard/colors.yaml").readText()),
+        presetKeys = section(File("../sample_theme_schemas/standard/preset_keys.yaml").readText()),
+        presetKeyboards = section(File("../sample_theme_schemas/standard/keyboards.yaml").readText()),
+        presetColorSchemes = section(File("../sample_theme_schemas/standard/colors.yaml").readText()),
     )
 
 private fun standardCatalog(): StandardCatalog =

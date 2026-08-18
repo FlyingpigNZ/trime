@@ -10,7 +10,9 @@ import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.LogLevel
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
@@ -41,6 +43,7 @@ class DataChecksumsPlugin : Plugin<Project> {
         target.tasks.register<DataChecksumsTask>(TASK) {
             inputDir.set(target.assetsDir)
             outputFile.set(target.assetsDir.resolve(FILE_NAME))
+            excludes.convention(listOf("shared/Default"))
         }
         target.tasks.register<Delete>(CLEAN_TASK) {
             delete(target.assetsDir.resolve(FILE_NAME))
@@ -63,6 +66,9 @@ class DataChecksumsPlugin : Plugin<Project> {
 
         @get:OutputFile
         abstract val outputFile: RegularFileProperty
+
+        @get:Input
+        abstract val excludes: ListProperty<String>
 
         private val file by lazy { outputFile.get().asFile }
 
@@ -88,6 +94,14 @@ class DataChecksumsPlugin : Plugin<Project> {
 
         @TaskAction
         fun execute(inputChanges: InputChanges) {
+            val excludeRoots =
+                excludes.get().map { it.trimEnd('/') }.filter { it.isNotBlank() }.toSet()
+            fun isExcluded(path: String): Boolean {
+                val normalized = path.trimEnd('/')
+                return excludeRoots.any { normalized == it || normalized.startsWith("$it/") }
+            }
+            fun File.isExcluded(): Boolean = isExcluded(invariantSeparatorsPath)
+
             val map =
                 file
                     .exists()
@@ -96,11 +110,12 @@ class DataChecksumsPlugin : Plugin<Project> {
                         deserialize()
                             // remove all old dirs
                             .filterValues { it.isNotBlank() }
+                            .filterKeys { !isExcluded(it) }
                             .toMutableMap()
                     }?.getOrNull()
                     ?: mutableMapOf()
 
-            fun File.allParents(): List<File> = if (parentFile == null || parentFile.invariantSeparatorsPath in map) {
+            fun File.allParents(): List<File> = if (parentFile == null || parentFile.invariantSeparatorsPath in map || parentFile.isExcluded()) {
                 listOf()
             } else {
                 listOf(parentFile) + parentFile.allParents()
@@ -111,6 +126,9 @@ class DataChecksumsPlugin : Plugin<Project> {
                 }
                 logger.log(LogLevel.DEBUG, "${change.changeType}: ${change.normalizedPath}")
                 val relativeFile = change.file.relativeTo(file.parentFile)
+                if (relativeFile.isExcluded()) {
+                    return@forEach
+                }
                 val key = relativeFile.invariantSeparatorsPath
                 if (change.changeType == ChangeType.REMOVED) {
                     map.remove(key)
@@ -120,7 +138,11 @@ class DataChecksumsPlugin : Plugin<Project> {
             }
             // calculate dirs
             inputDir.asFileTree.forEach {
-                it.relativeTo(file.parentFile).allParents().forEach { p ->
+                val relativeFile = it.relativeTo(file.parentFile)
+                if (relativeFile.isExcluded()) {
+                    return@forEach
+                }
+                relativeFile.allParents().forEach { p ->
                     map[p.invariantSeparatorsPath] = ""
                 }
             }

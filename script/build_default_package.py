@@ -4,8 +4,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Build the app-provided Default.zip IME package.
 
-The default package is the self-contained tongwenfeng package plus the
-built-in Rime schemas/resources under app/src/main/assets/shared.
+The package source lives at app/src/main/assets/shared/Default. Packaging that
+folder produces app/src/main/assets/shared/Default.zip, which is what the APK
+ships and DataManager installs into /rime/IMEs.
 
 Usage:
   python3 script/build_default_package.py
@@ -20,19 +21,25 @@ from pathlib import Path
 import package_schema
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "sample_theme_schemas" / "tongwenfeng"
-RIME_SOURCE = ROOT / "app" / "src" / "main" / "assets" / "shared"
-OUT = ROOT / "sample_theme_schemas" / "Default.zip"
+SRC = ROOT / "app" / "src" / "main" / "assets" / "shared" / "Default"
+OUT = ROOT / "app" / "src" / "main" / "assets" / "shared" / "Default.zip"
+SAMPLE_OUT = ROOT / "sample_theme_schemas" / "Default.zip"
 
 
 def main() -> int:
-    rc = package_schema.main([str(SRC), "--rime-source", str(RIME_SOURCE)])
+    if not SRC.is_dir():
+        print(f"Missing Default package source: {SRC}", file=sys.stderr)
+        return 1
+    rc = package_schema.main([str(SRC)])
     if rc:
         return rc
-    generated = SRC.with_suffix(".zip")
-    shutil.copyfile(generated, OUT)
-    generated.unlink(missing_ok=True)
+    # package_schema writes <src>.zip, i.e. OUT.
+    if not OUT.is_file():
+        print(f"Expected package output missing: {OUT}", file=sys.stderr)
+        return 1
+    shutil.copyfile(OUT, SAMPLE_OUT)
     print(f"Wrote {OUT}")
+    print(f"Copied sample to {SAMPLE_OUT}")
     return 0
 
 

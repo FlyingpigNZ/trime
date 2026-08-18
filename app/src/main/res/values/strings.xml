@@ -126,6 +126,9 @@
     <string name="install_schema_layout_package_summary">Install a .zip containing a Rime schema, layouts, and optional resources</string>
     <string name="install_schema_layout_package_success">Schema layout package installed</string>
     <string name="install_schema_layout_package_failure">Failed to install schema layout package</string>
+    <string name="ime_package_deleted">IME package deleted</string>
+    <string name="cannot_delete_default_ime_package">The default IME package cannot be deleted</string>
+    <string name="cannot_delete_active_ime_package">Switch to another IME package before deleting this one</string>
     <string name="validate_definition_file">Validate definition file</string>
     <string name="validate_definition_file_summary">Check a theme/layout/manifest YAML against the definition schema</string>
     <string name="validate_definition_success">Definition is valid</string>

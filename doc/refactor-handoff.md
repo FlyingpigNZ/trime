@@ -656,3 +656,195 @@ or from Android Studio. Those runs need the native librime build and are not
 practical inside this sandbox. We can add a small instrumentation smoke test
 later (e.g. service starts, theme loads) and document how the user runs it on
 their machine/CI.
+
+---
+
+## 10. Session 2026-08-18: self-contained Default package, no theme concept, IME settings cleanup
+
+### What changed
+
+1. **Default package source is now `app/src/main/assets/shared/Default/`**
+   - Contains the extracted `Default.zip` package files (`manifest.yaml`,
+     `behavior.yaml`, `keyboard.yaml`, `color.yaml`, `style.yaml`,
+     `chrome.yaml`, `liquid_keyboard.yaml`) and `rime/...` as symlinks into
+     `app/data/rime`.
+   - Build task `buildDefaultPackage` zips that folder into
+     `app/src/main/assets/shared/Default.zip` before checksums/asset merge.
+   - `androidResources.ignoreAssetsPatterns.add("Default")` keeps the source
+     folder out of the APK; only `Default.zip` and generated `opencc/` ship.
+   - `DataChecksumsPlugin` excludes `shared/Default` from checksums; checksums
+     now contain only `shared/Default.zip`, `shared/opencc/**`, and `prelude/**`.
+   - Removed old flat shared assets: rime symlinks, `trime.yaml`,
+     `shared-aux/`, `standard/`, `tongwenfeng/`.
+
+2. **Runtime now forces an IME package before any theme/color init**
+   - `ImePackageManager.ensureDefaultPackageReady()`:
+     - if `/rime/IMEs/active-manifest.yaml` exists → restore its theme
+     - otherwise install bundled `Default.zip` into `/rime/IMEs` and activate it
+   - Called in `TrimeInputMethodService.onCreate` before `ThemeManager.init`,
+     and as a blocking guard in `onCreateInputView()` when Rime isn’t ready yet.
+   - `ThemeManager` no longer has theme selection / legacy theme lookup.
+     It only stores the active package Theme and applies it via
+     `applySchemaLayout()`.
+   - Removed `selected_theme` preference, `ThemePickerDialog`,
+     `ThemeSettingsFragment` theme row, quick-switch Theme entry, and
+     `set_theme` command.
+
+3. **Settings UI**
+   - New top-level **IME packages** settings screen (`ImeSettingsFragment`):
+     - lists/activates packages from `/rime/IMEs` via `ImePickerDialog`
+     - imports a package zip via file picker
+   - Removed “Install schema layout package” from Profile settings.
+   - Keyboard Style screen now only contains Colors.
+
+4. **Schema list / package switching**
+   - `ImePackageManager.activate()` now calls `cleanLegacySchemas()` before
+     extracting a new package: deletes leftover `*.schema.yaml` in the Rime
+     user data dir and removes legacy `schema-packages/`.
+   - After writing `default.custom.yaml`, activation calls
+     `updateConfig()` so the Schemata settings screen immediately sees the new
+     package’s schemas.
+
+5. **Dark mode fix**
+   - `ColorManager.init()` now calls `rebuildResolvedPalette()` after setting
+     `isNightMode`, because the `activeColorScheme` setter skips rebuild when
+     the scheme instance is unchanged.
+
+6. **14键 candidate text-size package fix (from earlier in session)**
+   - In `简纯+14键` style: `candidate_view_height` 18→28,
+     `candidate_padding` 6→5, `candidate_spacing` 0.5→0.0,
+     `comment_height` 18→12, `comment_text_size` 12→10.
+   - Suspected root cause: `AutoScaleTextView` scales multi-char text down when
+     `candidate_view_height` is shorter than full font metrics.
+
+### Current status
+
+- `./gradlew :app:compileDebugKotlin` passes.
+- Not yet verified on device/emulator after the last batch of changes.
+- `checksums.json` is build-generated and gitignored; do not commit it.
+- Untracked workspace noise to ignore: `.gradle-test-home/`, `app/release/`,
+  `app/src/main/assets/prelude/`, `sample_theme_schemas/rime.雾凇/`.
+
+### Open items / likely next steps
+
+- Device-test the full flow: fresh install → auto-activate Default.zip →
+  Schemata lists luna_pinyin etc. → switch to 简纯+14键 → Schemata lists
+  14jian only → switch back.
+- Verify dark mode now switches the full palette (especially with 简纯+14键,
+  which has real dark pairs).
+- Consider removing now-dead legacy theme code: `ThemeFilesManager`,
+  `ThemeItem`, `ThemeResolver`/`StandardCatalog` runtime paths, and old
+  schema-layout manager if it is no longer used.
+- The `onCreateInputView()` `runBlocking { ensureDefaultPackageReady() }`
+  guard is a pragmatic stop-gap; a proper first-run setup/navigation step could
+  replace it if first-activation latency is a problem.
+- Decide whether quick-switch Theme entry and `set_theme` command removal is
+  final (currently removed).
+- Revisit candidate text-size issue after package style change; if still
+  wrong, next debugging target is `AutoScaleTextView` height scaling, not
+  flex item width.
+
+---
+
+## 11. Session 2026-08-18: Rime user data moved to Android-managed storage
+
+The full-storage-access requirement is gone. Rime user data now lives in
+app-specific external storage (`getExternalFilesDir(null)/rime`) instead of the
+public `/storage/emulated/0/rime`.
+
+### What changed
+
+- `DataManager.defaultDataDir` is now `getExternalFilesDir(null)/rime`; the old
+  public `/rime` path is kept only as the one-time migration source.
+- `DataManager.userDataDir` no longer reads a user preference. The
+  `profile_user_data_dir` setting/UI is removed; the app always uses the
+  app-managed dir.
+- `DataManager.migrateLegacyUserDataIfNeeded()` runs right after
+  `AppPrefs.initDefault()`: it copies any legacy `/rime` (or previously
+  configured custom dir) into the managed dir once, marks completion in
+  app-internal storage, and clears the old preference.
+- Storage permissions removed from the manifest
+  (`MANAGE_EXTERNAL_STORAGE`, `READ/WRITE_EXTERNAL_STORAGE`,
+  `requestLegacyExternalStorage`), the setup wizard no longer has a
+  permission step, and `Rime` no longer blocks startup on a storage-availability
+  check.
+- `RimeDataProvider` already exposed `getExternalFilesDir(null)`, so the new
+  Rime data remains browsable through the app’s DocumentsProvider without
+  granting broad storage access.
+- Unit tests updated for the removed legacy asset paths (`ThemeResolverTest`)
+  and the removed `set_theme` command (`KeyActionCommandTest`).
+
+### Verified
+
+- `./gradlew :app:compileDebugKotlin` and `./gradlew :app:testDebugUnitTest`
+  pass (94 tests).
+- Installed on emulator-5554: app launches, Rime starts, and existing data was
+  migrated from `/storage/emulated/0/rime` to
+  `/storage/emulated/0/Android/data/com.osfans.trime.debug/files/rime`.
+- Installed package permission list contains only notification + dynamic
+  receiver permissions; no storage permissions are requested.
+
+### Remaining / notes
+
+- The legacy public `/rime` directory is intentionally left in place after
+  migration (non-destructive). It can be deleted manually once the user is
+  satisfied.
+- Fresh-install + Default.zip auto-activation and package switching still need
+  a clean end-to-end run on the emulator with the old `/rime` absent.
+
+---
+
+## 12. Session 2026-08-18: IME package delete button
+
+Because Rime data is now app-managed and users cannot browse the package
+library directly, the IME package picker now supports deleting non-default
+packages.
+
+- `ImePackageManager.DEFAULT_PACKAGE_FILE_NAME` centralizes the app-shipped
+  package name (`Default.zip`).
+- `ImePackageManager.deletePackage(fileName)` deletes a non-default,
+  non-active package zip plus any extracted state dir.
+- `ImePickerDialog` uses a custom list adapter: each package row shows the
+  package name (active marked with ✓) and a delete icon for every package
+  except `Default.zip`.
+- Deleting the currently active non-default package is blocked with a toast:
+  switch to another package first.
+- Added `ime_package_deleted` / `cannot_delete_active_ime_package` strings
+  (en, zh-rCN, zh-rTW).
+- `./gradlew :app:compileDebugKotlin` and `./gradlew :app:testDebugUnitTest`
+  pass.
+
+---
+
+## 13. Session 2026-08-18: remove IME package entry from Keyboard Style settings
+
+IME package management now lives only in the top-level **IME packages** screen.
+The legacy `selectedIme` preference was still auto-registered in `ThemePrefs`,
+which caused an “IME packages” row to appear under Keyboard Style settings.
+
+- Removed `ThemePrefs.selectedIme` and its `SELECTED_IME` preference key.
+- Removed the now-dead `selectedIme` writes from `ImePackageManager` and
+  `ImePickerDialog`; the active package remains tracked by
+  `ImePackageManager`’s `active-manifest.yaml`.
+- Keyboard Style now only shows color/normal-mode/day-night preferences.
+- `./gradlew :app:compileDebugKotlin` and `./gradlew :app:testDebugUnitTest`
+  pass.
+
+---
+
+## 14. Session 2026-08-18: runtime color changes rebuild views instead of restyling
+
+Incremental restyle was the wrong approach for runtime color changes: many UI
+classes cache `ColorManager` results (`Key`, `CandidateItemUi`, preedit,
+toolbar buttons, liquid tabs, etc.), so updating a few views left stale colors
+elsewhere.
+
+- `ColorManager` change notifications now call `replaceInputViews()` (full
+  rebuild) instead of `InputView.restyle()` / `CandidatesView.restyle()`.
+- Rebuilding `InputView` creates a fresh `InputDependencyManager`/DI graph, so
+  all delegates and their cached views are recreated with the new palette.
+- This matches the pre-incremental-restyle behavior that worked correctly.
+- Verified on emulator: runtime night-mode toggle changes the keyboard palette
+  from light to dark.
+- `./gradlew :app:compileDebugKotlin` and `./gradlew :app:testDebugUnitTest`
+  pass.

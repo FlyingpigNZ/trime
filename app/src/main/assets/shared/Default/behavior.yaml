@@ -1,5 +1,10 @@
-# Shared preset key behaviors/macros (tongwenfeng base, standard duplicates dropped)
 preset_keys:
+  BRIGHTNESS_DOWN:
+    label: 亮度-
+    send: BRIGHTNESS_DOWN
+  BRIGHTNESS_UP:
+    label: 亮度+
+    send: BRIGHTNESS_UP
   CALCULATOR:
     label: 计算机
     send: CALCULATOR
@@ -9,6 +14,9 @@ preset_keys:
   CONTACTS:
     label: 电话簿
     send: CONTACTS
+  ENVELOPE:
+    label: 信箱
+    send: ENVELOPE
   EXPLORER:
     label: 浏览器
     send: EXPLORER
@@ -21,10 +29,19 @@ preset_keys:
   SEARCH:
     label: 搜寻
     send: SEARCH
+  SLEEP:
+    label: 休眠
+    send: SLEEP
   VOICE_ASSIST:
     label: 语音
     functional: true
     send: VOICE_ASSIST
+  VOLUME_DOWN:
+    label: 音量-
+    send: VOLUME_DOWN
+  VOLUME_UP:
+    label: 音量+
+    send: VOLUME_UP
   VOLUME_MUTE:
     label: 静音
     send: VOLUME_MUTE
@@ -33,12 +50,6 @@ preset_keys:
     preview: ⇪
     functional: false
     send: Shift_L
-  Shift_L3:
-    label: Shift
-    preview: ⇪
-    functional: false
-    send: Shift_L
-    shift_lock: click
   Return:
     label: enter_labels
     preview: ↩
@@ -49,6 +60,9 @@ preset_keys:
     preview: ↩
     functional: false
     send: Return
+  Return2:
+    label: 回车
+    send: Return
   Hide:
     label: 隐藏
     send: BACK
@@ -58,13 +72,6 @@ preset_keys:
     repeatable: true
     functional: false
     send: BackSpace
-  BackSpace2:
-    label: 退格
-    preview: ⇦
-    repeatable: true
-    functional: false
-    slide_delete: true
-    send: BackSpace
   space:
     repeatable: false
     preview: ' '
@@ -72,9 +79,11 @@ preset_keys:
     slide_cursor: true
     label: _______
     send: space
-  Clear:
-    label: 全清
-    send: CLEAR
+  space1:
+    label: 空格
+    repeatable: false
+    functional: false
+    send: space
   Escape:
     label: 取消
     functional: false
@@ -83,6 +92,9 @@ preset_keys:
     label: 行首
     send: Home
     functional: false
+  Insert:
+    label: 插入
+    send: Insert
   Delete:
     label: 删除
     send: Delete
@@ -121,22 +133,33 @@ preset_keys:
     label: 全选
     functional: false
     send: Control+a
+  Clear:
+    label: 全清
+    send: CLEAR
   cut:
     label: 剪切
     functional: false
     send: Control+x
+  cut_all:
+    label: 全挪
+    text: '{Control+a}{Control+x}'
   copy:
     label: 复制
     functional: false
     send: Control+c
+  copy_all:
+    label: 全謄
+    text: '{Control+a}{Control+c}'
   paste:
     label: 粘贴
     functional: false
     send: Control+v
-  paste_clip:
-    label: 粘贴
-    send: FUNCTION
-    command: clipboard
+  paste_text:
+    label: 貼上文本
+    send: Control+Shift+Alt+v
+  share_text:
+    label: 分享文本
+    send: Control+Alt+s
   redo:
     label: 重做
     functional: false
@@ -145,25 +168,6 @@ preset_keys:
     label: 撤銷
     functional: false
     send: Control+z
-  delimiter:
-    label: 分词
-    text: ''''
-  x1:
-    text: '{Home}{Right}{Right}'
-    label: 单字
-    functional: false
-  x2:
-    text: '{Home}{Right}{Right}{Right}{Right}'
-    label: 二字
-    functional: false
-  x3:
-    text: '{Home}{Right}{Right}{Right}{Right}{Right}{Right}'
-    label: 三字
-    functional: false
-  x4:
-    text: '{Home}{Right}{Right}{Right}{Right}{Right}{Right}{Right}{Right}'
-    label: 四字
-    functional: false
   F4:
     label: 方案菜单
     send: F4
@@ -183,6 +187,51 @@ preset_keys:
     label: 删词
     send: Control+Delete
     functional: false
+  Mode_switch:
+    toggle: ascii_mode
+    functional: false
+    send: SWITCH_CHARSET
+    states:
+    - 中文
+    - 西文
+  Zenkaku_Hankaku:
+    toggle: full_shape
+    send: SWITCH_CHARSET
+    states:
+    - 半角
+    - 全角
+  Henkan:
+    toggle: simplification
+    send: SWITCH_CHARSET
+    states:
+    - 漢字
+    - 汉字
+  Charset_switch:
+    toggle: extended_charset
+    send: SWITCH_CHARSET
+    states:
+    - 常用
+    - 增广
+  Punct_switch:
+    toggle: ascii_punct
+    send: SWITCH_CHARSET
+    states:
+    - 。，
+    - ．，
+  Keyboard_symbols:
+    label: 更多
+    functional: false
+    send: Eisu_toggle
+    select: symbols
+  Keyboard_number:
+    label: 123
+    functional: false
+    send: Eisu_toggle
+    select: number
+  Keyboard_mini:
+    label: 迷你
+    send: Eisu_toggle
+    select: mini
   Keyboard_letter:
     label: 字母
     functional: true
@@ -198,67 +247,39 @@ preset_keys:
     functional: true
     send: Eisu_toggle
     select: .next
-  Keyboard_number:
-    label: 123
-    functional: false
-    send: Eisu_toggle
-    select: number
-  Keyboard_editor:
-    label: 编辑
-    functional: false
-    send: Eisu_toggle
-    select: editor
-  Keyboard_symbols:
-    label: 更多
-    functional: false
-    send: Eisu_toggle
-    select: symbols
-  Keyboard_move:
-    label: ❖
-    functional: true
-    send: Eisu_toggle
-    select: move
-  Keyboard_next:
-    label: 后退
-    functional: false
-    send: Eisu_toggle
-    select: .next
-  Keyboard_last:
-    label: 后退
-    functional: false
-    send: Eisu_toggle
-    select: .last
-  Keyboard_last_lock:
-    label: 返回
-    send: Eisu_toggle
-    select: .last_lock
   liquid_keyboard_switch:
     label: 更多
     send: FUNCTION
     command: liquid_keyboard
     option: 特殊
-  liquid_keyboard_tabs:
-    label: 更多
+  liquid_keyboard_exit:
+    label: 返回
     send: FUNCTION
     command: liquid_keyboard
-    option: 更多
-  menu_keyboard:
-    label: 菜单
+    option: '-1'
+  liquid_keyboard_emoji:
+    label: 🙂
     send: FUNCTION
-    command: menu_keyboard
-  Mode_switch:
-    toggle: ascii_mode
-    functional: false
-    send: SWITCH_CHARSET
-    states:
-    - 中文
-    - 西文
-  Charset_switch:
-    toggle: extended_charset
-    send: SWITCH_CHARSET
-    states:
-    - 常用
-    - 增广
+    command: liquid_keyboard
+    option: emoji
+  clipboard_window:
+    label: 剪贴
+    send: FUNCTION
+    command: clipboard_window
+    option: '0'
+  set_color_ink:
+    label: 切换到ink配色
+    send: FUNCTION
+    command: set_color_scheme
+    option: ink
+  set_theme_ink:
+    label: 切换到ink主题
+    send: FUNCTION
+    command: set_theme
+    option: ink
+  IME_switch:
+    label: 🌐
+    send: LANGUAGE_SWITCH
   IME_last:
     label: 上一输入法
     send: LANGUAGE_SWITCH
@@ -271,14 +292,24 @@ preset_keys:
     label: 下一方案
     functional: false
     send: Control+Shift+1
-  Schema_Eng:
-    label: En
-    functional: true
-    send: Control+Shift+0
-  Theme_settings:
-    label: 主题
-    send: SETTINGS
-    option: theme
+  one_hand_switch_1:
+    toggle: _one_hand_mode_1
+    send: SWITCH_CHARSET
+    states:
+    - 左手
+    - 普通
+  one_hand_switch_2:
+    toggle: _one_hand_mode_2
+    send: SWITCH_CHARSET
+    states:
+    - 右手
+    - 普通
+  one_hand_switch_3:
+    toggle: _one_hand_mode_3
+    send: SWITCH_CHARSET
+    states:
+    - 左手
+    - 右手
   Color_switch:
     label: 配色
     functional: false
@@ -297,11 +328,45 @@ preset_keys:
     label: 设置
     functional: false
     send: SETTINGS
+  Color_settings:
+    label: 配色
+    send: SETTINGS
+    option: color
+  Theme_settings:
+    label: 主题
+    send: SETTINGS
+    option: theme
+  Schema_settings:
+    label: 方案
+    send: SETTINGS
+    option: schema
+  Candidate_switch:
+    toggle: _hide_candidate
+    send: SWITCH_CHARSET
+    states:
+    - 有候選
+    - 無候選
+  Comment_switch:
+    toggle: _hide_comment
+    send: SWITCH_CHARSET
+    states:
+    - 有註釋
+    - 無註釋
+  Hint_switch:
+    toggle: _hide_key_hint
+    send: SWITCH_CHARSET
+    states:
+    - 有助記
+    - 無助記
   Date:
     label: 日期
     send: FUNCTION
     command: date
     option: ' yyyy-MM-dd '
+  ChineseDate:
+    label: 農曆
+    command: date
+    option: zh_CN@calendar=chinese
   Time:
     label: 時間
     send: FUNCTION
@@ -322,11 +387,9 @@ preset_keys:
     send: FUNCTION
     command: run
     option: https://github.com/osfans/trime
-  TrimeWiki:
-    label: Wiki
-    send: FUNCTION
-    command: run
-    option: https://github.com/osfans/trime/wiki/trime.yaml-詳解
+  CommitHomepage:
+    label: 同文網址
+    commit: https://github.com/osfans/trime
   Wiki:
     label: 維基
     send: FUNCTION
@@ -362,6 +425,111 @@ preset_keys:
     send: FUNCTION
     command: web_search
     option: '%4$s'
+  Search:
+    label: 搜索
+    command: search
+    option: '%1$s'
+  Share:
+    label: 分享
+    command: send
+    option: '%s'
+  Deploy:
+    label: 部署
+    send: FUNCTION
+    command: apply
+    option: DEPLOY
+  Sync:
+    label: 同步
+    send: FUNCTION
+    command: apply
+    option: SYNC_USER_DATA
+  updateConfig:
+    label: 更新配置
+    send: FUNCTION
+    command: apply
+    option: UPDATE_CONFIG
+  RepeatCommit:
+    label: 重复
+    command: commit
+    option: '%1$s'
+  Shift_L3:
+    label: Shift
+    preview: ⇪
+    functional: false
+    send: Shift_L
+    shift_lock: click
+  BackSpace2:
+    label: 退格
+    preview: ⇦
+    repeatable: true
+    functional: false
+    slide_delete: true
+    send: BackSpace
+  paste_clip:
+    label: 粘贴
+    send: FUNCTION
+    command: clipboard
+  delimiter:
+    label: 分词
+    text: ''''
+  x1:
+    text: '{Home}{Right}{Right}'
+    label: 单字
+    functional: false
+  x2:
+    text: '{Home}{Right}{Right}{Right}{Right}'
+    label: 二字
+    functional: false
+  x3:
+    text: '{Home}{Right}{Right}{Right}{Right}{Right}{Right}'
+    label: 三字
+    functional: false
+  x4:
+    text: '{Home}{Right}{Right}{Right}{Right}{Right}{Right}{Right}{Right}'
+    label: 四字
+    functional: false
+  Keyboard_editor:
+    label: 编辑
+    functional: false
+    send: Eisu_toggle
+    select: editor
+  Keyboard_move:
+    label: ❖
+    functional: true
+    send: Eisu_toggle
+    select: move
+  Keyboard_next:
+    label: 后退
+    functional: false
+    send: Eisu_toggle
+    select: .next
+  Keyboard_last:
+    label: 后退
+    functional: false
+    send: Eisu_toggle
+    select: .last
+  Keyboard_last_lock:
+    label: 返回
+    send: Eisu_toggle
+    select: .last_lock
+  liquid_keyboard_tabs:
+    label: 更多
+    send: FUNCTION
+    command: liquid_keyboard
+    option: 更多
+  menu_keyboard:
+    label: 菜单
+    send: FUNCTION
+    command: menu_keyboard
+  Schema_Eng:
+    label: En
+    functional: true
+    send: Control+Shift+0
+  TrimeWiki:
+    label: Wiki
+    send: FUNCTION
+    command: run
+    option: https://github.com/osfans/trime/wiki/trime.yaml-詳解
   Left1:
     label: ⇦
     send: Control+Left

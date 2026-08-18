@@ -7,6 +7,7 @@ package com.osfans.trime.data.base
 import android.content.res.AssetManager
 import android.os.Build
 import android.os.Environment
+import androidx.preference.PreferenceManager
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.util.FileUtils
 import com.osfans.trime.util.ResourceUtils
@@ -50,17 +51,66 @@ object DataManager {
         .use { it.readText() }
         .let { deserializeDataChecksums(it) }
 
-    private val prefs by lazy { AppPrefs.defaultInstance() }
+    /** App-managed Rime user data directory. No broad storage permission needed. */
+    val defaultDataDir = File(appContext.getExternalFilesDir(null), "rime")
 
-    val defaultDataDir = File(Environment.getExternalStorageDirectory(), "rime")
+    /** Legacy public-storage Rime directory, kept for one-time migration only. */
+    private val legacyDefaultDataDir = File(Environment.getExternalStorageDirectory(), "rime")
 
     val sharedDataDir = File(appContext.getExternalFilesDir(null), "shared").also { it.mkdirs() }
 
     val userDataDir
-        get() = File(prefs.profile.userDataDir.getValue()).also { it.mkdirs() }
+        get() = defaultDataDir.also { it.mkdirs() }
 
     val prebuiltDataDir = File(sharedDataDir, "build")
     val stagingDir get() = File(userDataDir, "build")
+
+    /**
+     * One-time migration from the legacy public `/rime` directory (or a custom
+     * `profile_user_data_dir` path) into the app-managed directory.
+     *
+     * Must be called after `AppPrefs.initDefault` and before anything touches
+     * [userDataDir]. A marker file prevents repeated copies if the preference
+     * was not cleared for some reason.
+     */
+    fun migrateLegacyUserDataIfNeeded() {
+        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(appContext)
+        val managed = defaultDataDir
+        val configuredPath = sharedPrefs.getString(AppPrefs.Profile.USER_DATA_DIR, null)
+        val legacy = configuredPath?.let(::File) ?: legacyDefaultDataDir
+        if (legacy == managed) {
+            sharedPrefs.edit().remove(AppPrefs.Profile.USER_DATA_DIR).apply()
+            return
+        }
+        if (!legacy.isDirectory) {
+            if (configuredPath != null) {
+                sharedPrefs.edit().remove(AppPrefs.Profile.USER_DATA_DIR).apply()
+            }
+            return
+        }
+        val marker = File(dataDir, MIGRATION_MARKER)
+        if (marker.isFile) {
+            sharedPrefs.edit().remove(AppPrefs.Profile.USER_DATA_DIR).apply()
+            return
+        }
+        // If the managed dir is already an active IME package install, do not
+        // overwrite it with legacy data; the app is already running from here.
+        if (File(managed, "IMEs/active-manifest.yaml").isFile) {
+            sharedPrefs.edit().remove(AppPrefs.Profile.USER_DATA_DIR).apply()
+            return
+        }
+        try {
+            managed.mkdirs()
+            legacy.copyRecursively(managed, overwrite = true)
+            marker.writeText(legacy.absolutePath)
+            sharedPrefs.edit().remove(AppPrefs.Profile.USER_DATA_DIR).apply()
+            Timber.i("Migrated Rime user data from $legacy to $managed")
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to migrate Rime user data from $legacy to $managed")
+        }
+    }
+
+    private const val MIGRATION_MARKER = ".trime-migrated-to-managed"
 
     /**
      * Return the absolute path of the compiled config file

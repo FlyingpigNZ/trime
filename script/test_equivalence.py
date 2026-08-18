@@ -75,7 +75,7 @@ class EquivalenceTest(unittest.TestCase):
     def test_tongwenfeng_equivalence(self) -> None:
         resolved = resolve_file(ROOT / "sample_theme_schemas/tongwenfeng/manifest.yaml")
         mono = load("sample_theme_schemas/tongwenfeng.trime.yaml")
-        standard_keys = load("app/src/main/assets/shared/standard/preset_keys.yaml")["preset_keys"]
+        standard_keys = load("sample_theme_schemas/standard/preset_keys.yaml")["preset_keys"]
 
         expected = {
             "preset_keys": merge_dicts(standard_keys, mono.get("preset_keys")),
@@ -94,7 +94,7 @@ class EquivalenceTest(unittest.TestCase):
         resolved = resolve_file(ROOT / "sample_theme_schemas/简纯+14键/component.yaml")
         theme = load("sample_theme_schemas/简纯+14键/theme.yaml")
         layout = load("sample_theme_schemas/简纯+14键/14jian.layout.yaml")
-        standard_keys = load("app/src/main/assets/shared/standard/preset_keys.yaml")["preset_keys"]
+        standard_keys = load("sample_theme_schemas/standard/preset_keys.yaml")["preset_keys"]
 
         expected = {
             "preset_keys": merge_dicts(

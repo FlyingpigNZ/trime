@@ -7,7 +7,7 @@
 Reads:
   sample_theme_schemas/简纯+14键/theme.yaml      (tier-2 split)
   sample_theme_schemas/shared-aux/*.yaml        (shared component, Option A)
-  app/src/main/assets/shared/standard/*.yaml    (to avoid re-adding standard dupes)
+  sample_theme_schemas/standard/*.yaml    (to avoid re-adding standard dupes)
 
 Writes inside sample_theme_schemas/简纯+14键/:
   component.yaml   — component composition manifest
@@ -26,7 +26,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "sample_theme_schemas/简纯+14键"
 SHARED_DIR = ROOT / "sample_theme_schemas/shared-aux"
-STANDARD_DIR = ROOT / "app/src/main/assets/shared/standard"
+STANDARD_DIR = ROOT / "sample_theme_schemas/standard"
 THEME_FILE = OUT_DIR / "theme.yaml"
 
 

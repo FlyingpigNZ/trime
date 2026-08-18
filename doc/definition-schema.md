@@ -165,33 +165,41 @@ The app-provided default IME package is assembled from:
 It is shipped as a self-contained package and loaded through the same path as
 customer packages.
 
-## Canonical IME workflow (`/rime/IMEs`)
+## Canonical IME workflow (app-managed IME library)
 
-`/rime/IMEs/` is the persistent package library. It survives installation,
-uninstallation, and app restarts, and it holds the available package zips plus
-the active package manifest.
+The IME library lives in the app-managed Rime user data directory
+(`getExternalFilesDir(null)/rime`, e.g.
+`Android/data/<package>/files/rime`). It requires no broad storage permission:
+the app owns the whole Rime data area. The `IMEs/` subdirectory is the
+persistent package library: it survives installation, uninstallation, and app
+restarts, and it holds the available package zips plus the active package
+manifest.
 
 ### First install / activation
 
-1. User selects a package zip from `/rime/IMEs/` (normally `Default.zip`).
-2. The app extracts the archive into `/rime`, resolves the package component
-   manifest into a complete `Theme` (all definitions come from inside the
-   package), and copies package resources into the user backgrounds directory.
+1. User selects a package zip from the app-managed IME library (normally
+   `Default.zip`).
+2. The app extracts the archive into the Rime user data directory, resolves the
+   package component manifest into a complete `Theme` (all definitions come
+   from inside the package), and copies package resources into the user
+   backgrounds directory.
 3. The app copies package `rime_files` into the Rime user data directory,
    deploys auxiliary schemas first and then the main schema(s), adds the
    schema to `default.custom.yaml` as the default input method, and
    activates/switches to it.
-4. The active package manifest is stored in `/rime/IMEs/active-manifest.yaml`
-   for later uninstall/switch.
+4. The active package manifest is stored in
+   `IMEs/active-manifest.yaml` for later uninstall/switch.
 
 ### Switching to another package
 
 1. Read the active manifest.
-2. Delete the files it lists as package-installed files from `/rime`.
-3. Clear `/rime/build/` (compiled artifacts are derived, not user data).
-4. Extract the new package into `/rime`.
+2. Delete the files it lists as package-installed files from the Rime user data
+   directory.
+3. Clear the `build/` subdirectory (compiled artifacts are derived, not user
+   data).
+4. Extract the new package into the Rime user data directory.
 5. Run the Rime deploy/compile.
-6. Update `/rime/IMEs/active-manifest.yaml`.
+6. Update `IMEs/active-manifest.yaml`.
 
 User/generated data — user dictionaries, custom phrase files, `user.yaml`,
 logs, installation metadata — is never deleted by a switch. Files not listed

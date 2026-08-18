@@ -14,7 +14,6 @@ class KeyActionCommandTest :
             KeyActionCommand.fromName("menu_keyboard") shouldBe KeyActionCommand.MenuKeyboard
             KeyActionCommand.fromName("clipboard_window") shouldBe KeyActionCommand.ClipboardWindow
             KeyActionCommand.fromName("set_color_scheme") shouldBe KeyActionCommand.SetColorScheme
-            KeyActionCommand.fromName("set_theme") shouldBe KeyActionCommand.SetTheme
             KeyActionCommand.fromName("broadcast") shouldBe KeyActionCommand.Broadcast
             KeyActionCommand.fromName("clipboard") shouldBe KeyActionCommand.Clipboard
             KeyActionCommand.fromName("commit") shouldBe KeyActionCommand.Commit
