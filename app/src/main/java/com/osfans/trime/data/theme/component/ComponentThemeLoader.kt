@@ -4,9 +4,7 @@
 
 package com.osfans.trime.data.theme.component
 
-import com.osfans.trime.data.theme.StandardCatalog
 import com.osfans.trime.data.theme.Theme
-import com.osfans.trime.data.theme.ThemeResolver
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
@@ -14,12 +12,12 @@ import com.osfans.trime.util.yaml.sequence
 import java.io.File
 
 /**
- * Loads a [Theme] from a component manifest (`component.yaml` or a
- * `manifest.yaml` with a `components` list).
+ * Loads a [Theme] from a self-contained IME package component manifest
+ * (`component.yaml` or a `manifest.yaml` with a `components` list).
  *
- * The resolver produces the already-merged definition sections (standard +
- * shared-aux + theme deltas). The resulting [Node.Mapping] is then decoded by
- * the same `ThemeResolver` / `Theme` path used by monolithic themes.
+ * The resolver produces the already-merged definition sections; the resulting
+ * [Node.Mapping] is decoded directly by [Theme]. Packages are self-contained,
+ * so there is no global standard catalog or external fallback root.
  */
 object ComponentThemeLoader {
     /** True when [file] is a component manifest (has a `components` list). */
@@ -31,27 +29,12 @@ object ComponentThemeLoader {
         }.getOrDefault(false)
     }
 
-    /**
-     * Resolve [manifestFile] into a runtime [Theme].
-     *
-     * [fallbackRoot] is the shared data root used to resolve `standard/...`
-     * files when they are not relative to the manifest's own directory.
-     */
-    fun loadTheme(
-        manifestFile: File,
-        standard: StandardCatalog?,
-        fallbackRoot: File? = null,
-    ): Theme {
+    /** Resolve [manifestFile] into a runtime [Theme]. */
+    fun loadTheme(manifestFile: File): Theme {
         val node = Yaml.Default.parseToYamlNode(manifestFile.readText()).mapping
             ?: throw IllegalArgumentException("Component manifest is not a mapping: $manifestFile")
         val manifest = ComponentManifest.parse(node)
-        val primary = ComponentSource.fromDirectory(manifestFile.parentFile ?: File("."))
-        val source =
-            if (fallbackRoot != null) {
-                ComponentSource.fallback(primary, ComponentSource.fromDirectory(fallbackRoot))
-            } else {
-                primary
-            }
+        val source = ComponentSource.fromDirectory(manifestFile.parentFile ?: File("."))
         val validationErrors = ComponentValidator.validate(manifestFile.readText(), source)
         if (validationErrors.isNotEmpty()) {
             throw IllegalArgumentException(
@@ -59,12 +42,7 @@ object ComponentThemeLoader {
             )
         }
         val sections = ComponentResolver(source).resolve(manifest)
-        val themeNode = buildThemeNode(manifest, sections)
-        return if (standard != null) {
-            ThemeResolver.resolve(themeNode, standard)
-        } else {
-            Theme.decode(themeNode)
-        }
+        return Theme.decode(buildThemeNode(manifest, sections))
     }
 
     private fun buildThemeNode(

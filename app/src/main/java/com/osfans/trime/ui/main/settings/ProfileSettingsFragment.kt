@@ -19,7 +19,6 @@ import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.DefinitionValidator
-import com.osfans.trime.data.theme.StandardCatalog
 import com.osfans.trime.data.theme.component.ComponentSource
 import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
@@ -165,22 +164,13 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
                 withContext(Dispatchers.IO) {
                     ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
                 } ?: return@launch
-            val standard = StandardCatalog.load(DataManager.sharedDataDir)
+            val source =
+                ctx.getFileFromUri(uri)?.parentFile?.let { ComponentSource.fromDirectory(it) }
             val errors =
-                if (standard == null) {
-                    listOf("Standard catalog unavailable")
-                } else if ("components:" in text) {
-                    val source =
-                        ctx.getFileFromUri(uri)?.parentFile?.let { ComponentSource.fromDirectory(it) }
-                    if (source != null) {
-                        DefinitionValidator.validateComponentManifest(text, source)
-                    } else {
-                        DefinitionValidator.validateComponentManifest(text)
-                    }
+                if (source != null) {
+                    DefinitionValidator.validateComponentManifest(text, source)
                 } else {
-                    DefinitionValidator.validateManifest(text)
-                        .ifEmpty { DefinitionValidator.validateTheme(text, standard) }
-                        .ifEmpty { DefinitionValidator.validateLayoutFragment(text, standard) }
+                    DefinitionValidator.validateComponentManifest(text)
                 }
             if (errors.isEmpty()) {
                 ctx.toast(R.string.validate_definition_success)

@@ -53,7 +53,7 @@ class ComponentThemeLoaderTest :
                 )
 
             ComponentThemeLoader.isComponentManifest(manifest) shouldBe true
-            val theme = ComponentThemeLoader.loadTheme(manifest, null)
+            val theme = ComponentThemeLoader.loadTheme(manifest)
             theme.name shouldBe "Test Theme"
             theme.generalStyle.keyboardHeight shouldBe 200
             theme.presetKeyboards.keys shouldBe setOf("qwerty")
@@ -68,74 +68,17 @@ class ComponentThemeLoaderTest :
                     root,
                     "manifest.yaml",
                     """
-                    schema_id: 14jian
-                    schema_file: 14jian.schema.yaml
-                    layout_files: [14jian.layout.yaml]
+                    name: Legacy Theme
+                    style: {}
                     """.trimIndent(),
                 )
             ComponentThemeLoader.isComponentManifest(manifest) shouldBe false
         }
 
-        "resolves standard catalog from the fallback shared root" {
-            val sharedRoot = Files.createTempDirectory("shared-root").toFile()
-            write(
-                sharedRoot,
-                "standard/preset_keys.yaml",
-                """
-                preset_keys:
-                  BackSpace: {label: 退格, send: BackSpace}
-                """.trimIndent(),
-            )
-            write(
-                sharedRoot,
-                "standard/keyboards.yaml",
-                """
-                preset_keyboards:
-                  default:
-                    name: default
-                    keys: []
-                """.trimIndent(),
-            )
-            write(
-                sharedRoot,
-                "standard/colors.yaml",
-                """
-                preset_color_schemes:
-                  default:
-                    light:
-                      back_color: '#ffffff'
-                """.trimIndent(),
-            )
-
-            val themeDir = File(sharedRoot, "tongwenfeng")
-            val manifest =
-                write(
-                    themeDir,
-                    "component.yaml",
-                    """
-                    name: Component Tongwenfeng
-                    use_standard_preset_keys: true
-                    standard_keyboards: [default]
-                    standard_color_schemes: [default]
-                    components:
-                      - standard
-                      - style:
-                          override:
-                            keyboard_height: 200
-                    """.trimIndent(),
-                )
-
-            val theme = ComponentThemeLoader.loadTheme(manifest, null, sharedRoot)
-            theme.name shouldBe "Component Tongwenfeng"
-            theme.presetKeys.keys shouldBe setOf("BackSpace")
-            theme.presetKeyboards.keys shouldBe setOf("default")
-            theme.colorSchemes.map { it.id } shouldBe listOf("default")
-        }
-
         "loads the real split 14jian package style" {
             val manifest = File("../sample_theme_schemas/简纯+14键/manifest.yaml")
             if (manifest.isFile) {
-                val theme = ComponentThemeLoader.loadTheme(manifest, null, manifest.parentFile)
+                val theme = ComponentThemeLoader.loadTheme(manifest)
                 theme.generalStyle.keyboardHeight shouldBe 240
                 theme.generalStyle.keyWidth shouldBe 12
                 theme.generalStyle.keyHeight shouldBe 50
@@ -171,7 +114,7 @@ class ComponentThemeLoaderTest :
                 )
             val error =
                 shouldThrow<IllegalArgumentException> {
-                    ComponentThemeLoader.loadTheme(manifest, null)
+                    ComponentThemeLoader.loadTheme(manifest)
                 }
             error.message shouldContain "tool_bar.primary_button.background.normal: invalid color '0'"
         }

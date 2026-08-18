@@ -2,6 +2,12 @@
 
 Status: **accepted package model** (revised 2026-08-17)
 
+> Historical design document. The implemented model is the self-contained
+> flat IME package described in `doc/definition-schema.md` and
+> `doc/refactor-handoff.md`. Later sections that mention `standard/`,
+> `shared-aux/`, or schema-layout packages are preserved for history and no
+> longer match the current code.
+
 This document replaces the mental model of "one theme = one monolithic YAML"
 with a **self-contained component package model**. A complete input method is
 a zip that contains all required YAML definitions (keyboards, colors, style,

@@ -8,8 +8,7 @@ catalog. Overriding is allowed only within the package.
 
 The app-shipped default IME package (tongwenfeng + built-in Rime schemas such
 as `luna_*`) is itself a self-contained package delivered through the same
-package path as customer packages. Legacy monolithic `*.trime.yaml` files
-remain loadable during the transition.
+package path as customer packages.
 
 ---
 
@@ -30,8 +29,8 @@ components/                # optional local components referenced by the manifes
 ```
 
 Component files may also live in sibling directories outside the package
-source tree (e.g. `standard`, `shared-aux`); the packaging tool must copy
-them into the zip so the installed package is self-contained.
+source tree; the packaging tool must copy them into the zip so the installed
+package is self-contained.
 
 ## `manifest.yaml`
 
@@ -46,8 +45,6 @@ schema_id: 14jian
 default_keyboard: 14jian
 
 components:
-  - standard            # local standard keyboards/keys/colors, included in zip
-  - shared-aux          # local shared helper keyboards/behaviors, included in zip
   - schema:
       file: rime/14jian.schema.yaml
   - keyboard:
@@ -63,8 +60,8 @@ components:
 Rules:
 
 - Every component entry must resolve inside the package (after packaging).
-- No `standard` magic reference is allowed for customer packages; the default
-  app package may contain a local `standard` component directory.
+- There is no global or magic `standard` reference; string component entries
+  must name local directories that are included in the package.
 - Later components override earlier ones. `add` / `override` / `remove` are
   validated within the composed package only.
 
@@ -157,8 +154,8 @@ prefix is stripped) before deploying the schemas.
 
 The app-provided default IME package is assembled from:
 
-- the split tongwenfeng components (`standard`, `shared-aux`,
-  `style.yaml`, `color.yaml`, `chrome.yaml`), and
+- the split tongwenfeng components (`keyboard.yaml`, `behavior.yaml`,
+  `style.yaml`, `color.yaml`, `chrome.yaml`, `liquid_keyboard.yaml`), and
 - the built-in Rime schemas from `app/src/main/assets/shared/` (`luna_*`,
   `stroke`, `pinyin`, etc.).
 
@@ -204,9 +201,6 @@ manifest.
 User/generated data — user dictionaries, custom phrase files, `user.yaml`,
 logs, installation metadata — is never deleted by a switch. Files not listed
 in the active manifest are preserved.
-
-Legacy monolithic theme files remain loadable during the transition, but new
-packages are expected to use the self-contained component shape.
 
 ## Validation summary
 

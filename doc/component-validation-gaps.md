@@ -13,23 +13,21 @@ package is **proved correct** at input time.
 | `style.yaml` schema | None | No schema for style/chrome/liquid |
 | `color.yaml` schema | None | No schema for color schemes/fallbacks |
 | `resources.yaml` schema | None | No schema for resource lists |
-| Schema-layout package manifest | Partial in `doc/trime-schema.json` | Not unified with component validation |
 | Structural validator | `DefinitionValidator` + CLI | Partial; CLI lacks color checks |
 | Semantic validator | `ComponentResolver` add/override/remove checks | Not exposed through a single validation entry point |
 | Cross-reference validator | `BehaviorVerifier` | Separate, not integrated into main validation |
 | Color literal validator | `DefinitionValidator.validateColorLiterals` | Only wired into component theme load; not CLI/in-app/install |
 | In-app validator | Profile settings | Now validates component manifests when a local file path is available |
 | Theme load | `ComponentThemeLoader` | Now runs full `ComponentValidator` before returning `Theme` |
-| Package install | `SchemaLayoutPackageInstaller` | Now validates referenced files and layout YAML before unpacking |
+| Package install | `ImePackageManager.activate` | Validates/extracts package zip, component manifest, and Rime files |
 
 ## 2. What a complete schema must cover
 
 ### 2.1 Component manifest (`manifest.yaml` / `component.yaml`)
 
 - `name`, `author`, `version`
-- `use_standard_preset_keys`, `standard_keyboards`, `standard_color_schemes`
-- `schema_id`, `schema_file`, `layout_files`, `default_keyboard`, `resources`
-- `components` list with `include` / file / `add` / `override` / `remove`
+- `schema_id`, `default_keyboard`, `rime_files`
+- `components` list with local component strings / file / `add` / `override` / `remove`
 
 Already partially defined in `doc/component-schema.json`.
 
@@ -96,8 +94,7 @@ Already partially defined in `doc/component-schema.json`.
 5. **Resource validation**:
    - every declared resource exists in the package
 6. **Package validation**:
-   - schema file exists and is a valid Rime schema
-   - layout files exist
+   - schema files exist and are valid Rime schemas
    - default keyboard exists after resolution
 
 ## 4. Where validation must run
@@ -107,7 +104,7 @@ Already partially defined in `doc/component-schema.json`.
 | CLI `script/validate-definitions.py --check-shipped` | All shipped component files + manifests + cross-refs |
 | In-app “Validate definition file” | Selected file + its component package |
 | `ComponentThemeLoader.loadTheme` | Full component package before returning `Theme` |
-| `SchemaLayoutPackageManager` install | Full package before install/merge |
+| `ImePackageManager.activate` | Full package before install/merge |
 
 ## 5. Proposed unified flow
 

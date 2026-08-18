@@ -7,7 +7,7 @@ package com.osfans.trime.ime.dependency
 
 import android.content.Context
 import com.osfans.trime.daemon.RimeSession
-import com.osfans.trime.data.schema.SchemaLayoutRegistry
+import com.osfans.trime.data.schema.DefaultKeyboardRegistry
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.bar.InputBarDelegate
 import com.osfans.trime.ime.broadcast.EnterKeyDisplayDelegate
@@ -34,7 +34,7 @@ class InputDependencyManager(
     theme: Theme,
     service: TrimeInputMethodService,
     rime: RimeSession,
-    schemaLayouts: SchemaLayoutRegistry = SchemaLayoutRegistry.Empty,
+    defaultKeyboards: DefaultKeyboardRegistry = DefaultKeyboardRegistry.Empty,
 ) {
     val inputModule = DI.Module("input") {
         bindSingleton { inputView }
@@ -47,7 +47,7 @@ class InputDependencyManager(
         bindSingleton { EnterKeyDisplayDelegate() }
         bindSingleton { PreeditDelegate() }
         bindSingleton { CommonKeyboardActionListener() }
-        bindSingleton { KeyboardSwitcher(context, theme, rime, service, schemaLayouts) }
+        bindSingleton { KeyboardSwitcher(context, theme, rime, service, defaultKeyboards) }
         bindSingleton { BoardWindowManager() }
         bindSingleton { InputBarDelegate() }
         bindSingleton { CompactCandidateDelegate() }
@@ -79,8 +79,8 @@ class InputDependencyManager(
             theme: Theme,
             service: TrimeInputMethodService,
             rime: RimeSession,
-            schemaLayouts: SchemaLayoutRegistry = SchemaLayoutRegistry.Empty,
-        ): InputDependencyManager = InputDependencyManager(inputView, context, theme, service, rime, schemaLayouts).also {
+            defaultKeyboards: DefaultKeyboardRegistry = DefaultKeyboardRegistry.Empty,
+        ): InputDependencyManager = InputDependencyManager(inputView, context, theme, service, rime, defaultKeyboards).also {
             instance = it
         }
 

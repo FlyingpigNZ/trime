@@ -36,22 +36,5 @@ fun interface ComponentSource {
             files[path]
                 ?: throw IllegalArgumentException("Component file not found: $path")
         }
-
-        /**
-         * Try [primary] first; if it cannot find the file, try [fallback].
-         *
-         * This lets a theme-relative source resolve `../shared-aux/...` while
-         * still resolving `standard/...` from the shared data root.
-         */
-        fun fallback(
-            primary: ComponentSource,
-            fallback: ComponentSource,
-        ): ComponentSource = ComponentSource { path ->
-            try {
-                primary.load(path)
-            } catch (_: IllegalArgumentException) {
-                fallback.load(path)
-            }
-        }
     }
 }

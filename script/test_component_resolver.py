@@ -95,7 +95,7 @@ class ComponentResolverTest(unittest.TestCase):
     def test_component_dir_include(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared = root / "shared-aux"
+            shared = root / "local-aux"
             write(
                 shared / "keyboard.yaml",
                 "preset_keyboards:\n  aux1:\n    name: aux1\n",
@@ -110,7 +110,7 @@ class ComponentResolverTest(unittest.TestCase):
                 yaml.safe_dump(
                     {
                         "components": [
-                            "shared-aux",
+                            "local-aux",
                             {
                                 "keyboard": {
                                     "override": {"aux1": {"name": "changed"}}
@@ -128,30 +128,6 @@ class ComponentResolverTest(unittest.TestCase):
             self.assertEqual(
                 sections["preset_keys"]["BackSpace"], {"send": "BackSpace"}
             )
-
-    def test_standard_loading(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            manifest_path = root / "manifest.yaml"
-            write(
-                manifest_path,
-                yaml.safe_dump(
-                    {
-                        "use_standard_preset_keys": True,
-                        "standard_keyboards": ["default"],
-                        "standard_color_schemes": ["default"],
-                        "components": ["standard"],
-                    },
-                    allow_unicode=True,
-                ),
-            )
-            sections = ComponentResolver(root).resolve_manifest(
-                yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-            )
-            self.assertIn("default", sections["preset_keyboards"])
-            self.assertIn("BackSpace", sections["preset_keys"])
-            self.assertIn("default", sections["preset_color_schemes"])
-
 
 if __name__ == "__main__":
     unittest.main()

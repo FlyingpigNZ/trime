@@ -8,6 +8,11 @@ Status: **draft** — implemented by the Python prototype in
 `app/src/main/java/com/osfans/trime/data/theme/component/`.
 Machine-readable schema: `doc/component-schema.json`.
 
+> Historical schema draft. The implemented self-contained package shape is
+> documented in `doc/definition-schema.md`; references to `shared-aux`,
+> `standard`, and schema-layout manifest fields below are preserved for
+> history.
+
 ---
 
 ## 1. Component directory layout

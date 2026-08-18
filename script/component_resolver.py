@@ -2,18 +2,16 @@
 # SPDX-FileCopyrightText: 2015 - 2026 Rime community
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Reference prototype for the Trime component definition model.
+"""Pure-Python resolver for the self-contained Trime component package model.
 
-This is a pure-Python prototype of the composition semantics described in
-`doc/component-model.md`:
+It mirrors the Kotlin `ComponentResolver` used by the Android runtime and is
+used by the CLI validator to check component manifests without running JVM
+code.
 
   - components are composed in order
   - later components override earlier ones
   - operations are `add`, `override`, `remove`
   - unknown targets fail validation
-
-It is not yet wired into the Android runtime. It exists to validate the
-semantics and to serve as a reference for the Kotlin implementation.
 """
 
 from __future__ import annotations
@@ -25,9 +23,6 @@ from typing import Any
 
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
-STANDARD_DIR = ROOT / "sample_theme_schemas/standard"
-
 SECTION_FILES = {
     "keyboard": "keyboard.yaml",
     "behavior": "behavior.yaml",
@@ -35,14 +30,6 @@ SECTION_FILES = {
     "style": "style.yaml",
     "resources": "resources.yaml",
 }
-
-# YAML section keys produced by each component file.
-FILE_SECTIONS = {
-    "preset_keys.yaml": "preset_keys",
-    "keyboards.yaml": "preset_keyboards",
-    "colors.yaml": "preset_color_schemes",
-}
-
 
 class ComponentError(ValueError):
     """Raised for invalid component composition."""
@@ -116,61 +103,6 @@ class ComponentResolver:
             "fallback_colors": {},
             "resources": {},
         }
-        self.use_standard_preset_keys = False
-        self.standard_keyboards: list[str] = []
-        self.standard_color_schemes: list[str] = []
-
-    # ── standard component ────────────────────────────────────────────────
-    def _expand_standard_keyboards(
-        self, selected: list[str], all_keyboards: dict[str, Any]
-    ) -> dict[str, Any]:
-        expanded: dict[str, Any] = {}
-        seen: set[str] = set()
-
-        def add(name: str) -> None:
-            if name in seen or name not in all_keyboards:
-                return
-            seen.add(name)
-            node = all_keyboards[name]
-            include = node.get("__include") if isinstance(node, dict) else None
-            if isinstance(include, str):
-                add(include.rsplit("/", 1)[-1])
-            expanded[name] = node
-
-        for name in selected:
-            add(name)
-        return expanded
-
-    def load_standard(self) -> None:
-        # Self-contained packages carry their own standard/ component. Fall
-        # back to the app-shipped standard only for legacy manifests that
-        # still use the magic `standard` reference without a local directory.
-        standard_dir = self.manifest_dir / "standard"
-        if not standard_dir.is_dir():
-            standard_dir = STANDARD_DIR
-        keys_data = load_yaml(standard_dir / "preset_keys.yaml")
-        keyboards_data = load_yaml(standard_dir / "keyboards.yaml")
-        colors_data = load_yaml(standard_dir / "colors.yaml")
-
-        if self.use_standard_preset_keys:
-            self.sections["preset_keys"] = deep_merge(
-                self.sections["preset_keys"], keys_data.get("preset_keys", {})
-            )
-        standard_keyboards = self._expand_standard_keyboards(
-            self.standard_keyboards, keyboards_data.get("preset_keyboards", {})
-        )
-        self.sections["preset_keyboards"] = deep_merge(
-            self.sections["preset_keyboards"], standard_keyboards
-        )
-        standard_colors = {
-            name: colors_data["preset_color_schemes"][name]
-            for name in self.standard_color_schemes
-            if name in colors_data.get("preset_color_schemes", {})
-        }
-        self.sections["preset_color_schemes"] = deep_merge(
-            self.sections["preset_color_schemes"], standard_colors
-        )
-
     # ── generic component loading ─────────────────────────────────────────
     def load_component_dir(self, directory: Path) -> None:
         if not directory.is_dir():
@@ -257,9 +189,6 @@ class ComponentResolver:
     # ── manifest component entries ────────────────────────────────────────
     def resolve_entry(self, entry: Any) -> None:
         if isinstance(entry, str):
-            if entry == "standard":
-                self.load_standard()
-                return
             # A string can name a component directory next to the manifest.
             path = (self.manifest_dir / entry).resolve()
             self.load_component_dir(path)
@@ -329,9 +258,6 @@ class ComponentResolver:
         components = manifest.get("components")
         if not isinstance(components, list) or not components:
             raise ComponentError("manifest must contain a non-empty 'components' list")
-        self.use_standard_preset_keys = bool(manifest.get("use_standard_preset_keys", False))
-        self.standard_keyboards = list(manifest.get("standard_keyboards", []) or [])
-        self.standard_color_schemes = list(manifest.get("standard_color_schemes", []) or [])
         for entry in components:
             self.resolve_entry(entry)
         return self.sections

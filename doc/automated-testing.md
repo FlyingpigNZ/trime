@@ -12,9 +12,9 @@ a second layer that runs on an emulator/device.
 2. **Instrumentation smoke tests** (`androidTest`)
    - Launch the main activity and verify it does not crash.
    - Start the IME service and verify the input view is created.
-   - Load each shipped theme and verify no exception is thrown.
-   - Install a minimal schema-layout package and verify it appears in the
-     schema list / active theme.
+   - Load each shipped IME package theme and verify no exception is thrown.
+   - Install an IME package and verify it appears in the schema list / active
+     theme.
    - Switch day/night and verify `ColorManager` resolves colors.
 
 3. **Emulator/device runner**

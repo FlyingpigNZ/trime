@@ -2,17 +2,17 @@
 # SPDX-FileCopyrightText: 2015 - 2026 Rime community
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Package a schema-layout directory into a customer zip.
+"""Package a self-contained Trime IME package directory into a zip.
 
 Usage:
   python3 script/package_schema.py sample_theme_schemas/简纯+14键
   python3 script/package_schema.py sample_theme_schemas/简纯+14键 --rime-source sample_theme_schemas/rime.雾凇
 
-The manifest itself plus its `schema_file`, `layout_files`, `resources`, and
-`rime_files` are included in the zip. `rime_files` are looked up under the
-package directory first; if absent, the `--rime-source` directory (or the
-sibling `rime.雾凇` directory, when it exists) is used as the source. The output
-is written next to the directory as `<name>.zip`.
+The directory must contain a component `manifest.yaml` (with `components`).
+Every local file in the package source is included, and `rime_files` listed in
+the manifest are pulled from the package directory first or from
+`--rime-source` / the sibling `rime.雾凇` directory when present. The output is
+written next to the directory as `<name>.zip`.
 """
 
 from __future__ import annotations
@@ -65,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("src", help="Schema-layout package source directory")
+    parser.add_argument("src", help="Self-contained IME package source directory")
     parser.add_argument(
         "--rime-source",
         help="Directory containing the Rime shared-data files referenced by rime_files",
@@ -85,27 +85,19 @@ def main(argv: list[str] | None = None) -> int:
     if not isinstance(manifest, dict):
         print("manifest.yaml must contain a YAML mapping", file=sys.stderr)
         return 1
-    schema_file = manifest.get("schema_file")
-    theme_file = manifest.get("theme_file")
-    layout_files = manifest.get("layout_files", [])
-    resources = manifest.get("resources", [])
-    rime_files = manifest.get("rime_files", [])
+    if "components" not in manifest:
+        print("manifest.yaml must be a component manifest (missing 'components')", file=sys.stderr)
+        return 1
 
-    has_component = (src / "component.yaml").is_file() or "components" in manifest
-    if has_component:
-        # Self-contained component packages include every local definition file.
-        files = ["manifest.yaml"] + [
-            name for name in local_package_files(src) if name != "manifest.yaml"
-        ]
-    else:
-        files = ["manifest.yaml"]
-        if schema_file:
-            files.append(schema_file)
-        if theme_file:
-            files.append(theme_file)
-        files.extend(layout_files)
-        files.extend(resources)
+    # Self-contained component packages include every local definition file.
+    files = ["manifest.yaml"] + [
+        name for name in local_package_files(src) if name != "manifest.yaml"
+    ]
     # Rime files may come from the sibling rime.雾凇 source and are always added.
+    rime_files = manifest.get("rime_files", [])
+    if not isinstance(rime_files, list):
+        print("manifest.yaml 'rime_files' must be a list", file=sys.stderr)
+        return 1
     for name in rime_files:
         if name not in files:
             files.append(name)

@@ -720,29 +720,24 @@ their machine/CI.
 ### Current status
 
 - `./gradlew :app:compileDebugKotlin` passes.
-- Not yet verified on device/emulator after the last batch of changes.
+- End-to-end device flow verified: fresh install → auto-activate Default.zip →
+  package switch to 简纯+14键 → switch back.
+- Candidate text-size issue resolved via the 14键 package style
+  (`candidate_view_height` 28, `candidate_padding` 5, `candidate_spacing` 0.0,
+  `comment_height` 12, `comment_text_size` 10).
 - `checksums.json` is build-generated and gitignored; do not commit it.
 - Untracked workspace noise to ignore: `.gradle-test-home/`, `app/release/`,
   `app/src/main/assets/prelude/`, `sample_theme_schemas/rime.雾凇/`.
 
 ### Open items / likely next steps
 
-- Device-test the full flow: fresh install → auto-activate Default.zip →
-  Schemata lists luna_pinyin etc. → switch to 简纯+14键 → Schemata lists
-  14jian only → switch back.
 - Verify dark mode now switches the full palette (especially with 简纯+14键,
   which has real dark pairs).
-- Consider removing now-dead legacy theme code: `ThemeFilesManager`,
-  `ThemeItem`, `ThemeResolver`/`StandardCatalog` runtime paths, and old
-  schema-layout manager if it is no longer used.
 - The `onCreateInputView()` `runBlocking { ensureDefaultPackageReady() }`
   guard is a pragmatic stop-gap; a proper first-run setup/navigation step could
   replace it if first-activation latency is a problem.
 - Decide whether quick-switch Theme entry and `set_theme` command removal is
   final (currently removed).
-- Revisit candidate text-size issue after package style change; if still
-  wrong, next debugging target is `AutoScaleTextView` height scaling, not
-  flex item width.
 
 ---
 
@@ -848,3 +843,49 @@ elsewhere.
   from light to dark.
 - `./gradlew :app:compileDebugKotlin` and `./gradlew :app:testDebugUnitTest`
   pass.
+
+---
+
+## 15. Session 2026-08-18: legacy cleanup
+
+Removed the obsolete middle-ground/legacy code that is no longer reachable
+after the self-contained IME package model became the only model.
+
+### Removed Kotlin runtime code
+
+- `ThemeFilesManager`, `ThemeItem`
+- `StandardCatalog`, `ThemeResolver`
+- `SchemaLayoutPackageManager`, `SchemaLayoutPackageInstaller`,
+  `SchemaLayoutManifest`
+- Standard-catalog support from `ComponentManifest`/`ComponentResolver`/
+  `ComponentValidator` (the `standard` magic reference and
+  `use_standard_preset_keys`/`standard_keyboards`/`standard_color_schemes`)
+- `ComponentSource.fallback`
+
+### Simplified remaining code
+
+- `SchemaLayoutRegistry` was renamed to `DefaultKeyboardRegistry`; it now only
+  carries the active package’s explicit schema → default-keyboard binding.
+- `ComponentThemeLoader.loadTheme()` no longer takes a standard catalog or
+  fallback root; packages are fully self-contained.
+- `DefinitionValidator` validates component manifests only.
+- The in-app “Validate definition file” action validates component manifests
+  only.
+
+### Removed legacy sample/script files
+
+- `sample_theme_schemas/standard/`, `sample_theme_schemas/shared-aux/`,
+  `sample_theme_schemas/minimal-14jian/`
+- Legacy monoliths `tongwenfeng.trime.yaml`, `简纯+14键.trime.yaml`,
+  `14jian.schema.yaml`
+- Obsolete migration/reference scripts:
+  `extract_shared_aux.py`, `build_jian_component.py`,
+  `split_legacy_theme.py`, `test_equivalence.py`
+- Updated `validate-definitions.py` and `package_schema.py` to the
+  self-contained component model only.
+
+### Resolved earlier open items
+
+- End-to-end clean-device verification is done.
+- Candidate width/text-size issue is fixed through the 14键 package style
+  values.

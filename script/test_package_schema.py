@@ -19,27 +19,49 @@ def write(path: Path, text: str) -> None:
 
 
 class PackageSchemaTest(unittest.TestCase):
+    def test_component_package_includes_all_local_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "my-ime"
+            write(
+                pkg / "manifest.yaml",
+                """name: My IME
+components:
+  - keyboard:
+      file: keyboard.yaml
+""",
+            )
+            write(pkg / "my.schema.yaml", "schema:\n  schema_id: my\n")
+            write(pkg / "keyboard.yaml", "preset_keyboards:\n  default:\n    name: default\n")
+
+            self.assertEqual(
+                package_schema.main([str(pkg)]),
+                0,
+            )
+
+            with zipfile.ZipFile(pkg.with_suffix(".zip")) as z:
+                names = z.namelist()
+                self.assertIn("manifest.yaml", names)
+                self.assertIn("keyboard.yaml", names)
+                self.assertIn("my.schema.yaml", names)
+
     def test_rime_files_are_pulled_from_source_and_packaged(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            pkg = root / "my-schema"
+            pkg = root / "my-ime"
             rime = root / "rime.雾凇"
             write(
                 pkg / "manifest.yaml",
-                """schema_id: my
-name: My Schema
-version: "1"
-schema_file: my.schema.yaml
-theme_file: theme.yaml
-layout_files: [my.layout.yaml]
+                """name: My IME
+components:
+  - keyboard:
+      file: keyboard.yaml
 rime_files:
   - rime/default.yaml
   - rime/cn_dicts/base.dict.yaml
 """,
             )
-            write(pkg / "my.schema.yaml", "schema:\n  schema_id: my\n")
-            write(pkg / "theme.yaml", "name: My Theme\nstyle: {}\n")
-            write(pkg / "my.layout.yaml", "name: My\nstyle: {}\n")
+            write(pkg / "keyboard.yaml", "preset_keyboards:\n  default:\n    name: default\n")
             write(rime / "default.yaml", "config_version: 'test'\n")
             write(rime / "cn_dicts/base.dict.yaml", "name: base\n")
 
@@ -50,10 +72,6 @@ rime_files:
 
             with zipfile.ZipFile(pkg.with_suffix(".zip")) as z:
                 self.assertEqual(
-                    z.read("theme.yaml").decode("utf-8"),
-                    "name: My Theme\nstyle: {}\n",
-                )
-                self.assertEqual(
                     z.read("rime/default.yaml").decode("utf-8"),
                     "config_version: 'test'\n",
                 )
@@ -62,89 +80,34 @@ rime_files:
                     "name: base\n",
                 )
 
-    def test_component_package_includes_all_local_files(self) -> None:
+    def test_missing_rime_source_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             pkg = root / "my-ime"
             write(
                 pkg / "manifest.yaml",
-                """schema_id: my
-name: My IME
-version: "1"
-schema_file: my.schema.yaml
-""",
-            )
-            write(
-                pkg / "component.yaml",
                 """name: My IME
-components:
-  - standard
-  - keyboard:
-      file: keyboard.yaml
+components: []
+rime_files: [rime/default.yaml]
 """,
             )
-            write(pkg / "my.schema.yaml", "schema:\n  schema_id: my\n")
-            write(pkg / "keyboard.yaml", "preset_keyboards:\n  default:\n    name: default\n")
-            write(pkg / "standard/preset_keys.yaml", "preset_keys: {}\n")
-            write(pkg / "standard/keyboards.yaml", "preset_keyboards:\n  default:\n    name: default\n")
-            write(pkg / "standard/colors.yaml", "preset_color_schemes: {}\n")
 
             self.assertEqual(
                 package_schema.main([str(pkg)]),
-                0,
+                1,
             )
 
-            with zipfile.ZipFile(pkg.with_suffix(".zip")) as z:
-                names = z.namelist()
-                self.assertIn("component.yaml", names)
-                self.assertIn("keyboard.yaml", names)
-                self.assertIn("standard/preset_keys.yaml", names)
-                self.assertIn("standard/keyboards.yaml", names)
-                self.assertIn("standard/colors.yaml", names)
-                self.assertIn("my.schema.yaml", names)
-
-    def test_manifest_with_components_includes_all_local_files(self) -> None:
+    def test_non_component_manifest_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            pkg = root / "my-manifest-ime"
-            write(
-                pkg / "manifest.yaml",
-                """name: My Manifest IME
-components:
-  - standard
-  - style:
-      file: style.yaml
-""",
-            )
-            write(pkg / "style.yaml", "style:\n  keyboard_height: 200\n")
-            write(pkg / "standard/preset_keys.yaml", "preset_keys: {}\n")
-            write(pkg / "standard/keyboards.yaml", "preset_keyboards: {}\n")
-            write(pkg / "standard/colors.yaml", "preset_color_schemes: {}\n")
-
-            self.assertEqual(
-                package_schema.main([str(pkg)]),
-                0,
-            )
-
-            with zipfile.ZipFile(pkg.with_suffix(".zip")) as z:
-                names = z.namelist()
-                self.assertIn("style.yaml", names)
-                self.assertIn("standard/preset_keys.yaml", names)
-                self.assertIn("standard/keyboards.yaml", names)
-                self.assertIn("standard/colors.yaml", names)
-
-    def test_missing_rime_source_fails(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            pkg = root / "my-schema"
+            pkg = root / "old-schema"
             write(
                 pkg / "manifest.yaml",
                 """schema_id: my
-name: My Schema
+name: Old
 version: "1"
 schema_file: my.schema.yaml
 layout_files: [my.layout.yaml]
-rime_files: [rime/default.yaml]
 """,
             )
             write(pkg / "my.schema.yaml", "schema:\n  schema_id: my\n")

@@ -113,13 +113,13 @@ object ImePackageManager {
     }
 
     /** Registry view of the active IME package's explicit schema→keyboard binding. */
-    fun registry(): SchemaLayoutRegistry {
+    fun registry(): DefaultKeyboardRegistry {
         val active = activeManifestFile
-        if (!active.isFile) return SchemaLayoutRegistry.Empty
+        if (!active.isFile) return DefaultKeyboardRegistry.Empty
         val data = readActiveManifest(active)
-        val schemaId = data["schema_id"] as? String ?: return SchemaLayoutRegistry.Empty
-        val defaultKeyboard = data["default_keyboard"] as? String ?: return SchemaLayoutRegistry.Empty
-        return SchemaLayoutRegistry.fromDefaultKeyboards(mapOf(schemaId to defaultKeyboard))
+        val schemaId = data["schema_id"] as? String ?: return DefaultKeyboardRegistry.Empty
+        val defaultKeyboard = data["default_keyboard"] as? String ?: return DefaultKeyboardRegistry.Empty
+        return DefaultKeyboardRegistry.fromDefaultKeyboards(mapOf(schemaId to defaultKeyboard))
     }
 
     /** The active IME package's explicit default keyboard for [schemaId], if any. */
@@ -157,7 +157,7 @@ object ImePackageManager {
             listOf(File(stateDir, "component.yaml"), File(stateDir, "manifest.yaml"))
                 .firstOrNull { it.isFile && ComponentThemeLoader.isComponentManifest(it) }
                 ?: return
-        val theme = ComponentThemeLoader.loadTheme(componentManifest, standard = null, fallbackRoot = stateDir)
+        val theme = ComponentThemeLoader.loadTheme(componentManifest)
         applyTheme(theme)
     }
 
@@ -265,10 +265,6 @@ object ImePackageManager {
 
     /** Uninstall the active package, preserving user/generated data. */
     fun uninstallActive() {
-        // A self-contained IME package replaces the whole input definition, so
-        // any in-memory schema-layout bindings from a previously active package
-        // must not leak into the new one.
-        SchemaLayoutPackageManager.clearInstalled()
         val active = activeManifestFile
         if (!active.isFile) return
         val data = readActiveManifest(active)
@@ -345,11 +341,7 @@ object ImePackageManager {
             listOf(File(stateDir, "component.yaml"), File(stateDir, "manifest.yaml"))
                 .firstOrNull { it.isFile && ComponentThemeLoader.isComponentManifest(it) }
         if (componentManifest != null) {
-            return ComponentThemeLoader.loadTheme(
-                manifestFile = componentManifest,
-                standard = null,
-                fallbackRoot = stateDir,
-            )
+            return ComponentThemeLoader.loadTheme(componentManifest)
         }
         // Legacy/simple fallback: a standalone theme.yaml without components.
         val themeFile = File(stateDir, "theme.yaml")

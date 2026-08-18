@@ -5,7 +5,6 @@
 package com.osfans.trime.data.theme.component
 
 import com.osfans.trime.util.yaml.Node
-import com.osfans.trime.util.yaml.boolean
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.string
 
@@ -13,7 +12,7 @@ import com.osfans.trime.util.yaml.string
  * Pure component resolver.
  *
  * Resolves a [ComponentManifest] into the merged definition sections that the
- * runtime can feed into the existing `ThemeResolver` / `Theme` models.
+ * runtime decodes into a [com.osfans.trime.data.theme.Theme].
  */
 class ComponentResolver(
     private val source: ComponentSource,
@@ -21,15 +20,8 @@ class ComponentResolver(
     private val sections: MutableMap<String, Node.Mapping> =
         SECTION_NAMES.associateWith { Node.Mapping() }.toMutableMap()
 
-    private var useStandardPresetKeys: Boolean = false
-    private var standardKeyboards: List<String> = emptyList()
-    private var standardColorSchemes: List<String> = emptyList()
-
     fun resolve(manifest: ComponentManifest): Map<String, Node.Mapping> {
         sections.keys.forEach { sections[it] = Node.Mapping() }
-        useStandardPresetKeys = manifest.useStandardPresetKeys
-        standardKeyboards = manifest.standardKeyboards
-        standardColorSchemes = manifest.standardColorSchemes
         manifest.components.forEach { resolveEntry(it) }
         return sections.toMap()
     }
@@ -57,51 +49,10 @@ class ComponentResolver(
     }
 
     private fun resolveReference(name: String) {
-        if (name == "standard") {
-            loadStandard()
-            return
-        }
         loadComponentDirectory(name)
     }
 
     // ── loading ────────────────────────────────────────────────────────────
-    private fun loadStandard() {
-        if (useStandardPresetKeys) {
-            val keys = source.load("standard/preset_keys.yaml")
-            keys["preset_keys"]?.mapping?.let {
-                sections["preset_keys"] = mergeMappings(sections.getValue("preset_keys"), it)
-            }
-        }
-
-        val keyboardsFile = source.load("standard/keyboards.yaml")
-        val allKeyboards = keyboardsFile["preset_keyboards"]?.mapping ?: Node.Mapping()
-        val selected = LinkedHashMap<Node, Node>()
-        val seen = mutableSetOf<String>()
-        fun addKeyboard(name: String) {
-            if (name in seen) return
-            val key = Node.Scalar(name)
-            val node = allKeyboards[key]?.mapping ?: return
-            seen += name
-            node["__include"]?.string?.substringAfterLast('/')?.takeIf { it.isNotEmpty() }?.let {
-                addKeyboard(it)
-            }
-            selected[key] = node
-        }
-        standardKeyboards.forEach(::addKeyboard)
-        sections["preset_keyboards"] =
-            mergeMappings(sections.getValue("preset_keyboards"), Node.Mapping(selected))
-
-        val colorsFile = source.load("standard/colors.yaml")
-        val allColors = colorsFile["preset_color_schemes"]?.mapping ?: Node.Mapping()
-        val selectedColors = LinkedHashMap<Node, Node>()
-        standardColorSchemes.forEach { name ->
-            val key = Node.Scalar(name)
-            allColors[key]?.let { selectedColors[key] = it }
-        }
-        sections["preset_color_schemes"] =
-            mergeMappings(sections.getValue("preset_color_schemes"), Node.Mapping(selectedColors))
-    }
-
     private fun loadComponentDirectory(directory: String) {
         val base = directory.trimEnd('/')
         listOf(

@@ -5,7 +5,6 @@
 package com.osfans.trime.data.theme.component
 
 import com.osfans.trime.util.yaml.Node
-import com.osfans.trime.util.yaml.boolean
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.sequence
 import com.osfans.trime.util.yaml.string
@@ -15,13 +14,10 @@ data class ComponentManifest(
     val name: String,
     val author: String?,
     val version: String?,
-    val useStandardPresetKeys: Boolean,
-    val standardKeyboards: List<String>,
-    val standardColorSchemes: List<String>,
     val components: List<ComponentEntry>,
 ) {
     sealed interface ComponentEntry {
-        /** A string entry: `standard` or a relative component directory. */
+        /** A string entry naming a local component directory. */
         data class Reference(val name: String) : ComponentEntry
 
         /** `schema: {file: ...}` */
@@ -45,9 +41,6 @@ data class ComponentManifest(
                 name = name,
                 author = node["author"]?.string,
                 version = node["version"]?.string,
-                useStandardPresetKeys = node["use_standard_preset_keys"]?.boolean ?: false,
-                standardKeyboards = node["standard_keyboards"]?.sequence?.nodes?.mapNotNull { it.string } ?: emptyList(),
-                standardColorSchemes = node["standard_color_schemes"]?.sequence?.nodes?.mapNotNull { it.string } ?: emptyList(),
                 components = components,
             )
         }

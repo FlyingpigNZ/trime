@@ -65,11 +65,8 @@ object ComponentValidator {
         val errors = mutableListOf<String>()
         manifest.components.forEach { entry ->
             when (entry) {
-                is ComponentManifest.ComponentEntry.Reference -> {
-                    if (entry.name != "standard") {
-                        errors += validateDirectory(entry.name, source)
-                    }
-                }
+                is ComponentManifest.ComponentEntry.Reference ->
+                    errors += validateDirectory(entry.name, source)
                 is ComponentManifest.ComponentEntry.Schema -> Unit
                 is ComponentManifest.ComponentEntry.Keyboard ->
                     entry.spec.files.forEach { file ->

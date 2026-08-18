@@ -11,7 +11,6 @@ import com.osfans.trime.util.yaml.string
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 
 class ComponentResolverTest :
     StringSpec({
@@ -126,7 +125,7 @@ class ComponentResolverTest :
         "component directory include" {
             val files =
                 mapOf(
-                    "shared-aux/keyboard.yaml" to
+                    "local-aux/keyboard.yaml" to
                         mapping(
                             """
                             preset_keyboards:
@@ -134,7 +133,7 @@ class ComponentResolverTest :
                                 name: aux1
                             """.trimIndent(),
                         ),
-                    "shared-aux/behavior.yaml" to
+                    "local-aux/behavior.yaml" to
                         mapping(
                             """
                             preset_keys:
@@ -148,7 +147,7 @@ class ComponentResolverTest :
                     """
                     name: test
                     components:
-                      - shared-aux
+                      - local-aux
                       - keyboard:
                           override:
                             aux1:
@@ -158,50 +157,6 @@ class ComponentResolverTest :
                 )
             sections.getValue("preset_keyboards")["aux1"]?.mapping?.get("name")?.string shouldBe "changed"
             sections.getValue("preset_keys")["BackSpace"]?.mapping?.get("send")?.string shouldBe "BackSpace"
-        }
-
-        "standard loading" {
-            val files =
-                mapOf(
-                    "standard/preset_keys.yaml" to
-                        mapping(
-                            """
-                            preset_keys:
-                              BackSpace:
-                                send: BackSpace
-                            """.trimIndent(),
-                        ),
-                    "standard/keyboards.yaml" to
-                        mapping(
-                            """
-                            preset_keyboards:
-                              default:
-                                name: default
-                            """.trimIndent(),
-                        ),
-                    "standard/colors.yaml" to
-                        mapping(
-                            """
-                            preset_color_schemes:
-                              default:
-                                light: {}
-                            """.trimIndent(),
-                        ),
-                )
-            val sections =
-                resolve(
-                    """
-                    name: test
-                    use_standard_preset_keys: true
-                    standard_keyboards: [default]
-                    standard_color_schemes: [default]
-                    components: [standard]
-                    """.trimIndent(),
-                    files,
-                )
-            sections.getValue("preset_keys")["BackSpace"] shouldNotBe null
-            sections.getValue("preset_keyboards")["default"] shouldNotBe null
-            sections.getValue("preset_color_schemes")["default"] shouldNotBe null
         }
 
         "flat colors and color_schemes resolve to preset_color_schemes" {

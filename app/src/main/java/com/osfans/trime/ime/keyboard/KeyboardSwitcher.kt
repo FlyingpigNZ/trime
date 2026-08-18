@@ -8,7 +8,7 @@ import android.content.Context
 import android.text.InputType
 import android.view.inputmethod.EditorInfo
 import com.osfans.trime.daemon.RimeSession
-import com.osfans.trime.data.schema.SchemaLayoutRegistry
+import com.osfans.trime.data.schema.DefaultKeyboardRegistry
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.TextKeyboard
 import com.osfans.trime.ime.core.TrimeInputMethodService
@@ -28,7 +28,7 @@ class KeyboardSwitcher(
     private val theme: Theme,
     private val rime: RimeSession,
     private val service: TrimeInputMethodService,
-    private val schemaLayouts: SchemaLayoutRegistry = SchemaLayoutRegistry.Empty,
+    private val defaultKeyboards: DefaultKeyboardRegistry = DefaultKeyboardRegistry.Empty,
 ) {
     private val presetKeyboardIds = theme.presetKeyboards.keys.toList()
 
@@ -86,7 +86,7 @@ class KeyboardSwitcher(
     private fun resolveDefaultKeyboard(): String {
         // Explicit tier-3/IME-package binding wins.
         val currentSchema = rime.uiState.value.schemaId
-        schemaLayouts.defaultKeyboardFor(currentSchema)?.let { bound ->
+        defaultKeyboards.defaultKeyboardFor(currentSchema)?.let { bound ->
             if (presetKeyboardIds.contains(bound)) {
                 return bound
             }
