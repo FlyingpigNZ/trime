@@ -129,6 +129,7 @@
     <string name="ime_package_deleted">輸入方案包已刪除</string>
     <string name="cannot_delete_default_ime_package">預設輸入方案包不可刪除</string>
     <string name="cannot_delete_active_ime_package">請先切換到其他輸入方案包再刪除目前方案</string>
+    <string name="ime_package_already_active">此輸入法包已是目前使用的方案</string>
     <string name="validate_definition_file">校驗定義檔</string>
     <string name="validate_definition_file_summary">依定義規範檢查主題/佈局/清單 YAML 檔</string>
     <string name="validate_definition_success">定義檔有效</string>

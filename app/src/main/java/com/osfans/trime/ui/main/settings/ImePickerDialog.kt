@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import splitties.dimensions.dp
+import timber.log.Timber
 
 object ImePickerDialog {
     suspend fun build(
@@ -71,6 +72,10 @@ object ImePickerDialog {
                                 setColorFilter(ContextCompat.getColor(context, android.R.color.darker_gray))
                                 contentDescription = context.getString(R.string.delete)
                                 background = null
+                                // Prevent the button from stealing list-item clicks;
+                                // it remains clickable through touch events.
+                                isFocusable = false
+                                isFocusableInTouchMode = false
                                 layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
                                 setOnClickListener {
                                     scope.launch {
@@ -113,23 +118,36 @@ object ImePickerDialog {
                     setAdapter(adapter) { dialog, which ->
                         val selected = adapter.getItem(which) ?: return@setAdapter
                         scope.launch {
-                            val isActive =
-                                withContext(Dispatchers.IO) {
-                                    ImePackageManager.isActivePackage(
-                                        ImePackageManager.packageFile(selected.fileName),
-                                    )
-                                }
-                            dialog.dismiss()
-                            if (isActive) return@launch
-                            scope.withLoadingDialog(context, R.string.deploy_progress) {
-                                try {
+                            Timber.i("IME picker: clicked ${selected.fileName}")
+                            try {
+                                val isActive =
                                     withContext(Dispatchers.IO) {
-                                        ImePackageManager.activate(ImePackageManager.packageFile(selected.fileName))
+                                        ImePackageManager.isActivePackage(
+                                            ImePackageManager.packageFile(selected.fileName),
+                                        )
                                     }
-                                    context.toast(R.string.install_schema_layout_package_success)
-                                } catch (t: Throwable) {
-                                    context.toast(R.string.install_schema_layout_package_failure)
+                                Timber.i("IME picker: isActive=$isActive for ${selected.fileName}")
+                                dialog.dismiss()
+                                if (isActive) {
+                                    context.toast(R.string.ime_package_already_active)
+                                    return@launch
                                 }
+                                scope.withLoadingDialog(context, R.string.deploy_progress) {
+                                    try {
+                                        Timber.i("IME picker: activating ${selected.fileName}")
+                                        withContext(Dispatchers.IO) {
+                                            ImePackageManager.activate(ImePackageManager.packageFile(selected.fileName))
+                                        }
+                                        context.toast(R.string.install_schema_layout_package_success)
+                                    } catch (t: Throwable) {
+                                        Timber.w(t, "IME picker: activation failed for ${selected.fileName}")
+                                        context.toast(R.string.install_schema_layout_package_failure)
+                                    }
+                                }
+                            } catch (t: Throwable) {
+                                Timber.w(t, "IME picker: pre-activation check failed for ${selected.fileName}")
+                                dialog.dismiss()
+                                context.toast(R.string.install_schema_layout_package_failure)
                             }
                         }
                     }

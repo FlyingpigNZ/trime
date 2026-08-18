@@ -164,6 +164,7 @@ object ImePackageManager {
      * content fingerprint), so re-activating it would be a no-op.
      */
     fun isActivePackage(packageFile: File): Boolean {
+        if (!packageFile.isFile) return false
         val active = activeManifestFile
         if (!active.isFile) return false
         val storedSha = readActiveManifest(active)["package_sha256"] as? String ?: return false
