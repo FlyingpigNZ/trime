@@ -1,6 +1,6 @@
 # Session Handoff — Trime Refactor (untangle engine / definitions / theme)
 
-**Last updated:** 2026-08-18 · **Branch:** `refactor/untangle-ime-engine`
+**Last updated:** 2026-08-19 · **Branch:** `refactor/untangle-ime-engine`
 **Base:** `develop` @ `6c3b2bce` (merge of `upstream/develop` into fork `develop`)
 **Goal:** refactor Trime to (1) untangle the Rime engine from the Android UI,
 (2) make IME/keyboard definitions easy to use, (3) make theme/color definitions
@@ -839,3 +839,101 @@ after the self-contained IME package model became the only model.
 - End-to-end clean-device verification is done.
 - Candidate width/text-size issue is fixed through the 14键 package style
   values.
+
+---
+
+## 16. Session 2026-08-18/19: code review hardening (activation, validation, recovery)
+
+Multiple review rounds produced fixes that are now committed on
+`refactor/untangle-ime-engine`.
+
+- `ImePackageManager.activate()` is transactional:
+  - validates the new package in a staging dir first,
+  - backs up the active package/Rime files/legacy schemas/build dir,
+  - rolls back on failure (files + `default.custom.yaml` + Rime schema
+    selection),
+  - cleans stale `.staging-*` / `.backup-*` dirs on startup.
+- Activation is single-flight (`AtomicBoolean` + lock) and
+  `ensureDefaultPackageReady()` is serialized with a `Mutex`; startup will not
+  override a concurrently installed custom package.
+- `restoreActiveTheme()` self-heals stale active manifests, runs file I/O off
+  the main thread, and only catches expected theme-load exceptions.
+- `ComponentValidator` requires non-empty `style` and `preset_color_schemes`;
+  Python `validate-definitions.py` mirrors this.
+- `ColorManager`/validators detect fallback-color cycles; builtin fallback keys
+  are shared via `BuiltinFallbackColors.kt`.
+- Kotlin/Python resolver parity: string component specs and strict palette
+  errors are aligned.
+- In-app definition validation for `content://` URIs falls back to a clearly
+  labeled syntax-only result when sibling files are unavailable.
+- Added `-dontwarn java.beans.**` to `app/proguard-rules.pro` so release builds
+  succeed with SnakeYAML (R8 would otherwise fail on missing `java.beans`).
+
+---
+
+## 17. Session 2026-08-18: YAML attribute reference + keyboard previewer
+
+Added `tools/trime-package-previewer/`:
+
+- `index.html` — a standalone HTML app with:
+  - categorized documentation of every YAML attribute the Trime UI consumes
+    (package/manifest, keyboards, key behaviors, style, preedit, window,
+    toolbar, colors, liquid keyboard),
+  - a package loader (folder or zip) that resolves component composition,
+    color palettes/fallbacks, `__include`, and renders a keyboard preview,
+  - light/dark palette switch, keyboard/scheme selectors, clickable keys with
+    pressed highlight, and typed-text output in the candidate area.
+- `README.md` — usage notes (CDN dependencies: js-yaml, JSZip).
+
+Also renamed the default package display name from `tongwenfeng` to `同文风`
+in both `app/src/main/assets/shared/Default/manifest.yaml` and
+`sample_theme_schemas/tongwenfeng/manifest.yaml`.
+
+---
+
+## 18. Session 2026-08-19: IME picker click-through fix
+
+The package picker’s non-default rows (which contain a delete `ImageButton`)
+were not receiving ListView item clicks because the button was focusable and
+stole focus. Fixed in `ImePickerDialog`:
+
+- Delete `ImageButton` is now `isFocusable = false` /
+  `isFocusableInTouchMode = false`; it remains clickable via touch.
+- Selecting an already-active package now shows a toast
+  (`ime_package_already_active`, en/zh-rCN/zh-rTW) instead of silently closing.
+- `isActivePackage()` guards against missing files.
+- Added Timber logs on click/activation for future debugging.
+
+Verified on emulator: clicking 简纯+14键 now opens the deploy dialog and
+activates successfully (large 14jian package can take 1–2 minutes to deploy).
+
+---
+
+## 19. Session 2026-08-19: 14jian symbol keyboard menu height
+
+The split `sample_theme_schemas/简纯+14键/keyboard.yaml` had the symbol/emoji
+bottom menu rows at `height: 10`, while the user’s real legacy YAML used
+`conf/menu_height: 30`. This caused bottom-row labels to be clipped in the new
+package model.
+
+- Restored all bottom menu rows to `height: 30`.
+- Refactored the 456 duplicated menu-row blocks into YAML anchors/merge keys:
+  - `x-menu-styles.menu` / `menu-hl` / `ywz-menu` / `ywz-menu-hl`
+  - each bottom key is now `- <<: *menu` + `click: ...`
+- `sample_theme_schemas/rime.雾凇/build/简纯+14键.trime.yaml` (ignored source)
+  was also corrected from `menu_height: 10` to `30`.
+- Rebuilt `sample_theme_schemas/简纯+14键.zip`; verified on emulator that the
+  30-height menu rows render correctly.
+
+---
+
+## 20. Repo state / untracked files
+
+Tracked work is committed on `refactor/untangle-ime-engine`. The following are
+intentionally **not tracked**:
+
+- `CODE_REVIEW-aa14308a.md`, `CODE_REVIEW-fix-da120a30.md` — review docs.
+- `sample_theme_schemas/简纯+14键.trime.yaml` — user-provided legacy reference.
+- `sample_theme_schemas/rime.雾凇/` — ignored Rime/sample source tree.
+- Generated `*.zip` packages (`Default.zip`, `简纯+14键.zip`) are build
+  artifacts and are not tracked.
