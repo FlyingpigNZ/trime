@@ -1,3 +1,33 @@
+x-menu-styles:
+  menu: &menu
+    height: 30
+    width: 12.5
+    key_back_color: menu_back_color
+    hilited_key_back_color: hilited_menu_back_color
+    key_text_color: menu_text_color
+    hilited_key_text_color: hilited_menu_text_color
+  menu-hl: &menu-hl
+    height: 30
+    width: 12.5
+    key_back_color: hilited_menu_back_color
+    hilited_key_back_color: hilited_menu_back_color
+    key_text_color: hilited_menu_text_color
+    hilited_key_text_color: hilited_menu_text_color
+  ywz-menu: &ywz-menu
+    height: 30
+    width: 16.66
+    key_back_color: menu_back_color
+    hilited_key_back_color: hilited_menu_back_color
+    key_text_color: menu_text_color
+    hilited_key_text_color: hilited_menu_text_color
+  ywz-menu-hl: &ywz-menu-hl
+    height: 30
+    width: 16.66
+    key_back_color: hilited_menu_back_color
+    hilited_key_back_color: hilited_menu_back_color
+    key_text_color: hilited_menu_text_color
+    hilited_key_text_color: hilited_menu_text_color
+preset_keyboards:
 preset_keyboards:
   default:
     name: 26键
@@ -430,61 +460,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -541,61 +531,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -652,61 +602,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -763,61 +673,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -874,61 +744,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -987,61 +817,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -1522,61 +1312,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -1635,61 +1385,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -1748,61 +1458,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -1861,61 +1531,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -1972,61 +1602,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -2083,61 +1673,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -2194,61 +1744,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -2307,61 +1817,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -2425,61 +1895,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -2539,61 +1969,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -2650,61 +2040,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -2764,61 +2114,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -2877,61 +2187,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -2990,61 +2260,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -3103,61 +2333,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -3214,61 +2404,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -3327,61 +2477,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -3440,61 +2550,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -3551,61 +2621,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -3662,61 +2692,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -3773,61 +2763,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -3884,61 +2834,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -3995,61 +2905,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -4108,61 +2978,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -4234,61 +3064,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -4353,61 +3143,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -4466,61 +3216,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -4577,61 +3287,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -4688,61 +3358,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -4799,61 +3429,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -4912,61 +3502,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -5025,61 +3575,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -5136,61 +3646,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -5249,61 +3719,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -5362,61 +3792,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -5473,61 +3863,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -5584,61 +3934,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -5697,61 +4007,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym21
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym22
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym23
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym24
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym25
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym26
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: ''
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym1
     - width: 0
     - height: 1
@@ -5810,61 +4080,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -5923,61 +4153,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -6020,47 +4210,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6104,47 +4264,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6189,47 +4319,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6272,47 +4372,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6355,47 +4425,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6438,47 +4478,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6522,47 +4532,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6607,47 +4587,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6692,47 +4642,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6775,47 +4695,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6858,47 +4748,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -6941,47 +4801,17 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz1
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz2
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz3
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz4
-    - height: 30
-      width: 16.66
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu
       click: kb_ywz5
-    - height: 30
-      width: 16.66
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *ywz-menu-hl
       click: kb_ywz6
     - width: 0
     - height: 1
@@ -7347,61 +5177,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
@@ -7460,61 +5250,21 @@ preset_keyboards:
       key_back_color: off_sym_back_color
       hilited_key_back_color: hilited_off_sym_back_color
       click: BackSpace
-    - height: 30
-      width: 12.5
-      key_back_color: hilited_menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: hilited_menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu-hl
       click: kb_sym12
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym11
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_emoji
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_ywz
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym15
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym16
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym17
-    - height: 30
-      width: 12.5
-      key_back_color: menu_back_color
-      hilited_key_back_color: hilited_menu_back_color
-      key_text_color: menu_text_color
-      hilited_key_text_color: hilited_menu_text_color
+    - <<: *menu
       click: kb_sym2
     - width: 0
     - height: 1
