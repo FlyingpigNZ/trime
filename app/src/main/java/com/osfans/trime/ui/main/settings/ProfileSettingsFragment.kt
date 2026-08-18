@@ -30,6 +30,7 @@ import com.osfans.trime.util.addPreference
 import com.osfans.trime.util.customFormatTimeInDefault
 import com.osfans.trime.util.getFileFromUri
 import com.osfans.trime.util.toast
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -160,18 +161,41 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
     private fun validateDefinitionFile(uri: Uri) {
         val ctx = requireContext()
         lifecycleScope.launch {
-            val text =
-                withContext(Dispatchers.IO) {
-                    ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                } ?: return@launch
-            val source =
-                ctx.getFileFromUri(uri)?.parentFile?.let { ComponentSource.fromDirectory(it) }
             val errors =
-                if (source != null) {
-                    DefinitionValidator.validateComponentManifest(text, source)
-                } else {
-                    DefinitionValidator.validateComponentManifest(text)
+                withContext(Dispatchers.IO) {
+                    val text =
+                        ctx.contentResolver.openInputStream(uri)
+                            ?.bufferedReader(Charsets.UTF_8)
+                            ?.use { it.readText() }
+                            ?: return@withContext null
+                    val realFile = ctx.getFileFromUri(uri)
+                    if (realFile != null) {
+                        DefinitionValidator.validateComponentManifest(
+                            text,
+                            ComponentSource.fromDirectory(realFile.parentFile ?: return@withContext null),
+                        )
+                    } else {
+                        // Most GetContent URIs are content:// and have no usable
+                        // filesystem path. Copy the selected file into a temp dir and
+                        // validate from there so referenced files are resolved instead
+                        // of silently claiming a syntax-only check.
+                        val tempDir =
+                            File.createTempFile("definition-", ".dir", ctx.cacheDir).apply {
+                                delete()
+                                mkdirs()
+                            }
+                        try {
+                            File(tempDir, "manifest.yaml").writeText(text, Charsets.UTF_8)
+                            DefinitionValidator.validateComponentManifest(
+                                text,
+                                ComponentSource.fromDirectory(tempDir),
+                            )
+                        } finally {
+                            tempDir.deleteRecursively()
+                        }
+                    }
                 }
+            if (errors == null) return@launch
             if (errors.isEmpty()) {
                 ctx.toast(R.string.validate_definition_success)
             } else {

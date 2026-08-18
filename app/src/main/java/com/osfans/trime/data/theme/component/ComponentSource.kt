@@ -26,7 +26,7 @@ fun interface ComponentSource {
             if (!file.isFile) {
                 throw IllegalArgumentException("Component file not found: $path")
             }
-            val node = Yaml.Default.parseToYamlNode(file.readText())
+            val node = Yaml.Default.parseToYamlNode(file.readText(Charsets.UTF_8))
             node.mapping
                 ?: throw IllegalArgumentException("Component file is not a mapping: $path")
         }

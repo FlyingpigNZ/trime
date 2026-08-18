@@ -59,8 +59,8 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
     private fun installImePackage(uri: Uri) {
         val ctx = requireContext()
         lifecycleScope.withLoadingDialog(ctx, R.string.deploy_progress) {
+            val tempFile = File.createTempFile("ime-package-", ".zip", ctx.cacheDir)
             try {
-                val tempFile = File.createTempFile("ime-package-", ".zip", ctx.cacheDir)
                 withContext(Dispatchers.IO) {
                     ctx.contentResolver.openInputStream(uri)!!.use { input ->
                         tempFile.outputStream().use { input.copyTo(it) }
@@ -71,6 +71,8 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                 ctx.toast(R.string.install_schema_layout_package_success)
             } catch (_: Exception) {
                 ctx.toast(R.string.install_schema_layout_package_failure)
+            } finally {
+                tempFile.delete()
             }
         }
     }

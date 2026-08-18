@@ -58,9 +58,12 @@ data class ComponentManifest(
             val (keyNode, valueNode) = mapping.pairs.entries.first()
             val key = keyNode.string
                 ?: throw IllegalArgumentException("Component entry key must be a string")
-            val specNode = valueNode.mapping
-                ?: throw IllegalArgumentException("Component '$key' spec must be a mapping")
-            val spec = parseSpec(specNode)
+            val spec =
+                valueNode.mapping?.let { parseSpec(it) }
+                    ?: valueNode.string?.let { file ->
+                        ComponentSpec(files = listOf(file), add = null, override = null, remove = emptyList())
+                    }
+                    ?: throw IllegalArgumentException("Component '$key' spec must be a mapping or a file name")
             return when (key) {
                 "schema" -> ComponentEntry.Schema(spec.singleFile())
                 "keyboard" -> ComponentEntry.Keyboard(spec)

@@ -94,13 +94,42 @@ def _collect_palette_keys(sections: dict[str, Any], known: set[str]) -> list[str
     return errors
 
 
+def _fallback_cycles(fallback: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(key: str, stack: list[str]) -> None:
+        if key in visited:
+            return
+        if key in visiting:
+            start = stack.index(key) if key in stack else len(stack)
+            cycle = stack[start:] + [key]
+            errors.append(f"fallback_colors: cycle detected: {' -> '.join(cycle)}")
+            return
+        visiting.add(key)
+        value = fallback.get(key)
+        if isinstance(value, str) and not is_hex_color(value) and value in fallback:
+            visit(value, stack + [key])
+        visiting.remove(key)
+        visited.add(key)
+
+    for key in fallback:
+        visit(key, [])
+    return list(dict.fromkeys(errors))
+
+
 def _validate_fallback(sections: dict[str, Any], known: set[str]) -> list[str]:
     errors: list[str] = []
     fallback = sections.get("fallback_colors", {})
-    for key, value in fallback.items():
+    # Two-pass validation: all fallback keys are known before references are
+    # checked, so definitions are order-independent.
+    for key in fallback:
         known.add(key)
+    for key, value in fallback.items():
         if not is_hex_color(value) and value not in known:
             errors.append(f"fallback_colors.{key}: invalid color reference '{value}'")
+    errors += _fallback_cycles(fallback)
     return errors
 
 

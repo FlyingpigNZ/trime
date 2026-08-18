@@ -55,9 +55,10 @@ object ImePickerDialog {
                             setPadding(dp(16), dp(8), dp(8), dp(8))
                         }
                     val activeSuffix = if (item.fileName == active) "  ✓" else ""
+                    val brokenSuffix = item.error?.let { "  (broken: $it)" } ?: ""
                     row.addView(
                         TextView(context).apply {
-                            text = item.name + activeSuffix
+                            text = item.name + activeSuffix + brokenSuffix
                             textSize = 16f
                             layoutParams =
                                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)

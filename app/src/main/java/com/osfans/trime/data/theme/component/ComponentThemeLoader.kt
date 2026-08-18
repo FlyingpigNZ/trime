@@ -24,18 +24,18 @@ object ComponentThemeLoader {
     fun isComponentManifest(file: File): Boolean {
         if (!file.isFile) return false
         return runCatching {
-            val node = Yaml.Default.parseToYamlNode(file.readText()).mapping ?: return false
+            val node = Yaml.Default.parseToYamlNode(file.readText(Charsets.UTF_8)).mapping ?: return false
             node["components"]?.sequence != null
         }.getOrDefault(false)
     }
 
     /** Resolve [manifestFile] into a runtime [Theme]. */
     fun loadTheme(manifestFile: File): Theme {
-        val node = Yaml.Default.parseToYamlNode(manifestFile.readText()).mapping
+        val node = Yaml.Default.parseToYamlNode(manifestFile.readText(Charsets.UTF_8)).mapping
             ?: throw IllegalArgumentException("Component manifest is not a mapping: $manifestFile")
         val manifest = ComponentManifest.parse(node)
         val source = ComponentSource.fromDirectory(manifestFile.parentFile ?: File("."))
-        val validationErrors = ComponentValidator.validate(manifestFile.readText(), source)
+        val validationErrors = ComponentValidator.validate(manifestFile.readText(Charsets.UTF_8), source)
         if (validationErrors.isNotEmpty()) {
             throw IllegalArgumentException(
                 "Invalid component theme:\n" + validationErrors.joinToString("\n"),

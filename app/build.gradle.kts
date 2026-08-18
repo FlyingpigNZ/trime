@@ -25,6 +25,7 @@ val buildDefaultPackage by tasks.registering(Exec::class) {
     inputs.file(rootProject.layout.projectDirectory.file("script/build_default_package.py"))
     inputs.file(rootProject.layout.projectDirectory.file("script/package_schema.py"))
     outputs.file(rootProject.layout.projectDirectory.file("app/src/main/assets/shared/Default.zip"))
+    outputs.file(rootProject.layout.projectDirectory.file("sample_theme_schemas/Default.zip"))
 }
 
 tasks.named("generateDataChecksums") {

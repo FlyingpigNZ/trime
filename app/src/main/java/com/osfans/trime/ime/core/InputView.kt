@@ -292,13 +292,6 @@ class InputView(
         }
     }
 
-    override fun restyle(theme: Theme) {
-        keyboardBackground.imageDrawable = ColorManager.getDrawable(ThemeColor.KEYBOARD_BACKGROUND)
-        keyboardView.invalidate()
-        inputBar.view.invalidate()
-        requestLayout()
-    }
-
     fun updateEnterKeyLabel(info: EditorInfo) {
         enterKeyDisplay.updateLabelOnEditorInfo(info)
     }

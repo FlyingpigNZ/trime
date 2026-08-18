@@ -157,16 +157,31 @@ class ComponentResolver(
             val schemes = data["color_schemes"]?.mapping ?: return data
             val palettes = LinkedHashMap<String, Node.Mapping>()
             colors.pairs.forEach { (key, value) ->
-                key.string?.let { name -> palettes[name] = value as? Node.Mapping ?: Node.Mapping() }
+                val name = key.string ?: return@forEach
+                val palette =
+                    value.mapping
+                        ?: throw IllegalArgumentException(
+                            "'colors' must be a mapping of palette name to palette mapping",
+                        )
+                palettes[name] = palette
             }
             val resolved = LinkedHashMap<Node, Node>()
             schemes.pairs.forEach { (schemeKey, schemeValue) ->
-                val pair = schemeValue.mapping ?: return@forEach
                 val id = schemeKey.string ?: return@forEach
-                val lightName = pair["light"]?.string ?: return@forEach
+                val pair =
+                    schemeValue.mapping
+                        ?: throw IllegalArgumentException("color_schemes.$id: must be a mapping")
+                val lightName =
+                    pair["light"]?.string
+                        ?: throw IllegalArgumentException("color_schemes.$id: missing 'light' palette")
                 val darkName = pair["dark"]?.string ?: lightName
-                val light = palettes[lightName] ?: Node.Mapping()
-                val dark = palettes[darkName] ?: light
+                val light =
+                    palettes[lightName]
+                        ?: throw IllegalArgumentException("color_schemes.$id: unknown light palette '$lightName'")
+                val dark =
+                    if (darkName == lightName) light
+                    else palettes[darkName]
+                        ?: throw IllegalArgumentException("color_schemes.$id: unknown dark palette '$darkName'")
                 val scheme = LinkedHashMap<Node, Node>()
                 pair["name"]?.let { scheme[Node.Scalar("name")] = it }
                 pair["author"]?.let { scheme[Node.Scalar("author")] = it }

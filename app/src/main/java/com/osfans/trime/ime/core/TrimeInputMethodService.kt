@@ -56,11 +56,12 @@ import com.osfans.trime.util.monitorCursorAnchor
 import com.osfans.trime.util.styledFloat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import splitties.bitflags.hasFlag
 import splitties.systemservices.clipboardManager
 import splitties.systemservices.inputMethodManager
@@ -498,10 +499,20 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     override fun onCreateInputView(): View? {
         Timber.d("onCreateInputView")
-        // If Rime is not ready yet and no package has been activated, force the
-        // bundled default package now so a Theme exists before building views.
+        // If Rime is not ready yet and no package has been activated, return a
+        // lightweight placeholder instead of blocking the IME main thread on
+        // package activation. The background activation replaces it with the
+        // real input view as soon as the theme is available.
         if (!ThemeManager.isInitialized) {
-            runBlocking { ImePackageManager.ensureDefaultPackageReady() }
+            val placeholder = FrameLayout(this)
+            lifecycleScope.launch {
+                withContext(Dispatchers.IO) {
+                    ImePackageManager.ensureDefaultPackageReady()
+                }
+                ThemeManager.ensureInitialized(resources.configuration)
+                replaceInputViews(ThemeManager.activeTheme)
+            }
+            return placeholder
         }
         ThemeManager.ensureInitialized(resources.configuration)
         replaceInputViews(ThemeManager.activeTheme)

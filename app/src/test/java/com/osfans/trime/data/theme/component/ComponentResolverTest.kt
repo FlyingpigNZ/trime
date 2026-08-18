@@ -11,6 +11,7 @@ import com.osfans.trime.util.yaml.string
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 
 class ComponentResolverTest :
     StringSpec({
@@ -157,6 +158,89 @@ class ComponentResolverTest :
                 )
             sections.getValue("preset_keyboards")["aux1"]?.mapping?.get("name")?.string shouldBe "changed"
             sections.getValue("preset_keys")["BackSpace"]?.mapping?.get("send")?.string shouldBe "BackSpace"
+        }
+
+        "string component spec is accepted" {
+            val sections =
+                resolve(
+                    """
+                    name: test
+                    components:
+                      - color: color.yaml
+                      - style: style.yaml
+                    """.trimIndent(),
+                    mapOf(
+                        "color.yaml" to
+                            mapping(
+                                """
+                                preset_color_schemes:
+                                  default:
+                                    light:
+                                      back_color: '#ffffff'
+                                """.trimIndent(),
+                            ),
+                        "style.yaml" to
+                            mapping(
+                                """
+                                style:
+                                  keyboard_height: 200
+                                """.trimIndent(),
+                            ),
+                    ),
+                )
+            sections.getValue("preset_color_schemes")["default"]?.mapping shouldNotBe null
+            sections.getValue("style")["keyboard_height"]?.string shouldBe "200"
+        }
+
+        "unknown color palette fails" {
+            shouldThrow<IllegalArgumentException> {
+                resolve(
+                    """
+                    name: test
+                    components:
+                      - color:
+                          file: color.yaml
+                    """.trimIndent(),
+                    mapOf(
+                        "color.yaml" to
+                            mapping(
+                                """
+                                colors:
+                                  A:
+                                    back_color: '#ffffff'
+                                color_schemes:
+                                  Pair:
+                                    light: missing
+                                """.trimIndent(),
+                            ),
+                    ),
+                )
+            }
+        }
+
+        "non-mapping colors entry fails" {
+            shouldThrow<IllegalArgumentException> {
+                resolve(
+                    """
+                    name: test
+                    components:
+                      - color:
+                          file: color.yaml
+                    """.trimIndent(),
+                    mapOf(
+                        "color.yaml" to
+                            mapping(
+                                """
+                                colors:
+                                  A: not-a-mapping
+                                color_schemes:
+                                  Pair:
+                                    light: A
+                                """.trimIndent(),
+                            ),
+                    ),
+                )
+            }
         }
 
         "flat colors and color_schemes resolve to preset_color_schemes" {

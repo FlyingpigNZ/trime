@@ -77,6 +77,22 @@ class DefinitionValidatorTest :
                                 send: BackSpace
                             """.trimIndent(),
                         ),
+                    "local-aux/style.yaml" to
+                        mapping(
+                            """
+                            style:
+                              keyboard_height: 200
+                            """.trimIndent(),
+                        ),
+                    "local-aux/color.yaml" to
+                        mapping(
+                            """
+                            preset_color_schemes:
+                              default:
+                                light:
+                                  back_color: '#ffffff'
+                            """.trimIndent(),
+                        ),
                 )
             DefinitionValidator.validateComponentManifest(
                 """
@@ -108,6 +124,89 @@ class DefinitionValidatorTest :
                     ComponentSource.fromMap(mapOf("style.yaml" to styleFile)),
                 )
             errors.shouldContain("tool_bar.primary_button.background.normal: invalid color '0'")
+        }
+
+        "component manifest missing style fails" {
+            val colorFile =
+                mapping(
+                    """
+                    preset_color_schemes:
+                      default:
+                        light:
+                          back_color: '#ffffff'
+                    """.trimIndent(),
+                )
+            val errors =
+                DefinitionValidator.validateComponentManifest(
+                    """
+                    name: test
+                    components:
+                      - color:
+                          file: color.yaml
+                    """.trimIndent(),
+                    ComponentSource.fromMap(mapOf("color.yaml" to colorFile)),
+                )
+            errors.shouldContain("Component package must define a non-empty 'style' section")
+        }
+
+        "component manifest missing color schemes fails" {
+            val styleFile =
+                mapping(
+                    """
+                    style:
+                      keyboard_height: 200
+                    """.trimIndent(),
+                )
+            val errors =
+                DefinitionValidator.validateComponentManifest(
+                    """
+                    name: test
+                    components:
+                      - style:
+                          file: style.yaml
+                    """.trimIndent(),
+                    ComponentSource.fromMap(mapOf("style.yaml" to styleFile)),
+                )
+            errors.shouldContain(
+                "Component package must define at least one 'preset_color_schemes' entry",
+            )
+        }
+
+        "fallback color cycle is rejected" {
+            val sections =
+                mapOf(
+                    "fallback_colors" to
+                        mapping(
+                            """
+                            a: b
+                            b: a
+                            """.trimIndent(),
+                        ),
+                )
+            val errors = DefinitionValidator.validateColorLiterals(sections)
+            errors.shouldContain("fallback_colors: cycle detected: a -> b -> a")
+        }
+
+        "fallback references are order-independent and accept builtin keys" {
+            val sections =
+                mapOf(
+                    "preset_color_schemes" to
+                        mapping(
+                            """
+                            default:
+                              light:
+                                back_color: '#ffffff'
+                            """.trimIndent(),
+                        ),
+                    "fallback_colors" to
+                        mapping(
+                            """
+                            a: b
+                            b: candidate_text_color
+                            """.trimIndent(),
+                        ),
+                )
+            DefinitionValidator.validateColorLiterals(sections).shouldBeEmpty()
         }
 
         "component manifest with decimal color scheme fails" {

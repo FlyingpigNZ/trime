@@ -52,8 +52,20 @@ object ComponentValidator {
                 return errors
             }
 
+        errors += validateRequiredSections(sections)
         errors += BehaviorVerifier.verify(sections)
         errors += DefinitionValidator.validateColorLiterals(sections)
+        return errors
+    }
+
+    private fun validateRequiredSections(sections: Map<String, Node.Mapping>): List<String> {
+        val errors = mutableListOf<String>()
+        if (sections["style"]?.pairs.isNullOrEmpty()) {
+            errors += "Component package must define a non-empty 'style' section"
+        }
+        if (sections["preset_color_schemes"]?.pairs.isNullOrEmpty()) {
+            errors += "Component package must define at least one 'preset_color_schemes' entry"
+        }
         return errors
     }
 

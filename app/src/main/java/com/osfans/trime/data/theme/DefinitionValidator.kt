@@ -40,8 +40,9 @@ object DefinitionValidator {
         val errors = mutableListOf<String>()
         val knownColorKeys = mutableSetOf<String>()
         ThemeColor.entries.forEach { knownColorKeys += it.key }
-        // Built-in fallback keys referenced by tool bar defaults.
-        knownColorKeys += "hilited_candidate_button_color"
+        // The runtime resolves these builtin fallback keys even when a
+        // self-contained package does not redefine them in every color scheme.
+        knownColorKeys += BuiltinFallbackColors.keys
 
         sections["preset_color_schemes"]?.pairs?.forEach { (_, schemeNode) ->
             val scheme = schemeNode.mapping ?: return@forEach
@@ -62,17 +63,53 @@ object DefinitionValidator {
             }
         }
 
+        val fallbackColors = linkedMapOf<String, String>()
         sections["fallback_colors"]?.pairs?.forEach { (keyNode, valueNode) ->
             val key = keyNode.string ?: return@forEach
-            knownColorKeys += key
             val value = valueNode.string ?: return@forEach
+            fallbackColors[key] = value
+        }
+        // Two-pass fallback validation: all fallback keys are known before any
+        // reference is checked, so definitions are order-independent.
+        fallbackColors.keys.forEach { knownColorKeys += it }
+        fallbackColors.forEach { (key, value) ->
             if (!isHexColor(value) && value !in knownColorKeys) {
                 errors += "fallback_colors: invalid color reference '$value' for '$key'"
             }
         }
+        errors += validateFallbackCycles(fallbackColors)
 
         sections["tool_bar"]?.let { validateColorFields(it, "tool_bar", knownColorKeys, errors) }
         return errors
+    }
+
+    private fun validateFallbackCycles(fallbackColors: Map<String, String>): List<String> {
+        val errors = mutableListOf<String>()
+        val visiting = mutableSetOf<String>()
+        val visited = mutableSetOf<String>()
+
+        fun visit(
+            key: String,
+            stack: List<String>,
+        ) {
+            if (key in visited) return
+            if (!visiting.add(key)) {
+                val cycleStart = stack.indexOf(key)
+                val cycle =
+                    if (cycleStart >= 0) stack.subList(cycleStart, stack.size) + key else stack + key
+                errors += "fallback_colors: cycle detected: ${cycle.joinToString(" -> ")}"
+                return
+            }
+            val value = fallbackColors[key]
+            if (value != null && !isHexColor(value) && value in fallbackColors) {
+                visit(value, stack + key)
+            }
+            visiting.remove(key)
+            visited.add(key)
+        }
+
+        fallbackColors.keys.forEach { visit(it, emptyList()) }
+        return errors.distinct()
     }
 
     private fun validateColorFields(

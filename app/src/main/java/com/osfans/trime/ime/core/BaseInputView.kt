@@ -39,14 +39,6 @@ abstract class BaseInputView(
 ) : ConstraintLayout(service) {
     protected abstract fun handleRimeMessage(it: RimeMessage<*>)
 
-    /**
-     * Incremental restyle hook. Subclasses should update theme-dependent
-     * resources in place instead of recreating the whole view hierarchy.
-     */
-    open fun restyle(theme: Theme) {
-        invalidate()
-    }
-
     private var messageHandlerJob: Job? = null
 
     private fun setupRimeMessageHandler() {

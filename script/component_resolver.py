@@ -204,6 +204,10 @@ class ComponentResolver:
             # Schema files are not merged into Theme sections; validated elsewhere.
             return
         if kind == "resources":
+            if isinstance(spec, str):
+                # Resource list handling is TBD in both resolvers; accept the
+                # same string form the Kotlin parser now allows.
+                return
             self.apply_operations("resources", spec, "resources")
             return
 

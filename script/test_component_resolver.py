@@ -92,6 +92,43 @@ class ComponentResolverTest(unittest.TestCase):
         with self.assertRaises(ComponentError):
             self.resolve(manifest)
 
+    def test_string_component_spec_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root / "color.yaml", "preset_color_schemes:\n  default:\n    light:\n      back_color: '#ffffff'\n")
+            write(root / "style.yaml", "style:\n  keyboard_height: 200\n")
+            manifest = {
+                "components": [
+                    {"color": "color.yaml"},
+                    {"style": "style.yaml"},
+                ]
+            }
+            sections = ComponentResolver(root).resolve_manifest(manifest)
+            self.assertIn("default", sections["preset_color_schemes"])
+            self.assertEqual(sections["style"]["keyboard_height"], 200)
+
+    def test_unknown_color_palette_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(
+                root / "color.yaml",
+                "colors:\n  A:\n    back_color: '#ffffff'\ncolor_schemes:\n  Pair:\n    light: missing\n",
+            )
+            manifest = {"components": [{"color": {"file": "color.yaml"}}]}
+            with self.assertRaises(ComponentError):
+                ComponentResolver(root).resolve_manifest(manifest)
+
+    def test_non_mapping_colors_entry_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(
+                root / "color.yaml",
+                "colors:\n  A: not-a-mapping\ncolor_schemes:\n  Pair:\n    light: A\n",
+            )
+            manifest = {"components": [{"color": {"file": "color.yaml"}}]}
+            with self.assertRaises(ComponentError):
+                ComponentResolver(root).resolve_manifest(manifest)
+
     def test_component_dir_include(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
