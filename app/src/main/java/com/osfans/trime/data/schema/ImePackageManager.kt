@@ -115,18 +115,34 @@ object ImePackageManager {
                 restoreActiveTheme()
                 return
             }
-            installBundledDefaultPackage()
-            val defaultPackage = packageFile(DEFAULT_PACKAGE_FILE_NAME)
-            if (!defaultPackage.isFile) {
+            val defaultPackage =
+                withContext(Dispatchers.IO) {
+                    installBundledDefaultPackage()
+                    packageFile(DEFAULT_PACKAGE_FILE_NAME).takeIf { it.isFile }
+                }
+            if (defaultPackage == null) {
                 Timber.w("Bundled Default.zip is missing; no IME package can be activated")
                 return
             }
             withContext(Dispatchers.IO) {
-                activate(defaultPackage, applyThemeAfter = false)
+                activateDefaultIfNoActive(defaultPackage)
             }
             // activate() writes the active manifest on the IO thread; restore now on
             // the main thread so the package theme is available synchronously.
             restoreActiveTheme()
+        }
+    }
+
+    /**
+     * Activate the bundled default package only if no other package became
+     * active while this call was waiting for the activation lock. This prevents
+     * a concurrent user install from being immediately overridden by the
+     * startup fallback.
+     */
+    private fun activateDefaultIfNoActive(defaultPackage: File) {
+        synchronized(activationLock) {
+            if (activeManifestFile.isFile) return
+            activate(defaultPackage, applyThemeAfter = false)
         }
     }
 
@@ -161,32 +177,38 @@ object ImePackageManager {
      * active theme.
      */
     suspend fun restoreActiveTheme() {
-        val active = activeManifestFile
-        if (!active.isFile) return
-        val data = readActiveManifest(active)
-        val packageId = data["package_id"] as? String
-        @Suppress("UNCHECKED_CAST")
-        val staleRimeFiles = (data["rime_files"] as? List<String>) ?: emptyList()
-        val stateDir = packageId?.let { File(imesDir, it) }
-        val componentManifest =
-            if (stateDir != null) {
-                listOf(File(stateDir, "component.yaml"), File(stateDir, "manifest.yaml"))
-                    .firstOrNull { it.isFile && ComponentThemeLoader.isComponentManifest(it) }
-            } else {
-                null
+        val active = withContext(Dispatchers.IO) { activeManifestFile.takeIf { it.isFile } } ?: return
+        val restore =
+            withContext(Dispatchers.IO) {
+                val data = readActiveManifest(active)
+                val packageId = data["package_id"] as? String
+                @Suppress("UNCHECKED_CAST")
+                val staleRimeFiles = (data["rime_files"] as? List<String>) ?: emptyList()
+                val stateDir = packageId?.let { File(imesDir, it) }
+                val componentManifest =
+                    if (stateDir != null) {
+                        listOf(File(stateDir, "component.yaml"), File(stateDir, "manifest.yaml"))
+                            .firstOrNull { it.isFile && ComponentThemeLoader.isComponentManifest(it) }
+                    } else {
+                        null
+                    }
+                ActiveThemeRestore(data, packageId, staleRimeFiles, componentManifest)
             }
-        if (packageId == null || componentManifest == null) {
+        if (restore.packageId == null || restore.componentManifest == null) {
             Timber.w("Active IME package manifest is unusable; falling back to Default.zip")
-            healStaleActiveManifest(packageId, staleRimeFiles)
+            healStaleActiveManifest(restore.packageId, restore.staleRimeFiles)
             return
         }
         try {
-            (data["schema_id"] as? String)?.let { schemaId ->
+            (restore.data["schema_id"] as? String)?.let { schemaId ->
                 // Select the package schema before applying its theme so the
                 // keyboard switcher resolves the correct default layout.
                 RimeDaemon.getFirstSessionOrNull()?.runOnReady { selectSchema(schemaId) }
             }
-            val theme = ComponentThemeLoader.loadTheme(componentManifest)
+            val theme =
+                withContext(Dispatchers.IO) {
+                    ComponentThemeLoader.loadTheme(restore.componentManifest)
+                }
             applyTheme(theme)
         } catch (t: Throwable) {
             when (t) {
@@ -195,7 +217,7 @@ object ImePackageManager {
                 is IllegalStateException,
                 is NoSuchElementException -> {
                     Timber.w(t, "Active IME package theme is unusable; falling back to Default.zip")
-                    healStaleActiveManifest(packageId, staleRimeFiles)
+                    healStaleActiveManifest(restore.packageId, restore.staleRimeFiles)
                 }
                 else -> throw t
             }
@@ -206,19 +228,29 @@ object ImePackageManager {
         stalePackageId: String? = null,
         staleRimeFiles: List<String> = emptyList(),
     ) {
-        activeManifestFile.delete()
-        stalePackageId?.let { File(imesDir, it).deleteRecursively() }
-        staleRimeFiles.forEach { relative ->
-            File(DataManager.userDataDir, relative).delete()
-        }
-        installBundledDefaultPackage()
-        val defaultPackage = packageFile(DEFAULT_PACKAGE_FILE_NAME)
-        if (!defaultPackage.isFile) {
+        val defaultPackage =
+            withContext(Dispatchers.IO) {
+                activeManifestFile.delete()
+                if (stalePackageId == null) {
+                    // The manifest was unreadable, so no specific package can be
+                    // identified. Delete all non-hidden state dirs under IMEs/
+                    // before falling back to Default, matching cleanup policy.
+                    cleanupInterruptedActivation()
+                } else {
+                    File(imesDir, stalePackageId).deleteRecursively()
+                }
+                staleRimeFiles.forEach { relative ->
+                    File(DataManager.userDataDir, relative).delete()
+                }
+                installBundledDefaultPackage()
+                packageFile(DEFAULT_PACKAGE_FILE_NAME).takeIf { it.isFile }
+            }
+        if (defaultPackage == null) {
             Timber.w("Bundled Default.zip is missing; no IME package can be activated")
             return
         }
         withContext(Dispatchers.IO) {
-            activate(defaultPackage, applyThemeAfter = false)
+            activateDefaultIfNoActive(defaultPackage)
         }
         // Re-enter restore now that the default package is active; this applies
         // the theme synchronously on the caller's thread.
@@ -771,4 +803,11 @@ object ImePackageManager {
     )
 
     private data class ActiveBackup(val root: File)
+
+    private data class ActiveThemeRestore(
+        val data: Map<String, Any?>,
+        val packageId: String?,
+        val staleRimeFiles: List<String>,
+        val componentManifest: File?,
+    )
 }
