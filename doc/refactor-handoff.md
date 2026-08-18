@@ -42,35 +42,26 @@ easy to use — by splitting themes into a composable three-tier model.
    items 10-13 (KeyAction split + typed commands, `__include` inheritance,
    KeyboardSwitcher). See §7 for the full commit list and remaining work.
 7. **Unit-testing strategy** added to plan §6 (was: no tests existed).
-8. **Plugin install DONE**: `dsh-routing-suite` (injector + router presets).
-   The router presets were already installed in a prior session
-   (`~/.dsh/.agent-presets/{router-standard,router-spec}` and
-   `agent-presets.default: router-standard`); the injector plugin was added to
-   `~/.dsh/profiles/web` in this session (`dsh plugin --profile web add .../injector`
-   with `danger-full-access` approval). Mode-boost was tried as a profile
-   dependency, then **removed again** to keep the setup clean — it is optional
-   and not needed by Router Standard/Spec (see §8). Restart DSH to load the
-   injector and the router-standard preset.
-9. **Phase 0.5 DONE**: replaced the stale `GeneralStyleTest` and added a pure
+8. **Phase 0.5 DONE**: replaced the stale `GeneralStyleTest` and added a pure
    JVM Kotest batch (`KeyActionDefinition.parse`, `KeyActionCommand.fromName`,
    `Theme.decode` + `__include`, `RimeMessage.nativeCreate`, `RimeUiState`).
    To make `KeyActionDefinition.parse` JVM-testable, introduced
    `KeyLabelProvider` (Android + pure ASCII provider) and made `KeyCode`
    prefer the generated Rime mapping before the Android fallback. Targeted
    `testDebugUnitTest` passes (21 tests).
-10. **Phase 2 item 8 (core) DONE**: added app-shipped standard catalog files
+9. **Phase 2 item 8 (core) DONE**: added app-shipped standard catalog files
     (`assets/shared/standard/{preset_keys,keyboards,colors}.yaml`), a
     `StandardCatalog` loader, and `ThemeResolver` that merges the catalog under
     each theme (theme overrides win). `trime.yaml` is now decoration-only;
     legacy monoliths (e.g. `tongwenfeng`) remain loadable as overrides. Schema
     tier still lands with item 12.
-11. **Phase 2 item 9 DONE**: made tier-1 selection explicit-by-name via
+10. **Phase 2 item 9 DONE**: made tier-1 selection explicit-by-name via
     `use_standard_preset_keys: true`, `standard_keyboards: [...]`, and
     `standard_color_schemes: [...]`; unknown declared names fail validation;
     selecting a keyboard pulls in its `__include` dependencies. `__include`
     now fails loudly on unknown targets, and the legacy `import_preset` theme
     alias is retired (the field was removed from `TextKeyboard`).
-12. **Schema-tier reference pair + manifest model**: created
+11. **Schema-tier reference pair + manifest model**: created
     `sample_theme_schemas/minimal-14jian/` (manifest + minimal schema + minimal
     layout) derived from the user's full samples, plus a ThemeResolver test that
     resolves the minimal layout against the shipped standard catalog. Added
@@ -85,7 +76,7 @@ easy to use — by splitting themes into a composable three-tier model.
     registration, `ThemeResolver.mergeSchemaLayout`/`Theme.mergeSchemaLayout`
     merge package layouts onto the active theme, and Profile settings has an
     on-device "Install schema layout package" action.
-13. **Phase 3 item 19 DONE**: color schemes are now self-contained light/dark
+12. **Phase 3 item 19 DONE**: color schemes are now self-contained light/dark
     pairs (`light:`/`dark:` blocks). Legacy flat schemes still work and use
     their light palette as the dark fallback. `ColorManager`'s 4-branch
     `light_scheme`/`dark_scheme` logic is removed; night mode just selects the
@@ -94,39 +85,39 @@ easy to use — by splitting themes into a composable three-tier model.
     `tongwenfeng.trime.yaml` have been converted to the new `light:` shape
     (dark fallback = light). Legacy flat schemes are still accepted for
     compatibility.
-14. **Phase 3 item 18 DONE**: `ColorManager` now merges the builtin fallback
+13. **Phase 3 item 18 DONE**: `ColorManager` now merges the builtin fallback
     table with theme `fallback_colors` once per theme switch and resolves from a
     single combined map; duplicated builtin fallback comments were removed from
     shipped theme files.
-15. **Definition spec + standard colors migration DONE**: added
+14. **Definition spec + standard colors migration DONE**: added
     `doc/definition-schema.md` and updated `doc/trime-schema.json` for the
     three-tier YAML shapes (standard catalog, decoration theme, schema-layout
     package manifest/fragment). Converted `standard/colors.yaml` to the new
     self-contained `light:` shape.
-16. **Phase 2 item 14 DONE**: `DefinitionValidator` core, in-app “Validate
+15. **Phase 2 item 14 DONE**: `DefinitionValidator` core, in-app “Validate
     definition file” action, and `script/validate-definitions.py` CLI (with
     `--check-shipped` for CI).
-17. **Phase 3 item 20 DONE**: removed `@Parcelize`/`Parcelable` from `Theme`
+16. **Phase 3 item 20 DONE**: removed `@Parcelize`/`Parcelable` from `Theme`
     and all theme model classes; they are now plain immutable JVM-friendly
     models.
-18. **Phase 3 item 15 DONE**: added `ThemeColor` enum and migrated all static
+17. **Phase 3 item 15 DONE**: added `ThemeColor` enum and migrated all static
     color/drawable string literals to typed enum calls.
-19. **Phase 3 item 17 DONE**: `ColorManager` precomputes a resolved palette on
+18. **Phase 3 item 17 DONE**: `ColorManager` precomputes a resolved palette on
     scheme/light-dark switches and reads from it in `getColor`/`getDrawable`.
-20. **Phase 3 item 16 DONE**: added `ThemeContext` facade over
+19. **Phase 3 item 16 DONE**: added `ThemeContext` facade over
     `ThemeManager`/`ColorManager`/`FontManager`/`KeyActionManager`.
-21. **Automated app testing**: added `doc/automated-testing.md` and a
+20. **Automated app testing**: added `doc/automated-testing.md` and a
     compiling `SmokeTest` androidTest that launches `MainActivity` and checks
     the default theme loads. Running `connectedDebugAndroidTest` still needs an
     emulator/device.
-22. **Phase 3 item 21 DONE**: added `BaseInputView.restyle()` and overrides;
+21. **Phase 3 item 21 DONE**: added `BaseInputView.restyle()` and overrides;
     color changes now restyle existing input/candidate views in place. Theme
     structure changes still use full rebuild as a safe fallback.
-23. **Canonical install workflow recorded**: user picks a schema-layout zip →
+22. **Canonical install workflow recorded**: user picks a schema-layout zip →
     extract + merge with standard → copy package resources to user backgrounds
     → deploy Rime schema → add to `default.custom.yaml` as default → activate.
     Legacy monolithic theme files are not part of this workflow.
-24. **Full `简纯+14键` conversion DONE**: added
+23. **Full `简纯+14键` conversion DONE**: added
     `sample_theme_schemas/简纯+14键/` — a tier-2 `theme.yaml` (decoration +
     general keyboards/keys/colors as light/dark pairs) plus a tier-3 package
     (`manifest.yaml`, full `14jian.schema.yaml`, self-contained
@@ -134,7 +125,7 @@ easy to use — by splitting themes into a composable three-tier model.
     `script/split_legacy_theme.py`, which expands the legacy
     `conf`/`styl`/`__patch` indirection into explicit fields; all reference
     definitions pass `script/validate-definitions.py --check-shipped`.
-25. **Component model design started**: `doc/component-model.md` proposes
+24. **Component model design started**: `doc/component-model.md` proposes
     replacing monolithic themes with composable components
     (`schema`/`keyboard`/`behavior`/`style`/`color`/`resources`/`shared-aux`)
     and deterministic `include`/`add`/`override`/`remove` semantics.
@@ -164,33 +155,33 @@ easy to use — by splitting themes into a composable three-tier model.
     The component resolver is ported to Kotlin
     (`data/theme/component/`) with unit tests; full `testDebugUnitTest`
     passes. Machine-readable `doc/component-schema.json` added.
-26. **Component model reference implementation DONE**: Python prototype +
+25. **Component model reference implementation DONE**: Python prototype +
     Kotlin resolver (`data/theme/component/`) + `DefinitionValidator`
     component-manifest support + JSON schema + shared-aux extraction +
     thin tongwenfeng and 简纯+14键 component manifests. Full
     `testDebugUnitTest` passes.
-27. **Runtime component theme loading DONE**: `ComponentThemeLoader` resolves
+26. **Runtime component theme loading DONE**: `ComponentThemeLoader` resolves
     a component manifest into a runtime `Theme`; `ThemeFilesManager` discovers
     component themes (`<id>.component.yaml` or `<id>/component.yaml|manifest.yaml`)
     alongside monolithic `*.trime.yaml`; `ThemeManager` tries the component
     manifest before the legacy deployed file. Unit tests cover the loader.
-28. **Shipping boundary clarified**: app assets ship standard + `shared-aux` +
+27. **Shipping boundary clarified**: app assets ship standard + `shared-aux` +
     built-in themes. 简纯+14键/14jian is a **customer-defined input method
     package** and must be delivered as a zip (manifest + schema + layout), not
     bundled in app assets. The zip is generated from
     `sample_theme_schemas/简纯+14键/` (see README).
-29. **Unified component validation DONE**: complete schema in
+28. **Unified component validation DONE**: complete schema in
     `doc/component-schema.json`, gap analysis in
     `doc/component-validation-gaps.md`, `ComponentValidator` (per-file +
     resolution + behavior + color), wired into theme load, in-app validator,
     CLI (`--check-shipped`), and schema-package installer. Full unit tests
     pass.
-30. **Data/schema fixes + repo rules**: tongwenfeng colors normalized to hex,
+29. **Data/schema fixes + repo rules**: tongwenfeng colors normalized to hex,
     chrome `normal: 0` → `0x00`, schema-first key validation (keys are
     non-empty mappings; spacers allowed), `CLAUDE.md` repository rules added
     (no data-fix literals in code, no magic numbers, fix definitions before
     hacking code). Component theme loading is validated end-to-end on-device.
-31. **Customer package flow (resources integrated; on-device verification
+30. **Customer package flow (resources integrated; on-device verification
     pending)**: `简纯+14键.zip` generated by `script/package_schema.py` (now
     includes `manifest.yaml` + `rime_files`). The package previously shipped
     the **full rime-ice schema** without its external resources (`melt_eng`,
@@ -217,7 +208,7 @@ easy to use — by splitting themes into a composable three-tier model.
     install the regenerated zip on a device/emulator and verify 14jian deploys
     and types.
 
-32. **Package model redesign (implemented)**:
+31. **Package model redesign (implemented)**:
     the three-tier "customer package inherits app-shipped standard catalog"
     model was replaced by a **self-contained flat IME package model**. Each
     package is a zip with one `manifest.yaml`, root split YAMLs
@@ -239,7 +230,7 @@ easy to use — by splitting themes into a composable three-tier model.
     after user review — not required.
     **Remaining**: further emulator testing (package switch cleanliness,
     color pair UI, active restore), and possibly UI work for color pair names.
-33. **IME package activation hardening (this session)**: package activation is
+32. **IME package activation hardening (this session)**: package activation is
     now a blocking flow with a modal “Deploying…” dialog and the deploy
     notification restored. `ImePackageManager` stores a SHA-256 package
     fingerprint in the active manifest; re-selecting the exact same package is
@@ -248,13 +239,13 @@ easy to use — by splitting themes into a composable three-tier model.
     `runOnReady`) before applying the theme, and `ThemeManager.ensureInitialized`
     prevents the `_activeTheme` crash when the IME view is created before Rime
     is ready.
-34. **Night mode fix**: `ColorManager.onSystemNightModeChange` now rebuilds the
+33. **Night mode fix**: `ColorManager.onSystemNightModeChange` now rebuilds the
     resolved palette before notifying listeners, so runtime day/night switches
     actually change colors.
-35. **14jian data fixes**: light palettes changed from transparent `0x00…` to
+34. **14jian data fixes**: light palettes changed from transparent `0x00…` to
     opaque `0xff…`; `Keyboard_letter_14jian` width reduced from 11.5 to 11 so
     `Return` stays on row 5; horizontal gap reduced from 16 to 8.
-36. **Candidate width issue still OPEN**: user reports multi-character
+35. **Candidate width issue still OPEN**: user reports multi-character
     candidates look smaller than single-character ones in compact/unrolled
     candidate views. Debug logging showed `textSize=54`, `scale=1` for both,
     but item widths were 120px (1 char) vs 144px (2 chars) due a hardcoded
@@ -264,45 +255,6 @@ easy to use — by splitting themes into a composable three-tier model.
     `ecbd207f`, `980bf346`, `2a5ea8b0`. Next step is to find the real
     rendering path (likely `AutoScaleTextView` or popup candidate UI) with
     more targeted logging or a user-provided screenshot.
-
----
-
-## 8. Plugin install: dsh-routing-suite (DONE)
-
-The user asked to install https://github.com/yjh051108/dsh-routing-suite
-(an "injector × reasoning-mode router" kit for DSH: runtime injector +
-task-aware router presets). **Complete and cleaned up** as of this session:
-
-- Router presets were already installed:
-  - `~/.dsh/.agent-presets/router-standard/`
-  - `~/.dsh/.agent-presets/router-spec/`
-  - `~/.dsh/settings.yaml` → `agent-presets.default: router-standard`
-- Injector plugin installed in this session:
-  - `dsh plugin --profile web add /home/jin/Sources/my_projects/trime/.dsh-routing-suite/injector`
-  - `~/.dsh/profiles/web/package.json` depends on
-    `@dsh-external/dsh-super-injector` and includes it in the profile bundles.
-- Mode-boost was briefly installed as a profile dependency, then removed:
-  - `dsh plugin --profile web remove @dsh-external/dsh-mode-boost`
-  - `~/.dsh/profiles/web/package.json` no longer references it.
-  - A stale `node_modules` symlink was manually removed; the profile is clean.
-  - Rationale: mode-boost is **optional**. Router Standard and Router Spec are
-    self-contained (both ship their own `router-bootstrap` + `dev_router_*`
-    tools), and mode-boost’s coexistence guard no-ops when `dev_router_status`
-    is present, so it would not add value in the active Router Standard setup.
-- Remaining action: **restart DSH** so the new session loads the injector and
-  the router-standard preset.
-
-Workspace scratch (all untracked, can be cleaned up after the plugin is
-verified in a fresh DSH session):
-- `./.dsh-routing-suite/` — workspace clone with all 3 submodules
-  (injector@v0.3.3, preset/router-standard@v0.3.0, mode-boost@v0.1.0)
-- `/home/jin/Sources/dsh-routing-suite/` — the user's original clone, also
-  with all 3 submodules; mode-boost remains available there if ever wanted.
-- `./.npm-global/` + `./.npm-cache/` — local pnpm install used to run the
-  install command (pnpm lives at `.npm-global/bin/pnpm`)
-
-Notes: the preset loader caches ESM by URL — do NOT overwrite an installed
-preset in place; use fresh names.
 
 ---
 
@@ -562,9 +514,7 @@ TrimeInputMethodService). Within Phase 2, item 8 first.
      554c952d (shipping boundary) -> 338f71d9 (remove customer asset) ->
      b8aba90e (ship assets) -> 0d237347 (dup cleanup) -> 8104dfee (runtime
      loading docs) -> 70036fb1 (runtime loading) -> 66eb0666 (behavior
-     verifier docs) -> ae2a925a (Kotlin behavior verifier) -> c5e1dd6a (full 14jian split) -> 9b900353
-     (mode-boost cleanup) -> 89b05b02 (mode-boost notes) -> a751cf2f (dsh
-     install complete) -> 5d333858 (docs refresh) -> d3ce11c6 (handoff update)
+     verifier docs) -> ae2a925a (Kotlin behavior verifier) -> c5e1dd6a (full 14jian split) -> 5d333858 (docs refresh) -> d3ce11c6 (handoff update)
      -> afa48fc3 (package
      resource copy + workflow) -> 1cc7a0c1 (14jian self-contained) ->
      b48493b7 (14jian package split) -> e6f475a6 (tongwenfeng standardization)
