@@ -129,6 +129,7 @@
     <string name="validate_definition_file_summary">按定义规范检查主题/布局/清单 YAML 文件</string>
     <string name="validate_definition_success">定义文件有效</string>
     <string name="validate_definition_failure">定义文件存在错误</string>
+    <string name="validate_definition_syntax_only">定义文件语法有效，但无法访问引用的文件，已跳过完整校验。</string>
     <string name="loading">正在加载</string>
     <string name="reset">恢复默认设置</string>
     <string name="success">成功</string>

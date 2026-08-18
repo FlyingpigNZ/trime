@@ -23,6 +23,7 @@ import org.yaml.snakeyaml.Yaml as SnakeYaml
 import timber.log.Timber
 import java.io.File
 import java.security.MessageDigest
+import java.util.NoSuchElementException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipFile
 
@@ -105,6 +106,7 @@ object ImePackageManager {
      * application-delivered Default.zip.
      */
     suspend fun ensureDefaultPackageReady() {
+        cleanupInterruptedActivation()
         if (activeManifestFile.isFile) {
             restoreActiveTheme()
             return
@@ -158,6 +160,8 @@ object ImePackageManager {
         if (!active.isFile) return
         val data = readActiveManifest(active)
         val packageId = data["package_id"] as? String
+        @Suppress("UNCHECKED_CAST")
+        val staleRimeFiles = (data["rime_files"] as? List<String>) ?: emptyList()
         val stateDir = packageId?.let { File(imesDir, it) }
         val componentManifest =
             if (stateDir != null) {
@@ -168,7 +172,7 @@ object ImePackageManager {
             }
         if (packageId == null || componentManifest == null) {
             Timber.w("Active IME package manifest is unusable; falling back to Default.zip")
-            healStaleActiveManifest()
+            healStaleActiveManifest(packageId, staleRimeFiles)
             return
         }
         try {
@@ -180,14 +184,28 @@ object ImePackageManager {
             val theme = ComponentThemeLoader.loadTheme(componentManifest)
             applyTheme(theme)
         } catch (t: Throwable) {
-            if (t is CancellationException) throw t
-            Timber.w(t, "Active IME package theme is unusable; falling back to Default.zip")
-            healStaleActiveManifest()
+            when (t) {
+                is CancellationException -> throw t
+                is IllegalArgumentException,
+                is IllegalStateException,
+                is NoSuchElementException -> {
+                    Timber.w(t, "Active IME package theme is unusable; falling back to Default.zip")
+                    healStaleActiveManifest(packageId, staleRimeFiles)
+                }
+                else -> throw t
+            }
         }
     }
 
-    private suspend fun healStaleActiveManifest() {
+    private suspend fun healStaleActiveManifest(
+        stalePackageId: String? = null,
+        staleRimeFiles: List<String> = emptyList(),
+    ) {
         activeManifestFile.delete()
+        stalePackageId?.let { File(imesDir, it).deleteRecursively() }
+        staleRimeFiles.forEach { relative ->
+            File(DataManager.userDataDir, relative).delete()
+        }
         installBundledDefaultPackage()
         val defaultPackage = packageFile(DEFAULT_PACKAGE_FILE_NAME)
         if (!defaultPackage.isFile) {
@@ -474,6 +492,20 @@ object ImePackageManager {
 
         File(backup.root, "active-manifest.yaml").takeIf { it.isFile }?.copyTo(activeManifestFile, overwrite = true)
         File(backup.root, "default.custom.yaml").takeIf { it.isFile }?.copyTo(customFile(), overwrite = true)
+
+        // Keep the running Rime engine in sync with the restored files: the
+        // failed activation may already have reloaded the new schema list and
+        // selected the new package's schema.
+        val restoredManifest = File(backup.root, "active-manifest.yaml")
+        if (restoredManifest.isFile) {
+            val oldSchemaId = readActiveManifest(restoredManifest)["schema_id"] as? String
+            if (oldSchemaId != null) {
+                RimeDaemon.getFirstSessionOrNull()?.run {
+                    updateConfig()
+                    selectSchema(oldSchemaId)
+                }
+            }
+        }
     }
 
     private fun requireSafeFileName(
@@ -516,6 +548,23 @@ object ImePackageManager {
         buildDir.listFiles()?.forEach { it.deleteRecursively() }
 
         active.delete()
+    }
+
+    /**
+     * Remove leftover activation staging/backup dirs from a previous process
+     * death. If no active manifest exists, every state dir under IMEs/ is stale
+     * and is removed too; ensureDefaultPackageReady() will then re-activate the
+     * bundled Default.zip.
+     */
+    private fun cleanupInterruptedActivation() {
+        val activeExists = activeManifestFile.isFile
+        imesDir.listFiles { file -> file.isDirectory }?.forEach { dir ->
+            val name = dir.name
+            val isTemp = name.startsWith(".staging-") || name.startsWith(".backup-")
+            if (isTemp || (!activeExists && !name.startsWith("."))) {
+                dir.deleteRecursively()
+            }
+        }
     }
 
     /**

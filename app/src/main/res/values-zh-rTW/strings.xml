@@ -133,6 +133,7 @@
     <string name="validate_definition_file_summary">依定義規範檢查主題/佈局/清單 YAML 檔</string>
     <string name="validate_definition_success">定義檔有效</string>
     <string name="validate_definition_failure">定義檔存在錯誤</string>
+    <string name="validate_definition_syntax_only">定義檔語法有效，但無法存取引用的檔案，已跳過完整驗證。</string>
     <string name="loading">正在載入</string>
     <string name="success">成功</string>
     <string name="failure">失敗</string>

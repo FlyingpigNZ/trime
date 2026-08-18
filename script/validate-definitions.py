@@ -33,6 +33,10 @@ def validate_component_manifest(data: dict, path: Path) -> list[str]:
     from color_verifier import verify as verify_colors
 
     errors: list[str] = []
+    if not sections.get("style"):
+        errors.append("Component package must define a non-empty 'style' section")
+    if not sections.get("preset_color_schemes"):
+        errors.append("Component package must define at least one 'preset_color_schemes' entry")
     errors += verify_behavior(sections)
     errors += verify_colors(sections)
     return errors

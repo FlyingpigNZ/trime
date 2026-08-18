@@ -161,7 +161,7 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
     private fun validateDefinitionFile(uri: Uri) {
         val ctx = requireContext()
         lifecycleScope.launch {
-            val errors =
+            val outcome =
                 withContext(Dispatchers.IO) {
                     val text =
                         ctx.contentResolver.openInputStream(uri)
@@ -170,15 +170,18 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
                             ?: return@withContext null
                     val realFile = ctx.getFileFromUri(uri)
                     if (realFile != null) {
-                        DefinitionValidator.validateComponentManifest(
-                            text,
-                            ComponentSource.fromDirectory(realFile.parentFile ?: return@withContext null),
+                        ValidationOutcome(
+                            DefinitionValidator.validateComponentManifest(
+                                text,
+                                ComponentSource.fromDirectory(realFile.parentFile ?: return@withContext null),
+                            ),
                         )
                     } else {
                         // Most GetContent URIs are content:// and have no usable
                         // filesystem path. Copy the selected file into a temp dir and
-                        // validate from there so referenced files are resolved instead
-                        // of silently claiming a syntax-only check.
+                        // try full validation; if the only problems are missing
+                        // sibling files, fall back to a clearly-labeled
+                        // syntax-only result instead of a false failure.
                         val tempDir =
                             File.createTempFile("definition-", ".dir", ctx.cacheDir).apply {
                                 delete()
@@ -186,27 +189,55 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
                             }
                         try {
                             File(tempDir, "manifest.yaml").writeText(text, Charsets.UTF_8)
-                            DefinitionValidator.validateComponentManifest(
-                                text,
-                                ComponentSource.fromDirectory(tempDir),
-                            )
+                            val fullErrors =
+                                DefinitionValidator.validateComponentManifest(
+                                    text,
+                                    ComponentSource.fromDirectory(tempDir),
+                                )
+                            if (fullErrors.isEmpty()) {
+                                ValidationOutcome(emptyList())
+                            } else {
+                                val syntaxErrors = DefinitionValidator.validateComponentManifest(text)
+                                val hasMissingReferences =
+                                    fullErrors.any { "Component file not found" in it }
+                                if (hasMissingReferences && syntaxErrors.isEmpty()) {
+                                    ValidationOutcome(emptyList(), referencedFilesUnavailable = true)
+                                } else {
+                                    ValidationOutcome(fullErrors)
+                                }
+                            }
                         } finally {
                             tempDir.deleteRecursively()
                         }
                     }
                 }
-            if (errors == null) return@launch
-            if (errors.isEmpty()) {
-                ctx.toast(R.string.validate_definition_success)
-            } else {
-                AlertDialog.Builder(ctx)
-                    .setTitle(R.string.validate_definition_failure)
-                    .setMessage(errors.joinToString("\n"))
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
+            if (outcome == null) return@launch
+            when {
+                outcome.referencedFilesUnavailable -> {
+                    AlertDialog.Builder(ctx)
+                        .setTitle(R.string.validate_definition_success)
+                        .setMessage(R.string.validate_definition_syntax_only)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+                outcome.errors.isEmpty() -> {
+                    ctx.toast(R.string.validate_definition_success)
+                }
+                else -> {
+                    AlertDialog.Builder(ctx)
+                        .setTitle(R.string.validate_definition_failure)
+                        .setMessage(outcome.errors.joinToString("\n"))
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
             }
         }
     }
+
+    private data class ValidationOutcome(
+        val errors: List<String>,
+        val referencedFilesUnavailable: Boolean = false,
+    )
 
     override fun onDestroy() {
         super.onDestroy()
