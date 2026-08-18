@@ -8,6 +8,9 @@
 # disable obfuscation
 -dontobfuscate
 
+# SnakeYAML references java.beans classes that are not present on Android.
+-dontwarn java.beans.**
+
 # Keep JNI interface
 -keep class com.osfans.trime.core.* { *; }
 
