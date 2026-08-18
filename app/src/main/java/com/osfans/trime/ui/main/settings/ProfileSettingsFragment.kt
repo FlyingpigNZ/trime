@@ -199,7 +199,7 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
                             } else {
                                 val syntaxErrors = DefinitionValidator.validateComponentManifest(text)
                                 val hasMissingReferences =
-                                    fullErrors.any { "Component file not found" in it }
+                                    fullErrors.any { it.startsWith(ComponentSource.MISSING_FILE_ERROR_PREFIX) }
                                 if (hasMissingReferences && syntaxErrors.isEmpty()) {
                                     ValidationOutcome(emptyList(), referencedFilesUnavailable = true)
                                 } else {

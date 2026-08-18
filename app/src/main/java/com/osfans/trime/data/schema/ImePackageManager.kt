@@ -18,6 +18,8 @@ import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.string
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.yaml.snakeyaml.Yaml as SnakeYaml
 import timber.log.Timber
@@ -41,6 +43,7 @@ object ImePackageManager {
 
     private val activating = AtomicBoolean(false)
     private val activationLock = Any()
+    private val ensureMutex = Mutex()
 
     private val imesDir: File
         get() = File(DataManager.userDataDir, "IMEs").apply { mkdirs() }
@@ -106,23 +109,25 @@ object ImePackageManager {
      * application-delivered Default.zip.
      */
     suspend fun ensureDefaultPackageReady() {
-        cleanupInterruptedActivation()
-        if (activeManifestFile.isFile) {
+        ensureMutex.withLock {
+            withContext(Dispatchers.IO) { cleanupInterruptedActivation() }
+            if (activeManifestFile.isFile) {
+                restoreActiveTheme()
+                return
+            }
+            installBundledDefaultPackage()
+            val defaultPackage = packageFile(DEFAULT_PACKAGE_FILE_NAME)
+            if (!defaultPackage.isFile) {
+                Timber.w("Bundled Default.zip is missing; no IME package can be activated")
+                return
+            }
+            withContext(Dispatchers.IO) {
+                activate(defaultPackage, applyThemeAfter = false)
+            }
+            // activate() writes the active manifest on the IO thread; restore now on
+            // the main thread so the package theme is available synchronously.
             restoreActiveTheme()
-            return
         }
-        installBundledDefaultPackage()
-        val defaultPackage = packageFile(DEFAULT_PACKAGE_FILE_NAME)
-        if (!defaultPackage.isFile) {
-            Timber.w("Bundled Default.zip is missing; no IME package can be activated")
-            return
-        }
-        withContext(Dispatchers.IO) {
-            activate(defaultPackage, applyThemeAfter = false)
-        }
-        // activate() writes the active manifest on the IO thread; restore now on
-        // the main thread so the package theme is available synchronously.
-        restoreActiveTheme()
     }
 
     /** Registry view of the active IME package's explicit schema→keyboard binding. */
@@ -552,17 +557,21 @@ object ImePackageManager {
 
     /**
      * Remove leftover activation staging/backup dirs from a previous process
-     * death. If no active manifest exists, every state dir under IMEs/ is stale
-     * and is removed too; ensureDefaultPackageReady() will then re-activate the
-     * bundled Default.zip.
+     * death. Runs under [activationLock] so it can never delete a live
+     * activation's staging/backup dirs. If no active manifest exists, every
+     * state dir under IMEs/ is stale and is removed too; this is an explicit
+     * fallback-to-Default policy rather than an attempt to recover the previous
+     * custom package's backup.
      */
     private fun cleanupInterruptedActivation() {
-        val activeExists = activeManifestFile.isFile
-        imesDir.listFiles { file -> file.isDirectory }?.forEach { dir ->
-            val name = dir.name
-            val isTemp = name.startsWith(".staging-") || name.startsWith(".backup-")
-            if (isTemp || (!activeExists && !name.startsWith("."))) {
-                dir.deleteRecursively()
+        synchronized(activationLock) {
+            val activeExists = activeManifestFile.isFile
+            imesDir.listFiles { file -> file.isDirectory }?.forEach { dir ->
+                val name = dir.name
+                val isTemp = name.startsWith(".staging-") || name.startsWith(".backup-")
+                if (isTemp || (!activeExists && !name.startsWith("."))) {
+                    dir.deleteRecursively()
+                }
             }
         }
     }
@@ -696,10 +705,14 @@ object ImePackageManager {
         activeManifestFile.writeText(SnakeYaml().dump(data), Charsets.UTF_8)
     }
 
-    private fun readActiveManifest(file: File): Map<String, Any?> {
-        val loaded = SnakeYaml().load<Any?>(file.readText(Charsets.UTF_8))
-        return loaded as? Map<String, Any?> ?: emptyMap()
-    }
+    private fun readActiveManifest(file: File): Map<String, Any?> =
+        try {
+            val loaded = SnakeYaml().load<Any?>(file.readText(Charsets.UTF_8))
+            loaded as? Map<String, Any?> ?: emptyMap()
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse active manifest ${file.name}; treating it as empty")
+            emptyMap()
+        }
 
     private fun customFile(): File = File(DataManager.userDataDir, "default.custom.yaml")
 

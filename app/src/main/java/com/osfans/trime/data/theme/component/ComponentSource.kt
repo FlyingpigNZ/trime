@@ -20,11 +20,13 @@ fun interface ComponentSource {
     fun load(path: String): Node.Mapping
 
     companion object {
+        const val MISSING_FILE_ERROR_PREFIX = "Component file not found: "
+
         /** Filesystem-backed source rooted at [root]. */
         fun fromDirectory(root: File): ComponentSource = ComponentSource { path ->
             val file = File(root, path)
             if (!file.isFile) {
-                throw IllegalArgumentException("Component file not found: $path")
+                throw IllegalArgumentException(MISSING_FILE_ERROR_PREFIX + path)
             }
             val node = Yaml.Default.parseToYamlNode(file.readText(Charsets.UTF_8))
             node.mapping
@@ -34,7 +36,7 @@ fun interface ComponentSource {
         /** In-memory source for tests. */
         fun fromMap(files: Map<String, Node.Mapping>): ComponentSource = ComponentSource { path ->
             files[path]
-                ?: throw IllegalArgumentException("Component file not found: $path")
+                ?: throw IllegalArgumentException(MISSING_FILE_ERROR_PREFIX + path)
         }
     }
 }
