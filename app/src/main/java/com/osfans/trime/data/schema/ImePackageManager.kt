@@ -143,7 +143,7 @@ object ImePackageManager {
                 if (!hasManifest) {
                     val schemaId = resolveMinimalManifestSchemaId(workspace, id)
                     zipOut.putNextEntry(ZipEntry("manifest.yaml"))
-                    zipOut.write(minimalManifest(id, schemaId).toByteArray(Charsets.UTF_8))
+                    zipOut.write(minimalManifest(schemaId).toByteArray(Charsets.UTF_8))
                     zipOut.closeEntry()
                 }
                 workspace.walkTopDown().forEach { file ->
@@ -168,10 +168,7 @@ object ImePackageManager {
         return out
     }
 
-    private fun minimalManifest(
-        id: String,
-        schemaId: String,
-    ): String =
+    private fun minimalManifest(schemaId: String): String =
         """
         name: $schemaId
         schema_id: $schemaId
@@ -199,7 +196,9 @@ object ImePackageManager {
                     entry.mapping?.get("schema")?.string
                         ?: entry.string?.takeIf { it.isNotBlank() }
                 }
-            }.getOrNull()?.takeIf { it.isNotBlank() }?.let { return it }
+            }.getOrNull()
+                ?.takeIf { it.isNotBlank() && hasSchemaFile(workspace, it) }
+                ?.let { return it }
         }
         val schemaFile =
             workspace.walkTopDown().firstOrNull { file ->
@@ -218,6 +217,19 @@ object ImePackageManager {
         )
     }
 
+    private fun hasSchemaFile(
+        workspace: File,
+        schemaId: String,
+    ): Boolean =
+        workspace.walkTopDown().any { file ->
+            if (!file.isFile) return@any false
+            val relative = file.relativeTo(workspace).path
+            if (relative == "build" || relative.startsWith("build/")) {
+                return@any false
+            }
+            file.name == "$schemaId.schema.yaml"
+        }
+
     /**
      * Import a package zip into the package library and extract it into its
      * own workspace. This does not compile or activate.
@@ -225,24 +237,43 @@ object ImePackageManager {
     fun importPackage(source: File): File {
         val meta = readPackageMeta(source)
         requireSafePackageId(meta.schemaId)
-        val packageDir = PackageStore.packageDir(meta.schemaId).apply { mkdirs() }
-        val zip = File(packageDir, "package.zip")
-        source.copyTo(zip, overwrite = true)
+        // Validate the package contents before touching the library/workspace.
+        // This must happen before any write so a bad package cannot leave a
+        // half-imported directory behind.
+        val schemaIds = schemaIdsFromZip(source, meta.schemaId)
 
+        val packageDir = PackageStore.packageDir(meta.schemaId)
         val workspace = PackageStore.workspaceDir(meta.schemaId)
-        // Overlay-extract into the existing workspace: files owned by the new
-        // package overwrite old versions, while files not in the package (user
-        // data, user dictionaries, sync, custom resources, etc.) are preserved
-        // automatically because we never delete the workspace.
-        workspace.mkdirs()
-        // Invalidate compile state before overlay extraction: if extraction
-        // fails, the workspace must not look compiled.
-        File(workspace, "compiled.marker").delete()
-        File(workspace, "compiled.error").delete()
-        extractZipOverlay(zip, workspace)
-        val schemaIds = schemaIdsFromZip(zip, meta.schemaId)
-        writeWorkspaceSchemaList(workspace, schemaIds)
-        return zip
+        val isNewPackage = !workspace.isDirectory
+        try {
+            packageDir.mkdirs()
+            val zip = File(packageDir, "package.zip")
+            source.copyTo(zip, overwrite = true)
+
+            // Overlay-extract into the existing workspace: files owned by the
+            // new package overwrite old versions, while files not in the
+            // package (user data, user dictionaries, sync, custom resources,
+            // etc.) are preserved automatically because we never delete the
+            // workspace.
+            workspace.mkdirs()
+            // Invalidate compile state before overlay extraction: if extraction
+            // fails, the workspace must not look compiled.
+            File(workspace, "compiled.marker").delete()
+            File(workspace, "compiled.error").delete()
+            extractZipOverlay(zip, workspace)
+            writeWorkspaceSchemaList(workspace, schemaIds)
+            return zip
+        } catch (t: Throwable) {
+            if (isNewPackage) {
+                packageDir.deleteRecursively()
+            } else {
+                // Keep the existing workspace visible, but never let a failed
+                // overlay import look like a healthy compiled package.
+                File(workspace, "compiled.marker").delete()
+                File(workspace, "compiled.error").writeText("import failed\n")
+            }
+            throw t
+        }
     }
 
     /** Copy the bundled Default.zip into the package library if needed. */

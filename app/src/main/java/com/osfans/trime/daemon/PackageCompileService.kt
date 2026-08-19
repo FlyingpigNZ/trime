@@ -104,6 +104,9 @@ class PackageCompileService : Service() {
         if (!Rime.deployRimeWorkspace(sharedDir, workspace.absolutePath, version)) {
             error("failed to deploy workspace: $workspace")
         }
+        if (!ImePackageManager.hasUsableTheme(workspace)) {
+            error("compiled workspace has no usable theme: $workspace")
+        }
         val markerContent =
             if (workspace.parentFile?.name == PackageStore.DEFAULT_PACKAGE_ID) {
                 val source = File(sharedDir, ImePackageManager.DEFAULT_PACKAGE_FILE_NAME)

@@ -18,6 +18,7 @@ import androidx.lifecycle.LifecycleCoroutineScope
 import com.osfans.trime.R
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.util.toast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -96,6 +97,7 @@ object ImePickerDialog {
                                             notifyDataSetChanged()
                                             context.toast(R.string.ime_package_compiled_switch_hint)
                                         } catch (t: Throwable) {
+                                            if (t is CancellationException) throw t
                                             Timber.w(t, "IME picker: compile failed for ${item.fileName}")
                                             context.toast(R.string.install_schema_layout_package_failure)
                                         }

@@ -21,6 +21,7 @@ import com.osfans.trime.util.addCategory
 import com.osfans.trime.util.addPreference
 import com.osfans.trime.util.setup
 import com.osfans.trime.util.toast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,6 +58,7 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                         }
                         ctx.toast(R.string.export)
                     } catch (t: Exception) {
+                        if (t is CancellationException) throw t
                         Timber.w(t, "Failed to export IME package")
                         ctx.toast(R.string.install_schema_layout_package_failure)
                     } finally {
@@ -64,6 +66,18 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                     }
                 }
             }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        importPreference?.isEnabled = !ImePackageManager.isBusy()
+        importPreference?.setSummary(
+            if (ImePackageManager.isBusy()) {
+                R.string.ime_package_import_in_progress
+            } else {
+                R.string.install_schema_layout_package_summary
+            },
+        )
     }
 
     override fun onDestroy() {
@@ -126,13 +140,18 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
     private fun startExport(pkg: ImePackageManager.ImePackage) {
         val ctx = requireContext()
         lifecycleScope.launch {
+            var file: File? = null
             try {
-                val file = withContext(Dispatchers.IO) {
-                    ImePackageManager.exportPackage(pkg.fileName)
+                file = withContext(Dispatchers.IO) {
+                    ImePackageManager.exportPackage(pkg.fileName).also { file = it }
                 }
                 pendingExportFile = file
                 exportLauncher.launch("${pkg.fileName.removeSuffix(".zip")}-export.zip")
             } catch (t: Exception) {
+                if (t is CancellationException) {
+                    file?.delete()
+                    throw t
+                }
                 Timber.w(t, "Failed to prepare IME package export")
                 ctx.toast(R.string.install_schema_layout_package_failure)
             }
@@ -153,18 +172,20 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
             val tempFile = File.createTempFile("ime-package-", ".zip", ctx.cacheDir)
             var imported: File? = null
             try {
-                imported =
+                val packageId =
                     withContext(Dispatchers.IO) {
                         ctx.contentResolver.openInputStream(uri)!!.use { input ->
                             tempFile.outputStream().use { input.copyTo(it) }
                         }
-                        ImePackageManager.importPackage(tempFile)
+                        val importedFile = ImePackageManager.importPackage(tempFile)
+                        imported = importedFile
+                        ImePackageManager.packageIdOf(importedFile)
                     }
-                val packageId = ImePackageManager.packageIdOf(imported)
                 // Compile runs in the foreground :compile service; its
                 // notification reports start/success/failure.
                 ImePackageManager.compilePackageFile("$packageId.zip")
             } catch (t: Exception) {
+                if (t is CancellationException) throw t
                 Timber.w(t, "IME package import/compile failed")
                 if (imported == null) {
                     ImePackageNotifications.cancel(ctx)
