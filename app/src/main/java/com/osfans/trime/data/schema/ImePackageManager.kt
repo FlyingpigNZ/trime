@@ -265,12 +265,14 @@ object ImePackageManager {
             return zip
         } catch (t: Throwable) {
             if (isNewPackage) {
-                packageDir.deleteRecursively()
+                runCatching { packageDir.deleteRecursively() }
             } else {
                 // Keep the existing workspace visible, but never let a failed
                 // overlay import look like a healthy compiled package.
-                File(workspace, "compiled.marker").delete()
-                File(workspace, "compiled.error").writeText("import failed\n")
+                runCatching {
+                    File(workspace, "compiled.marker").delete()
+                    File(workspace, "compiled.error").writeText("import failed\n")
+                }
             }
             throw t
         }
@@ -349,7 +351,13 @@ object ImePackageManager {
                     }
                 }
                 if (!PackageStore.isCompiled(PackageStore.DEFAULT_PACKAGE_ID)) {
-                    compilePackage(PackageStore.DEFAULT_PACKAGE_ID)
+                    // If we fell back from another active package, the caller
+                    // restarts Rime below; only compilePackage itself restarts
+                    // when Default was already active and simply needed compiling.
+                    compilePackage(
+                        PackageStore.DEFAULT_PACKAGE_ID,
+                        restartActive = active == PackageStore.DEFAULT_PACKAGE_ID,
+                    )
                 }
                 if (PackageStore.activePackageId() == null) {
                     PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
@@ -420,7 +428,9 @@ object ImePackageManager {
         }
         try {
             if (!PackageStore.isCompiled(id)) {
-                compilePackage(id)
+                // activate() performs the final restart/theme restore below, so
+                // do not let compilePackage also refresh the active package.
+                compilePackage(id, restartActive = false)
             }
             PackageStore.setActivePackage(id)
             // Reload Rime with the new package's workspace as user_data_dir.
@@ -469,7 +479,10 @@ object ImePackageManager {
      * Compile a package workspace in the separate `:compile` process and wait
      * for `compiled.marker`.
      */
-    private suspend fun compilePackage(packageId: String) {
+    private suspend fun compilePackage(
+        packageId: String,
+        restartActive: Boolean = true,
+    ) {
         compileMutex.withLock {
             val workspace = PackageStore.workspaceDir(packageId)
             if (!workspace.isDirectory) {
@@ -507,7 +520,8 @@ object ImePackageManager {
                 // If the active package was recompiled in place, restart Rime so it
                 // picks up the new workspace contents, and reload the theme so the
                 // in-memory keyboard layout reflects the updated package immediately.
-                if (PackageStore.activePackageId() == packageId) {
+                // Callers that will restart/restore themselves pass false here.
+                if (restartActive && PackageStore.activePackageId() == packageId) {
                     RimeDaemon.restartRime()
                     restoreActiveTheme()
                     ImePackageNotifications.notifyRefreshed(appContext)

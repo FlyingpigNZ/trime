@@ -98,14 +98,16 @@ class PackageCompileService : Service() {
 
     private fun compile(workspace: File, sharedDir: String, version: String): Boolean {
         if (!workspace.isDirectory) error("workspace dir missing: $workspace")
+        // Theme loading does not depend on deploy output, so reject unusable
+        // themes before spending time on a full Rime deploy.
+        if (!ImePackageManager.hasUsableTheme(workspace)) {
+            error("compiled workspace has no usable theme: $workspace")
+        }
         // Synchronously deploy the workspace in this separate process. This
         // must not race a maintenance thread, so use the dedicated workspace
         // deploy entry point instead of startupRime() + deployRimeSchemaFile().
         if (!Rime.deployRimeWorkspace(sharedDir, workspace.absolutePath, version)) {
             error("failed to deploy workspace: $workspace")
-        }
-        if (!ImePackageManager.hasUsableTheme(workspace)) {
-            error("compiled workspace has no usable theme: $workspace")
         }
         val markerContent =
             if (workspace.parentFile?.name == PackageStore.DEFAULT_PACKAGE_ID) {

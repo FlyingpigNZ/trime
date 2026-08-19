@@ -198,11 +198,13 @@ object ImePickerDialog {
                                         }
                                         context.toast(R.string.ime_package_activation_success)
                                     } catch (t: Throwable) {
+                                        if (t is CancellationException) throw t
                                         Timber.w(t, "IME picker: activation failed for ${selected.fileName}")
                                         context.toast(R.string.install_schema_layout_package_failure)
                                     }
                                 }
                             } catch (t: Throwable) {
+                                if (t is CancellationException) throw t
                                 Timber.w(t, "IME picker: pre-activation check failed for ${selected.fileName}")
                                 dialog.dismiss()
                                 context.toast(R.string.install_schema_layout_package_failure)
