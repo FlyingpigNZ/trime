@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import splitties.dimensions.dp
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
 
 object ImePickerDialog {
     suspend fun build(
@@ -84,13 +85,14 @@ object ImePickerDialog {
                                 isFocusable = false
                                 isFocusableInTouchMode = false
                                 layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+                                val compileStarted = AtomicBoolean(false)
                                 setOnClickListener {
                                     scope.launch {
-                                        if (ImePackageManager.isBusy()) {
+                                        if (ImePackageManager.isBusy() || !compileStarted.compareAndSet(false, true)) {
                                             return@launch
                                         }
-                                        context.toast(R.string.ime_package_compiling_start)
                                         try {
+                                            context.toast(R.string.ime_package_compiling_start)
                                             withContext(Dispatchers.IO) {
                                                 ImePackageManager.compilePackageFile(item.fileName)
                                             }
@@ -100,6 +102,8 @@ object ImePickerDialog {
                                             if (t is CancellationException) throw t
                                             Timber.w(t, "IME picker: compile failed for ${item.fileName}")
                                             context.toast(R.string.install_schema_layout_package_failure)
+                                        } finally {
+                                            compileStarted.set(false)
                                         }
                                     }
                                 }

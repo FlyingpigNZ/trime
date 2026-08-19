@@ -11,9 +11,9 @@ import com.osfans.trime.daemon.ImePackageNotifications
 import com.osfans.trime.daemon.PackageCompileService
 import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.data.base.DataManager
+import com.osfans.trime.data.theme.PackageThemeLoader
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeManager
-import com.osfans.trime.data.theme.component.ComponentThemeLoader
 import com.osfans.trime.util.appContext
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
@@ -98,8 +98,7 @@ object ImePackageManager {
     fun isDefaultPackage(fileName: String): Boolean = fileName == DEFAULT_PACKAGE_FILE_NAME
 
     /** Whether the workspace contains a theme the app can actually load. */
-    fun hasUsableTheme(workspace: File): Boolean =
-        runCatching { loadPackageTheme(workspace) }.isSuccess
+    fun hasUsableTheme(workspace: File): Boolean = PackageThemeLoader.hasUsableTheme(workspace)
 
     fun isActivePackage(packageFile: File): Boolean =
         packageIdFromPackageFile(packageFile) == PackageStore.activePackageId()
@@ -354,9 +353,12 @@ object ImePackageManager {
                     // If we fell back from another active package, the caller
                     // restarts Rime below; only compilePackage itself restarts
                     // when Default was already active and simply needed compiling.
+                    // The caller always restores the theme once at the end, so
+                    // compilePackage should not restore/notify here too.
                     compilePackage(
                         PackageStore.DEFAULT_PACKAGE_ID,
                         restartActive = active == PackageStore.DEFAULT_PACKAGE_ID,
+                        restoreThemeAfter = false,
                     )
                 }
                 if (PackageStore.activePackageId() == null) {
@@ -470,7 +472,7 @@ object ImePackageManager {
         val workspace = withContext(Dispatchers.IO) { PackageStore.activeWorkspaceDir() } ?: return
         val theme =
             withContext(Dispatchers.IO) {
-                loadPackageTheme(workspace)
+                PackageThemeLoader.load(workspace)
             }
         applyTheme(theme)
     }
@@ -482,6 +484,7 @@ object ImePackageManager {
     private suspend fun compilePackage(
         packageId: String,
         restartActive: Boolean = true,
+        restoreThemeAfter: Boolean = restartActive,
     ) {
         compileMutex.withLock {
             val workspace = PackageStore.workspaceDir(packageId)
@@ -523,8 +526,10 @@ object ImePackageManager {
                 // Callers that will restart/restore themselves pass false here.
                 if (restartActive && PackageStore.activePackageId() == packageId) {
                     RimeDaemon.restartRime()
-                    restoreActiveTheme()
-                    ImePackageNotifications.notifyRefreshed(appContext)
+                    if (restoreThemeAfter) {
+                        restoreActiveTheme()
+                        ImePackageNotifications.notifyRefreshed(appContext)
+                    }
                 }
             } finally {
                 compiling.set(false)
@@ -647,39 +652,6 @@ object ImePackageManager {
         val text = zip.getInputStream(entry).bufferedReader(Charsets.UTF_8).use { it.readText() }
         return Yaml.Default.parseToYamlNode(text).mapping
             ?: throw IllegalArgumentException("IME package manifest is not a YAML mapping")
-    }
-
-    private fun loadPackageTheme(workspace: File): Theme {
-        val componentManifest =
-            listOf(File(workspace, "component.yaml"), File(workspace, "manifest.yaml"))
-                .firstOrNull { it.isFile && ComponentThemeLoader.isComponentManifest(it) }
-        if (componentManifest != null) {
-            return ComponentThemeLoader.loadTheme(componentManifest)
-        }
-        val themeFile = File(workspace, "theme.yaml")
-        if (themeFile.isFile) {
-            val node = Yaml.Default.parseToYamlNode(themeFile.readText(Charsets.UTF_8)).mapping
-                ?: throw IllegalArgumentException("theme.yaml is not a mapping")
-            val style = node["style"]?.mapping
-            val hasColorSchemes =
-                node["preset_color_schemes"]?.mapping?.pairs?.isNotEmpty() == true ||
-                    node["color_schemes"]?.mapping?.pairs?.isNotEmpty() == true
-            if (style == null || style.pairs.isEmpty()) {
-                throw IllegalArgumentException("theme.yaml must define a non-empty 'style' section")
-            }
-            if (!hasColorSchemes) {
-                throw IllegalArgumentException("theme.yaml must define at least one color scheme")
-            }
-            val name = node["name"]?.string ?: workspace.name
-            return Theme.decode(
-                Node.Mapping(
-                    LinkedHashMap(node.pairs).apply {
-                        put(Node.Scalar("name"), Node.Scalar(name))
-                    },
-                ),
-            )
-        }
-        throw IllegalArgumentException("IME package has no component manifest or theme.yaml")
     }
 
     private fun sha256(file: File): String {

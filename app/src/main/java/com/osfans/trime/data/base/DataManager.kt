@@ -9,12 +9,8 @@ import android.os.Build
 import android.os.Environment
 import androidx.preference.PreferenceManager
 import com.osfans.trime.data.prefs.AppPrefs
-// DataManager uses ImePackageManager.hasUsableTheme during migration to avoid
-// marking unusable migrated data as compiled. This forms a package-level cycle
-// with ImePackageManager's DataManager import; it is accepted for now and can
-// be untangled later by extracting theme usability into a lower-level helper.
-import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.schema.PackageStore
+import com.osfans.trime.data.theme.PackageThemeLoader
 import com.osfans.trime.util.FileUtils
 import com.osfans.trime.util.ResourceUtils
 import com.osfans.trime.util.appContext
@@ -260,7 +256,7 @@ object DataManager {
         val compiledEvidence =
             File(workspace, "build").isDirectory ||
                 File(workspace, "default.custom.yaml").isFile
-        if (!compiledEvidence || !ImePackageManager.hasUsableTheme(workspace)) return
+        if (!compiledEvidence || !PackageThemeLoader.hasUsableTheme(workspace)) return
         val content =
             if (packageId == PackageStore.DEFAULT_PACKAGE_ID) {
                 val source = File(sharedDataDir, "Default.zip")
