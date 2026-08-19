@@ -96,6 +96,10 @@ object ImePackageManager {
 
     fun isDefaultPackage(fileName: String): Boolean = fileName == DEFAULT_PACKAGE_FILE_NAME
 
+    /** Whether the workspace contains a theme the app can actually load. */
+    fun hasUsableTheme(workspace: File): Boolean =
+        runCatching { loadPackageTheme(workspace) }.isSuccess
+
     fun isActivePackage(packageFile: File): Boolean =
         packageIdFromPackageFile(packageFile) == PackageStore.activePackageId()
 

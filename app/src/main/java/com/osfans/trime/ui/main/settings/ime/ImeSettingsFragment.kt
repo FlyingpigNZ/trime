@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.R
 import com.osfans.trime.data.schema.ImePackageManager
+import com.osfans.trime.data.schema.PackageStore
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
 import com.osfans.trime.ui.main.settings.ImePickerDialog
 import com.osfans.trime.util.addCategory
@@ -85,17 +86,19 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                 ) {
                     packageLauncher.launch("application/zip")
                 }
-                addPreference(
-                    R.string.export_migrated_workspace,
-                    R.string.export_migrated_workspace_summary,
-                ) {
-                    startExport(
-                        ImePackageManager.ImePackage(
-                            fileName = "Migrated.zip",
-                            name = "Migrated",
-                            version = null,
-                        ),
-                    )
+                if (PackageStore.workspaceDir(PackageStore.MIGRATED_PACKAGE_ID).isDirectory) {
+                    addPreference(
+                        R.string.export_migrated_workspace,
+                        R.string.export_migrated_workspace_summary,
+                    ) {
+                        startExport(
+                            ImePackageManager.ImePackage(
+                                fileName = "${PackageStore.MIGRATED_PACKAGE_ID}.zip",
+                                name = PackageStore.MIGRATED_PACKAGE_ID,
+                                version = null,
+                            ),
+                        )
+                    }
                 }
             }
         }

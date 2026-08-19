@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Environment
 import androidx.preference.PreferenceManager
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.schema.PackageStore
 import com.osfans.trime.util.FileUtils
 import com.osfans.trime.util.ResourceUtils
@@ -232,11 +233,13 @@ object DataManager {
         packageId: String,
     ) {
         // Only mark migrated data as compiled when there is actual evidence it
-        // was deployed before; otherwise let the normal compile flow take over.
+        // was deployed before and its theme is usable; otherwise let the normal
+        // compile/fallback flow take over instead of creating a package that
+        // looks compiled but cannot be opened.
         val compiledEvidence =
             File(workspace, "build").isDirectory ||
                 File(workspace, "default.custom.yaml").isFile
-        if (!compiledEvidence) return
+        if (!compiledEvidence || !ImePackageManager.hasUsableTheme(workspace)) return
         val content =
             if (packageId == PackageStore.DEFAULT_PACKAGE_ID) {
                 val source = File(sharedDataDir, "Default.zip")
