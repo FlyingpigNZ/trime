@@ -17,6 +17,7 @@ import com.osfans.trime.util.appContext
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
+import com.osfans.trime.util.yaml.sequence
 import com.osfans.trime.util.yaml.string
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -138,8 +139,9 @@ object ImePackageManager {
                     File(workspace, "manifest.yaml").isFile ||
                         File(workspace, "component.yaml").isFile
                 if (!hasManifest) {
+                    val schemaId = resolveMinimalManifestSchemaId(workspace, id)
                     zipOut.putNextEntry(ZipEntry("manifest.yaml"))
-                    zipOut.write(minimalManifest(id).toByteArray(Charsets.UTF_8))
+                    zipOut.write(minimalManifest(id, schemaId).toByteArray(Charsets.UTF_8))
                     zipOut.closeEntry()
                 }
                 workspace.walkTopDown().forEach { file ->
@@ -164,12 +166,55 @@ object ImePackageManager {
         return out
     }
 
-    private fun minimalManifest(id: String): String =
+    private fun minimalManifest(
+        id: String,
+        schemaId: String,
+    ): String =
         """
-        name: $id
-        schema_id: $id
+        name: $schemaId
+        schema_id: $schemaId
         default_keyboard: ""
         """.trimIndent()
+
+    /**
+     * Pick the schema id for a generated minimal manifest from the workspace
+     * itself. Prefer the first entry of `default.custom.yaml`'s `schema_list`;
+     * fall back to the first `.schema.yaml` outside `build/`. This keeps
+     * export-then-reimport working for manifests workspaces such as `Migrated`,
+     * whose directory name is not a real schema id.
+     */
+    private fun resolveMinimalManifestSchemaId(
+        workspace: File,
+        id: String,
+    ): String {
+        val custom = File(workspace, "default.custom.yaml")
+        if (custom.isFile) {
+            runCatching {
+                val node =
+                    Yaml.Default.parseToYamlNode(custom.readText(Charsets.UTF_8)).mapping
+                val schemaList = node?.get("patch")?.mapping?.get("schema_list")?.sequence
+                schemaList?.nodes?.firstNotNullOfOrNull { entry ->
+                    entry.mapping?.get("schema")?.string
+                        ?: entry.string?.takeIf { it.isNotBlank() }
+                }
+            }.getOrNull()?.takeIf { it.isNotBlank() }?.let { return it }
+        }
+        val schemaFile =
+            workspace.walkTopDown().firstOrNull { file ->
+                if (!file.isFile) return@firstOrNull false
+                val relative = file.relativeTo(workspace).path
+                if (relative == "build" || relative.startsWith("build/")) {
+                    return@firstOrNull false
+                }
+                file.name.endsWith(".schema.yaml")
+            }
+        if (schemaFile != null) {
+            return schemaFile.name.removeSuffix(".schema.yaml")
+        }
+        throw IllegalArgumentException(
+            "Workspace $id has no usable schema; cannot export as an importable package",
+        )
+    }
 
     /**
      * Import a package zip into the package library and extract it into its
