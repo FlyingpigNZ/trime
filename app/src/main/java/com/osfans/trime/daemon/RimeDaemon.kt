@@ -65,6 +65,9 @@ object RimeDaemon {
                 )
             },
             onBeforeStart = {
+                // Sync shared assets first so Default.zip exists, then install
+                // the bundled package. installBundledDefaultPackage() writes
+                // default.custom.yaml itself after extraction.
                 DataManager.sync()
                 ImePackageManager.installBundledDefaultPackage()
             },

@@ -10,6 +10,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:name="com.osfans.trime.TrimeApplication"
@@ -31,6 +33,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
                 android:name="android.view.im"
                 android:resource="@xml/method" />
         </service>
+
+        <!-- POC: separate process for offline workspace compilation. -->
+        <service
+            android:name=".daemon.PackageCompileService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:process=":compile" />
 
         <provider
             android:name=".provider.RimeDataProvider"

@@ -9,12 +9,15 @@ import android.os.Build
 import android.os.Environment
 import androidx.preference.PreferenceManager
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.PackageStore
 import com.osfans.trime.util.FileUtils
 import com.osfans.trime.util.ResourceUtils
 import com.osfans.trime.util.appContext
 import kotlinx.serialization.json.Json
+import org.yaml.snakeyaml.Yaml
 import timber.log.Timber
 import java.io.File
+import java.security.MessageDigest
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -59,8 +62,16 @@ object DataManager {
 
     val sharedDataDir = File(appContext.getExternalFilesDir(null), "shared").also { it.mkdirs() }
 
+    /**
+     * Rime's current user data directory. In the package model this is the
+     * active package's workspace (or the Default workspace before any package
+     * has been activated), never a shared `/rime` dir that packages are copied
+     * into.
+     */
     val userDataDir
-        get() = defaultDataDir.also { it.mkdirs() }
+        get() =
+            (PackageStore.activeWorkspaceDir() ?: PackageStore.defaultWorkspaceDir())
+                .also { it.mkdirs() }
 
     val prebuiltDataDir = File(sharedDataDir, "build")
     val stagingDir get() = File(userDataDir, "build")
@@ -74,6 +85,11 @@ object DataManager {
      * was not cleared for some reason.
      */
     fun migrateLegacyUserDataIfNeeded() {
+        migrateLegacyPublicRimeIfNeeded()
+        migrateManagedRimeToPackageWorkspaceIfNeeded()
+    }
+
+    private fun migrateLegacyPublicRimeIfNeeded() {
         val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(appContext)
         val managed = defaultDataDir
         val configuredPath = sharedPrefs.getString(AppPrefs.Profile.USER_DATA_DIR, null)
@@ -110,7 +126,142 @@ object DataManager {
         }
     }
 
+    /**
+     * One-time migration from the old shared `/rime` directory (the previous
+     * "all packages in one user_data_dir" layout) into per-package workspaces.
+     *
+     * If the old active manifest identifies a package, that package becomes a
+     * workspace and is activated. Otherwise the data is preserved in a special
+     * `Migrated` workspace (the old data has no corresponding package) and
+     * Default is activated.
+     */
+    private fun migrateManagedRimeToPackageWorkspaceIfNeeded() {
+        if (PackageStore.activePackageId() != null) return
+        val managed = defaultDataDir
+        if (!managed.isDirectory) return
+        val marker = File(dataDir, PACKAGE_MIGRATION_MARKER)
+        if (marker.isFile) {
+            if (PackageStore.activePackageId() == null) {
+                PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
+            }
+            return
+        }
+        val activeManifest = File(managed, "IMEs/active-manifest.yaml")
+        val activePackageId =
+            readActivePackageId(activeManifest)
+                ?.takeIf { PackageStore.isSafePackageId(it) }
+        val targetWorkspace =
+            if (activePackageId != null && PackageStore.isSafePackageId(activePackageId)) {
+                PackageStore.workspaceDir(activePackageId)
+            } else {
+                PackageStore.workspaceDir(PackageStore.MIGRATED_PACKAGE_ID)
+            }
+        if (targetWorkspace.listFiles()?.isNotEmpty() == true) {
+            if (activePackageId != null) {
+                writeMigratedCompiledMarker(targetWorkspace, activePackageId)
+                PackageStore.setActivePackage(activePackageId)
+            } else {
+                PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
+            }
+            marker.writeText(managed.absolutePath)
+            return
+        }
+        try {
+            targetWorkspace.deleteRecursively()
+            targetWorkspace.mkdirs()
+            managed.listFiles()?.forEach { child ->
+                if (child.name == "IMEs") return@forEach
+                val target = File(targetWorkspace, child.name)
+                if (child.isDirectory) {
+                    child.copyRecursively(target, overwrite = true)
+                } else {
+                    child.copyTo(target, overwrite = true)
+                }
+            }
+            if (activePackageId != null) {
+                val stateDir = File(managed, "IMEs/$activePackageId")
+                if (stateDir.isDirectory) {
+                    stateDir.listFiles()?.forEach { child ->
+                        val target = File(targetWorkspace, child.name)
+                        if (child.isDirectory) {
+                            child.copyRecursively(target, overwrite = true)
+                        } else {
+                            child.copyTo(target, overwrite = true)
+                        }
+                    }
+                }
+            }
+            // Preserve non-active old IME package zips so they can be compiled
+            // and switched to later.
+            File(managed, "IMEs").listFiles { file ->
+                file.isFile && file.extension.equals("zip", ignoreCase = true)
+            }?.forEach { oldZip ->
+                val id = oldZip.nameWithoutExtension
+                if (PackageStore.isSafePackageId(id) && id != activePackageId) {
+                    val dest = File(PackageStore.packageDir(id), "package.zip")
+                    dest.parentFile?.mkdirs()
+                    oldZip.copyTo(dest, overwrite = true)
+                }
+            }
+            if (activePackageId != null) {
+                writeMigratedCompiledMarker(targetWorkspace, activePackageId)
+            }
+            marker.writeText(managed.absolutePath)
+            if (activePackageId != null) {
+                PackageStore.setActivePackage(activePackageId)
+                Timber.i("Migrated managed /rime to package workspace $activePackageId")
+            } else {
+                PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
+                Timber.i("No matching package for managed /rime; preserved as Migrated workspace")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to migrate managed /rime to package workspace")
+        }
+    }
+
+    private fun readActivePackageId(manifest: File): String? {
+        if (!manifest.isFile) return null
+        return runCatching {
+            val loaded = Yaml().load<Any?>(manifest.readText(Charsets.UTF_8))
+            (loaded as? Map<*, *>)?.get("package_id") as? String
+        }.getOrNull()
+    }
+
+    private fun writeMigratedCompiledMarker(
+        workspace: File,
+        packageId: String,
+    ) {
+        // Only mark migrated data as compiled when there is actual evidence it
+        // was deployed before; otherwise let the normal compile flow take over.
+        val compiledEvidence =
+            File(workspace, "build").isDirectory ||
+                File(workspace, "default.custom.yaml").isFile
+        if (!compiledEvidence) return
+        val content =
+            if (packageId == PackageStore.DEFAULT_PACKAGE_ID) {
+                val source = File(sharedDataDir, "Default.zip")
+                if (source.isFile) sha256(source) else "ok"
+            } else {
+                "ok"
+            }
+        File(workspace, "compiled.marker").writeText(content)
+    }
+
+    private fun sha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
     private const val MIGRATION_MARKER = ".trime-migrated-to-managed"
+    private const val PACKAGE_MIGRATION_MARKER = ".trime-migrated-to-package-workspaces"
 
     /**
      * Return the absolute path of the compiled config file
@@ -155,13 +306,18 @@ object DataManager {
 
         ResourceUtils.copyFile(DATA_CHECKSUMS_NAME, dataDir.resolve(DATA_CHECKSUMS_NAME).absolutePath)
 
+        ensureDefaultCustomFile()
+
+        Timber.d("Synced!")
+    }
+
+    /** Create the minimal default.custom.yaml in the current user data dir. */
+    fun ensureDefaultCustomFile() {
         val custom = userDataDir.resolve(DEFAULT_CUSTOM_FILE_NAME)
         if (!custom.exists()) {
             if (custom.createNewFile()) {
                 custom.writeText(SCHEMA_LIST_CUSTOM_PATCH.trimIndent())
             }
         }
-
-        Timber.d("Synced!")
     }
 }

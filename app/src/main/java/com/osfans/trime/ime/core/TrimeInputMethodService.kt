@@ -263,6 +263,10 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                 }
             is RimeMessage.DeployMessage -> {
                 if (it.data == RimeMessage.DeployMessage.State.Success) {
+                    // The engine itself may have deployed the current workspace
+                    // (e.g. Default during first startup); record that so the
+                    // compile service does not redundantly compile it again.
+                    ImePackageManager.markCurrentWorkspaceCompiled()
                     if (ImePackageManager.activePackageFileName() != null) {
                         lifecycleScope.launch { ImePackageManager.restoreActiveTheme() }
                     } else {

@@ -4,55 +4,50 @@
 
 package com.osfans.trime.data.schema
 
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
-import com.osfans.trime.core.Rime
+import androidx.core.content.ContextCompat
+import com.osfans.trime.BuildConfig
+import com.osfans.trime.daemon.PackageCompileService
 import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.data.theme.component.ComponentThemeLoader
+import com.osfans.trime.util.appContext
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.string
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.yaml.snakeyaml.Yaml as SnakeYaml
 import timber.log.Timber
 import java.io.File
 import java.security.MessageDigest
-import java.util.NoSuchElementException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 
 /**
- * IME package manager for the self-contained package model.
+ * IME package manager for the workspace-pointer package model.
  *
- * Packages live in the app-managed Rime user data dir under `IMEs/` as zip
- * files. Activating a package extracts its `rime/...` files into the Rime user
- * data dir, extracts its definition files into a persistent per-package state
- * dir under `IMEs/`, deploys the Rime schemas, and writes an active manifest
- * that doubles as the uninstall manifest.
+ * Every package owns a complete workspace under [PackageStore.rootDir]; the
+ * workspace is used directly as Rime's `user_data_dir`. Importing extracts the
+ * zip into the workspace, compiling runs a separate-process deploy and writes
+ * `compiled.marker`, and activating only changes the active package pointer.
  */
 object ImePackageManager {
     const val DEFAULT_PACKAGE_FILE_NAME = "Default.zip"
 
     private val activating = AtomicBoolean(false)
-    private val activationLock = Any()
+    private val compileMutex = Mutex()
     private val ensureMutex = Mutex()
-
-    private val imesDir: File
-        get() = File(DataManager.userDataDir, "IMEs").apply { mkdirs() }
-
-    private val activeManifestFile: File
-        get() = File(imesDir, "active-manifest.yaml")
-
-    private val buildDir: File
-        get() = DataManager.stagingDir
 
     data class ImePackage(
         val fileName: String,
@@ -61,567 +56,462 @@ object ImePackageManager {
         val error: String? = null,
     )
 
-    fun listPackages(): List<ImePackage> {
-        imesDir.mkdirs()
-        return imesDir.listFiles { file -> file.isFile && file.extension.equals("zip", ignoreCase = true) }
-            ?.sortedBy { it.name.lowercase() }
-            ?.map { file ->
-                runCatching { readPackageMeta(file) }.fold(
-                    onSuccess = { meta -> ImePackage(meta.fileName, meta.name, meta.version) },
-                    onFailure = { e ->
-                        Timber.w("Failed to read IME package ${file.name}: ${e.message}")
-                        ImePackage(
-                            fileName = file.name,
-                            name = file.nameWithoutExtension,
-                            version = null,
-                            error = e.message ?: "Invalid IME package",
-                        )
-                    },
+    fun listPackages(): List<ImePackage> =
+        PackageStore.rootDir
+            .listFiles { file -> file.isDirectory }
+            ?.mapNotNull { dir ->
+                val id = dir.name
+                if (!PackageStore.isSafePackageId(id)) return@mapNotNull null
+                if (id == PackageStore.MIGRATED_PACKAGE_ID) return@mapNotNull null
+                val zip = File(dir, "package.zip")
+                val meta =
+                    if (zip.isFile) {
+                        runCatching { readPackageMeta(zip) }.getOrNull()
+                    } else {
+                        runCatching { readWorkspaceMeta(PackageStore.workspaceDir(id)) }.getOrNull()
+                    }
+                ImePackage(
+                    fileName = "$id.zip",
+                    name = meta?.name ?: id,
+                    version = meta?.version,
+                    error = if (meta == null) "Invalid or missing package.zip" else null,
                 )
             }
+            ?.sortedBy { it.fileName.lowercase() }
             ?: emptyList()
+
+    fun activePackageFileName(): String? = PackageStore.activePackageId()?.let { "$it.zip" }
+
+    fun packageFile(fileName: String): File {
+        val id = fileName.removeSuffix(".zip")
+        return File(PackageStore.packageDir(id), "package.zip")
     }
 
-    fun activePackageFileName(): String? =
-        activeManifestFile
-            .takeIf { it.isFile }
-            ?.let { readActiveManifest(it)["active_package"] as? String }
+    /** Resolve the schema/package id from an imported package zip. */
+    fun packageIdOf(packageFile: File): String = readPackageMeta(packageFile).schemaId
 
-    fun packageFile(fileName: String): File = File(imesDir, fileName)
+    /** Internal package zips are stored as `<packageDir>/package.zip`. */
+    private fun packageIdFromPackageFile(packageFile: File): String =
+        packageFile.parentFile?.name ?: packageFile.nameWithoutExtension
 
-    /**
-     * Install the application-delivered Default.zip from the synced shared data
-     * dir into the persistent app-managed IME package library. No-op when the
-     * bundled package is already up to date.
-     */
-    fun installBundledDefaultPackage() {
-        val source = File(DataManager.sharedDataDir, DEFAULT_PACKAGE_FILE_NAME)
-        if (!source.isFile) return
-        val target = File(imesDir, DEFAULT_PACKAGE_FILE_NAME)
-        if (target.isFile && sha256(target) == sha256(source)) return
-        source.copyTo(target, overwrite = true)
-    }
-
-    /**
-     * Make sure an IME package is active before any theme-dependent UI is
-     * created. If the app-managed IME library already has an active manifest,
-     * restore its theme. Otherwise install and activate the
-     * application-delivered Default.zip.
-     */
-    suspend fun ensureDefaultPackageReady() {
-        ensureMutex.withLock {
-            withContext(Dispatchers.IO) { cleanupInterruptedActivation() }
-            if (activeManifestFile.isFile) {
-                restoreActiveTheme()
-                return
-            }
-            val defaultPackage =
-                withContext(Dispatchers.IO) {
-                    installBundledDefaultPackage()
-                    packageFile(DEFAULT_PACKAGE_FILE_NAME).takeIf { it.isFile }
-                }
-            if (defaultPackage == null) {
-                Timber.w("Bundled Default.zip is missing; no IME package can be activated")
-                return
-            }
-            withContext(Dispatchers.IO) {
-                activateDefaultIfNoActive(defaultPackage)
-            }
-            // activate() writes the active manifest on the IO thread; restore now on
-            // the main thread so the package theme is available synchronously.
-            restoreActiveTheme()
-        }
-    }
-
-    /**
-     * Activate the bundled default package only if no other package became
-     * active while this call was waiting for the activation lock. This prevents
-     * a concurrent user install from being immediately overridden by the
-     * startup fallback.
-     */
-    private fun activateDefaultIfNoActive(defaultPackage: File) {
-        synchronized(activationLock) {
-            if (activeManifestFile.isFile) return
-            activate(defaultPackage, applyThemeAfter = false)
-        }
-    }
-
-    /** Registry view of the active IME package's explicit schema→keyboard binding. */
-    fun registry(): DefaultKeyboardRegistry {
-        val active = activeManifestFile
-        if (!active.isFile) return DefaultKeyboardRegistry.Empty
-        val data = readActiveManifest(active)
-        val schemaId = data["schema_id"] as? String ?: return DefaultKeyboardRegistry.Empty
-        val defaultKeyboard = data["default_keyboard"] as? String ?: return DefaultKeyboardRegistry.Empty
-        return DefaultKeyboardRegistry.fromDefaultKeyboards(mapOf(schemaId to defaultKeyboard))
-    }
-
-    /** The active IME package's explicit default keyboard for [schemaId], if any. */
-    fun defaultKeyboardFor(schemaId: String): String? = registry().defaultKeyboardFor(schemaId)
-
-    /**
-     * True when [packageFile] is the exact package currently active (same
-     * content fingerprint), so re-activating it would be a no-op.
-     */
-    fun isActivePackage(packageFile: File): Boolean {
-        if (!packageFile.isFile) return false
-        val active = activeManifestFile
-        if (!active.isFile) return false
-        val storedSha = readActiveManifest(active)["package_sha256"] as? String ?: return false
-        return storedSha == sha256(packageFile)
-    }
-
-    /**
-     * Restore the active package's theme after app startup. The extracted files
-     * and compiled Rime data already exist in the app-managed Rime data dir;
-     * this only reloads the package's component manifest and applies it as the
-     * active theme.
-     */
-    suspend fun restoreActiveTheme() {
-        val active = withContext(Dispatchers.IO) { activeManifestFile.takeIf { it.isFile } } ?: return
-        val restore =
-            withContext(Dispatchers.IO) {
-                val data = readActiveManifest(active)
-                val packageId = data["package_id"] as? String
-                @Suppress("UNCHECKED_CAST")
-                val staleRimeFiles = (data["rime_files"] as? List<String>) ?: emptyList()
-                val stateDir = packageId?.let { File(imesDir, it) }
-                val componentManifest =
-                    if (stateDir != null) {
-                        listOf(File(stateDir, "component.yaml"), File(stateDir, "manifest.yaml"))
-                            .firstOrNull { it.isFile && ComponentThemeLoader.isComponentManifest(it) }
-                    } else {
-                        null
-                    }
-                ActiveThemeRestore(data, packageId, staleRimeFiles, componentManifest)
-            }
-        if (restore.packageId == null || restore.componentManifest == null) {
-            Timber.w("Active IME package manifest is unusable; falling back to Default.zip")
-            healStaleActiveManifest(restore.packageId, restore.staleRimeFiles)
-            return
-        }
-        try {
-            (restore.data["schema_id"] as? String)?.let { schemaId ->
-                // Select the package schema before applying its theme so the
-                // keyboard switcher resolves the correct default layout.
-                RimeDaemon.getFirstSessionOrNull()?.runOnReady { selectSchema(schemaId) }
-            }
-            val theme =
-                withContext(Dispatchers.IO) {
-                    ComponentThemeLoader.loadTheme(restore.componentManifest)
-                }
-            applyTheme(theme)
-        } catch (t: Throwable) {
-            when (t) {
-                is CancellationException -> throw t
-                is IllegalArgumentException,
-                is IllegalStateException,
-                is NoSuchElementException -> {
-                    Timber.w(t, "Active IME package theme is unusable; falling back to Default.zip")
-                    healStaleActiveManifest(restore.packageId, restore.staleRimeFiles)
-                }
-                else -> throw t
-            }
-        }
-    }
-
-    private suspend fun healStaleActiveManifest(
-        stalePackageId: String? = null,
-        staleRimeFiles: List<String> = emptyList(),
-    ) {
-        val defaultPackage =
-            withContext(Dispatchers.IO) {
-                activeManifestFile.delete()
-                if (stalePackageId == null) {
-                    // The manifest was unreadable, so no specific package can be
-                    // identified. Delete all non-hidden state dirs under IMEs/
-                    // before falling back to Default, matching cleanup policy.
-                    cleanupInterruptedActivation()
-                } else {
-                    File(imesDir, stalePackageId).deleteRecursively()
-                }
-                staleRimeFiles.forEach { relative ->
-                    File(DataManager.userDataDir, relative).delete()
-                }
-                installBundledDefaultPackage()
-                packageFile(DEFAULT_PACKAGE_FILE_NAME).takeIf { it.isFile }
-            }
-        if (defaultPackage == null) {
-            Timber.w("Bundled Default.zip is missing; no IME package can be activated")
-            return
-        }
-        withContext(Dispatchers.IO) {
-            activateDefaultIfNoActive(defaultPackage)
-        }
-        // Re-enter restore now that the default package is active; this applies
-        // the theme synchronously on the caller's thread.
-        restoreActiveTheme()
-    }
-
-    /** Copy a package zip into the persistent app-managed IME package library. */
-    fun importPackage(source: File): File {
-        val meta = readPackageMeta(source)
-        requireSafeFileName(meta.schemaId, "schema_id")
-        val target = File(imesDir, "${meta.schemaId}.zip")
-        source.copyTo(target, overwrite = true)
-        return target
-    }
-
-    /** True when [fileName] is the app-shipped default package. */
     fun isDefaultPackage(fileName: String): Boolean = fileName == DEFAULT_PACKAGE_FILE_NAME
 
-    /**
-     * Delete a non-default, non-active IME package zip and its extracted state.
-     * Returns false when the package is the default, is currently active, or no
-     * longer exists.
-     */
+    fun isActivePackage(packageFile: File): Boolean =
+        packageIdFromPackageFile(packageFile) == PackageStore.activePackageId()
+
     fun deletePackage(fileName: String): Boolean {
         if (isDefaultPackage(fileName)) return false
-        if (!isSafeFileName(fileName)) return false
-        val packageFile = packageFile(fileName)
-        if (!packageFile.isFile) return false
-        if (isActivePackage(packageFile)) return false
-        if (!isSafeFileName(packageFile.nameWithoutExtension)) return false
-        packageFile.delete()
-        File(imesDir, packageFile.nameWithoutExtension).deleteRecursively()
+        val id = fileName.removeSuffix(".zip")
+        if (!PackageStore.isSafePackageId(id)) return false
+        val dir = PackageStore.packageDir(id)
+        if (!dir.isDirectory) return false
+        if (id == PackageStore.activePackageId()) return false
+        dir.deleteRecursively()
         return true
     }
 
-    /** Activate a package zip, replacing the currently active package. */
-    fun activate(
+    /**
+     * Export a workspace as a complete zip snapshot (including user data).
+     *
+     * The exported zip can be fed back into [importPackage]. `build/` and
+     * compile markers are excluded; if the workspace has no manifest, a minimal
+     * manifest is generated so the export remains importable.
+     */
+    fun exportPackage(fileName: String): File {
+        val id = fileName.removeSuffix(".zip")
+        requireSafePackageId(id)
+        val workspace = PackageStore.workspaceDir(id)
+        if (!workspace.isDirectory) {
+            throw IllegalArgumentException("Package workspace missing: $workspace")
+        }
+        val out = File(workspace.parentFile, "$id-export-${System.currentTimeMillis()}.zip")
+        try {
+            ZipOutputStream(out.outputStream().buffered()).use { zipOut ->
+                val hasManifest =
+                    File(workspace, "manifest.yaml").isFile ||
+                        File(workspace, "component.yaml").isFile
+                if (!hasManifest) {
+                    zipOut.putNextEntry(ZipEntry("manifest.yaml"))
+                    zipOut.write(minimalManifest(id).toByteArray(Charsets.UTF_8))
+                    zipOut.closeEntry()
+                }
+                workspace.walkTopDown().forEach { file ->
+                    if (!file.isFile) return@forEach
+                    val relative = file.relativeTo(workspace).path
+                    if (relative == "build" ||
+                        relative.startsWith("build/") ||
+                        relative == "compiled.marker" ||
+                        relative == "compiled.error"
+                    ) {
+                        return@forEach
+                    }
+                    zipOut.putNextEntry(ZipEntry(relative))
+                    file.inputStream().use { it.copyTo(zipOut) }
+                    zipOut.closeEntry()
+                }
+            }
+        } catch (t: Throwable) {
+            out.delete()
+            throw t
+        }
+        return out
+    }
+
+    private fun minimalManifest(id: String): String =
+        """
+        name: $id
+        schema_id: $id
+        default_keyboard: ""
+        """.trimIndent()
+
+    /**
+     * Import a package zip into the package library and extract it into its
+     * own workspace. This does not compile or activate.
+     */
+    fun importPackage(source: File): File {
+        val meta = readPackageMeta(source)
+        requireSafePackageId(meta.schemaId)
+        val packageDir = PackageStore.packageDir(meta.schemaId).apply { mkdirs() }
+        val zip = File(packageDir, "package.zip")
+        source.copyTo(zip, overwrite = true)
+
+        val workspace = PackageStore.workspaceDir(meta.schemaId)
+        // Overlay-extract into the existing workspace: files owned by the new
+        // package overwrite old versions, while files not in the package (user
+        // data, user dictionaries, sync, custom resources, etc.) are preserved
+        // automatically because we never delete the workspace.
+        workspace.mkdirs()
+        // Invalidate compile state before overlay extraction: if extraction
+        // fails, the workspace must not look compiled.
+        File(workspace, "compiled.marker").delete()
+        File(workspace, "compiled.error").delete()
+        extractZipOverlay(zip, workspace)
+        val schemaIds = schemaIdsFromZip(zip, meta.schemaId)
+        writeWorkspaceSchemaList(workspace, schemaIds)
+        return zip
+    }
+
+    /** Copy the bundled Default.zip into the package library if needed. */
+    fun installBundledDefaultPackage() {
+        val source = File(DataManager.sharedDataDir, DEFAULT_PACKAGE_FILE_NAME)
+        if (!source.isFile) return
+        val sourceFingerprint = sha256(source)
+        val packageDir = PackageStore.packageDir(PackageStore.DEFAULT_PACKAGE_ID).apply { mkdirs() }
+        val target = File(packageDir, "package.zip")
+        val workspace = PackageStore.defaultWorkspaceDir()
+        val marker = File(workspace, "compiled.marker")
+        val hasWorkspaceContent =
+            File(workspace, "default.yaml").isFile ||
+                File(workspace, "manifest.yaml").isFile ||
+                File(workspace, "component.yaml").isFile
+        if (marker.isFile &&
+            marker.readText().trim() == sourceFingerprint &&
+            hasWorkspaceContent
+        ) {
+            return
+        }
+        // Even without a marker, if the workspace was already extracted from
+        // this exact Default.zip, do not wipe and re-extract it (the engine may
+        // be deploying it right now).
+        if (hasWorkspaceContent && target.isFile && sha256(target) == sourceFingerprint) {
+            return
+        }
+        // Source changed or workspace is incomplete: overlay-extract the new
+        // Default over the existing workspace without deleting it, so user data
+        // that is not part of the package is preserved automatically.
+        source.copyTo(target, overwrite = true)
+        workspace.mkdirs()
+        // Invalidate compile state before overlay extraction.
+        marker.delete()
+        File(workspace, "compiled.error").delete()
+        extractZipOverlay(target, workspace)
+        val schemaId = runCatching { readPackageMeta(target).schemaId }.getOrDefault(PackageStore.DEFAULT_PACKAGE_ID)
+        val schemaIds = schemaIdsFromZip(target, schemaId)
+        writeWorkspaceSchemaList(workspace, schemaIds)
+    }
+
+    /** Ensure a Default package exists and is active before theme/UI init. */
+    suspend fun ensureDefaultPackageReady() {
+        ensureMutex.withLock {
+            withContext(Dispatchers.IO) {
+                installBundledDefaultPackage()
+                val active = PackageStore.activePackageId()
+                if (active != null && PackageStore.isCompiled(active)) {
+                    try {
+                        restoreActiveTheme()
+                        return@withContext
+                    } catch (t: Throwable) {
+                        if (t is CancellationException) throw t
+                        Timber.w(t, "Active package theme is unusable; falling back to Default")
+                        PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
+                        RimeDaemon.restartRime()
+                        restoreActiveTheme()
+                        return@withContext
+                    }
+                }
+                if (active != null && active != PackageStore.DEFAULT_PACKAGE_ID) {
+                    // Active package is unusable; fall back to Default.
+                    Timber.w("Active package $active is not compiled; falling back to Default")
+                    PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
+                }
+                if (!PackageStore.isCompiled(PackageStore.DEFAULT_PACKAGE_ID)) {
+                    // The engine itself may be deploying Default right now (startup
+                    // maintenance). Give it a short window to write compiled.marker
+                    // before starting a separate compile service, to avoid two
+                    // deploys racing on the same workspace.
+                    val defaultWorkspace = PackageStore.defaultWorkspaceDir()
+                    val marker = File(defaultWorkspace, "compiled.marker")
+                    val error = File(defaultWorkspace, "compiled.error")
+                    val waitDeadline = System.currentTimeMillis() + ENGINE_DEPLOY_WAIT_MS
+                    while (!marker.isFile && !error.isFile && System.currentTimeMillis() < waitDeadline) {
+                        delay(ENGINE_DEPLOY_POLL_INTERVAL_MS)
+                    }
+                }
+                if (!PackageStore.isCompiled(PackageStore.DEFAULT_PACKAGE_ID)) {
+                    compilePackage(PackageStore.DEFAULT_PACKAGE_ID)
+                }
+                if (PackageStore.activePackageId() == null) {
+                    PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
+                }
+                if (active != null && active != PackageStore.DEFAULT_PACKAGE_ID) {
+                    RimeDaemon.restartRime()
+                }
+                try {
+                    restoreActiveTheme()
+                } catch (t: Throwable) {
+                    if (active != PackageStore.DEFAULT_PACKAGE_ID) {
+                        Timber.w(t, "Active theme restore failed; falling back to Default")
+                        PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
+                        RimeDaemon.restartRime()
+                        restoreActiveTheme()
+                    } else {
+                        throw t
+                    }
+                }
+            }
+        }
+    }
+
+    fun isCompiled(fileName: String): Boolean =
+        PackageStore.isCompiled(fileName.removeSuffix(".zip"))
+
+    /**
+     * Mark the current Rime user data dir as compiled. Called when the engine
+     * itself finishes a successful deploy (e.g. Default on first startup), so
+     * the separate compile service does not redundantly compile it again.
+     */
+    fun markCurrentWorkspaceCompiled() {
+        val workspace = DataManager.userDataDir
+        val hasContent =
+            File(workspace, "default.yaml").isFile ||
+                File(workspace, "manifest.yaml").isFile ||
+                File(workspace, "component.yaml").isFile
+        if (!hasContent) return
+        val active = PackageStore.activePackageId()
+        val content =
+            if (active == null || active == PackageStore.DEFAULT_PACKAGE_ID) {
+                val source = File(DataManager.sharedDataDir, DEFAULT_PACKAGE_FILE_NAME)
+                if (source.isFile) sha256(source) else "ok"
+            } else {
+                "ok"
+            }
+        File(workspace, "compiled.marker").writeText(content)
+        File(workspace, "compiled.error").delete()
+    }
+
+    /** Compile an imported package in the background compile process. */
+    suspend fun compilePackageFile(fileName: String) {
+        val id = fileName.removeSuffix(".zip")
+        requireSafePackageId(id)
+        compilePackage(id)
+    }
+
+    /** Activate an imported package. Compiles it first if necessary. */
+    suspend fun activate(
         packageFile: File,
         applyThemeAfter: Boolean = true,
     ) {
-        if (!packageFile.isFile) {
-            throw IllegalArgumentException("IME package not found: $packageFile")
+        val id = packageIdFromPackageFile(packageFile)
+        requireSafePackageId(id)
+        if (id == PackageStore.activePackageId() && PackageStore.isCompiled(id)) return
+        if (!activating.compareAndSet(false, true)) {
+            throw IllegalStateException("IME package activation is already in progress")
         }
-        if (isActivePackage(packageFile)) return
-
-        synchronized(activationLock) {
-            // Re-check after acquiring the lock: a concurrent activation may
-            // have completed while this thread waited.
-            if (isActivePackage(packageFile)) return
-            if (!activating.compareAndSet(false, true)) {
-                throw IllegalStateException("IME package activation is already in progress")
+        try {
+            if (!PackageStore.isCompiled(id)) {
+                compilePackage(id)
             }
-            try {
-                val prepared = preparePackage(packageFile)
-                val backup =
-                    try {
-                        backupActive()
-                    } catch (t: Throwable) {
-                        prepared.stagingDir.deleteRecursively()
-                        throw t
-                    }
-                try {
-                    uninstallActive()
-                    cleanLegacySchemas()
-                    commitPreparedPackage(prepared)
-                    if (applyThemeAfter) applyTheme(prepared.theme)
-                } catch (t: Throwable) {
-                    rollbackActive(backup, prepared)
-                    throw t
-                } finally {
-                    prepared.stagingDir.deleteRecursively()
-                    backup.root.deleteRecursively()
-                }
-            } finally {
-                activating.set(false)
+            PackageStore.setActivePackage(id)
+            // Reload Rime with the new package's workspace as user_data_dir.
+            RimeDaemon.restartRime()
+            if (applyThemeAfter) {
+                restoreActiveTheme()
             }
+        } finally {
+            activating.set(false)
         }
     }
 
-    /** True while an IME package is being activated; input should be blocked. */
+    /** True while a package is being compiled/activated; input should be blocked. */
     fun isActivating(): Boolean = activating.get()
 
-    private fun preparePackage(packageFile: File): PreparedPackage {
-        requireSafeFileName(packageFile.nameWithoutExtension, "package file name")
-        val stagingDir =
-            File(imesDir, ".staging-${packageFile.nameWithoutExtension}-${System.nanoTime()}")
-                .apply { mkdirs() }
-        try {
-            val meta = readPackageMeta(packageFile)
-            requireSafeFileName(meta.schemaId, "schema_id")
-            val stagedEntries = mutableListOf<StagedEntry>()
-            val manifestNode: Node.Mapping
-            ZipFile(packageFile).use { zip ->
-                manifestNode = readManifestNode(zip)
-                zip.entries().asSequence().forEach { entry ->
-                    if (entry.isDirectory) return@forEach
-                    val name = entry.name
-                    val normalizedName = File(name).toPath().normalize()
-                    if (normalizedName.isAbsolute || normalizedName.startsWith("..")) {
-                        throw IllegalArgumentException("Unsafe path in IME package: $name")
-                    }
-                    val stagingTarget = File(stagingDir, name)
-                    val normalizedStaging = stagingTarget.toPath().toAbsolutePath().normalize()
-                    if (!normalizedStaging.startsWith(stagingDir.toPath().toAbsolutePath().normalize())) {
-                        throw IllegalArgumentException("Unsafe path in IME package: $name")
-                    }
-                    stagingTarget.parentFile?.mkdirs()
-                    zip.getInputStream(entry).use { input ->
-                        stagingTarget.outputStream().use { output -> input.copyTo(output) }
-                    }
-                    val isRimeFile = name.startsWith("rime/") || name.endsWith(".schema.yaml")
-                    val relative =
-                        if (isRimeFile && name.startsWith("rime/")) name.removePrefix("rime/") else name
-                    stagedEntries += StagedEntry(name, relative, isRimeFile)
-                }
-            }
-            val rimeFiles = stagedEntries.filter { it.isRime }.map { it.relative }.distinct()
-            if (rimeFiles.none { it == "${meta.schemaId}.schema.yaml" }) {
-                throw IllegalArgumentException("IME package does not contain ${meta.schemaId}.schema.yaml")
-            }
-            val theme = loadPackageTheme(stagingDir, manifestNode, meta.name)
-            return PreparedPackage(
-                meta = meta,
-                packageId = packageFile.nameWithoutExtension,
-                rimeFiles = rimeFiles,
-                theme = theme,
-                stagingDir = stagingDir,
-                stagedEntries = stagedEntries,
-            )
-        } catch (t: Throwable) {
-            stagingDir.deleteRecursively()
-            throw t
-        }
+    /** Registry view of the active package's schema → keyboard binding. */
+    fun registry(): DefaultKeyboardRegistry {
+        val workspace = PackageStore.activeWorkspaceDir() ?: return DefaultKeyboardRegistry.Empty
+        val manifest = listOf(File(workspace, "manifest.yaml"), File(workspace, "component.yaml"))
+            .firstOrNull { it.isFile }
+            ?: return DefaultKeyboardRegistry.Empty
+        val node = runCatching {
+            Yaml.Default.parseToYamlNode(manifest.readText(Charsets.UTF_8)).mapping
+        }.getOrNull() ?: return DefaultKeyboardRegistry.Empty
+        val schemaId = node["schema_id"]?.string ?: return DefaultKeyboardRegistry.Empty
+        val defaultKeyboard = node["default_keyboard"]?.string ?: return DefaultKeyboardRegistry.Empty
+        return DefaultKeyboardRegistry.fromDefaultKeyboards(mapOf(schemaId to defaultKeyboard))
     }
 
-    private fun commitPreparedPackage(prepared: PreparedPackage) {
-        val stateDir = File(imesDir, prepared.packageId).apply { mkdirs() }
-        prepared.stagedEntries.forEach { entry ->
-            val target =
-                if (entry.isRime) {
-                    File(DataManager.userDataDir, entry.relative)
-                } else {
-                    File(stateDir, entry.zipName)
-                }
-            val normalized = target.toPath().toAbsolutePath().normalize()
-            val allowedRoot =
-                if (entry.isRime) {
-                    DataManager.userDataDir.toPath().toAbsolutePath().normalize()
-                } else {
-                    stateDir.toPath().toAbsolutePath().normalize()
-                }
-            if (!normalized.startsWith(allowedRoot)) {
-                throw IllegalArgumentException("Unsafe path in IME package: ${entry.zipName}")
+    fun defaultKeyboardFor(schemaId: String): String? = registry().defaultKeyboardFor(schemaId)
+
+    /** Reload the active package's theme after startup or activation. */
+    suspend fun restoreActiveTheme() {
+        val workspace = withContext(Dispatchers.IO) { PackageStore.activeWorkspaceDir() } ?: return
+        val theme =
+            withContext(Dispatchers.IO) {
+                loadPackageTheme(workspace)
             }
-            target.parentFile?.mkdirs()
-            File(prepared.stagingDir, entry.zipName).copyTo(target, overwrite = true)
-        }
-
-        deploySchemas(prepared.rimeFiles, prepared.meta.schemaId)
-        val schemaIds =
-            prepared.rimeFiles
-                .filter { it.endsWith(".schema.yaml") }
-                .map { it.substringAfterLast('/').removeSuffix(".schema.yaml") }
-                .distinct()
-                .toMutableList()
-                .also { ids ->
-                    ids.remove(prepared.meta.schemaId)
-                    ids.add(0, prepared.meta.schemaId)
-                }
-        SchemaListUpdater.setSchemas(customFile(), schemaIds)
-        // Reload Rime config so the new schema list is visible to the
-        // Schemata settings screen immediately after activation.
-        RimeDaemon.getFirstSessionOrNull()?.run { updateConfig() }
-        RimeDaemon.getFirstSessionOrNull()?.run { selectSchema(prepared.meta.schemaId) }
-        writeActiveManifest(prepared.meta, prepared.rimeFiles)
-    }
-
-    private fun backupActive(): ActiveBackup {
-        val root =
-            File(imesDir, ".backup-${System.nanoTime()}").apply { mkdirs() }
-        val active = activeManifestFile
-        val data = if (active.isFile) readActiveManifest(active) else emptyMap()
-        if (active.isFile) {
-            active.copyTo(File(root, "active-manifest.yaml"), overwrite = true)
-        }
-
-        (data["package_id"] as? String)?.let { packageId ->
-            val stateDir = File(imesDir, packageId)
-            if (stateDir.isDirectory) {
-                stateDir.copyRecursively(File(root, "state"), overwrite = true)
-            }
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        val rimeFiles = (data["rime_files"] as? List<String>) ?: emptyList()
-        rimeFiles.forEach { relative ->
-            val file = File(DataManager.userDataDir, relative)
-            if (file.isFile) {
-                val dest = File(root, "rime/$relative")
-                dest.parentFile?.mkdirs()
-                file.copyTo(dest, overwrite = true)
-            }
-        }
-
-        // cleanLegacySchemas() removes schema files and the legacy
-        // schema-packages dir; preserve them so a failed activation can roll back.
-        DataManager.userDataDir.listFiles { file ->
-            file.isFile && file.name.endsWith(".schema.yaml")
-        }?.forEach { file ->
-            file.copyTo(File(root, "legacy-schemas/${file.name}"), overwrite = true)
-        }
-        val legacySchemaPackages = File(DataManager.userDataDir, "schema-packages")
-        if (legacySchemaPackages.isDirectory) {
-            legacySchemaPackages.copyRecursively(File(root, "legacy-schema-packages"), overwrite = true)
-        }
-
-        val custom = customFile()
-        if (custom.isFile) {
-            custom.copyTo(File(root, "default.custom.yaml"), overwrite = true)
-        }
-
-        if (buildDir.isDirectory) {
-            buildDir.copyRecursively(File(root, "build"), overwrite = true)
-        }
-        return ActiveBackup(root)
-    }
-
-    private fun rollbackActive(
-        backup: ActiveBackup,
-        prepared: PreparedPackage,
-    ) {
-        activeManifestFile.delete()
-        File(imesDir, prepared.packageId).deleteRecursively()
-        prepared.rimeFiles.forEach { relative ->
-            File(DataManager.userDataDir, relative).delete()
-        }
-
-        buildDir.deleteRecursively()
-        File(backup.root, "build").takeIf { it.isDirectory }?.copyRecursively(buildDir, overwrite = true)
-
-        val rimeBackup = File(backup.root, "rime")
-        if (rimeBackup.isDirectory) {
-            rimeBackup.walkTopDown().forEach { file ->
-                if (file.isFile) {
-                    val relative = file.relativeTo(rimeBackup).path
-                    val target = File(DataManager.userDataDir, relative)
-                    target.parentFile?.mkdirs()
-                    file.copyTo(target, overwrite = true)
-                }
-            }
-        }
-
-        val legacySchemas = File(backup.root, "legacy-schemas")
-        if (legacySchemas.isDirectory) {
-            legacySchemas.listFiles()?.forEach { file ->
-                file.copyTo(File(DataManager.userDataDir, file.name), overwrite = true)
-            }
-        }
-        val legacySchemaPackages = File(backup.root, "legacy-schema-packages")
-        if (legacySchemaPackages.isDirectory) {
-            legacySchemaPackages.copyRecursively(
-                File(DataManager.userDataDir, "schema-packages"),
-                overwrite = true,
-            )
-        }
-
-        val stateBackup = File(backup.root, "state")
-        if (stateBackup.isDirectory) {
-            val packageId =
-                readActiveManifest(File(backup.root, "active-manifest.yaml"))["package_id"] as? String
-            if (packageId != null) {
-                val stateDir = File(imesDir, packageId).apply { mkdirs() }
-                stateBackup.copyRecursively(stateDir, overwrite = true)
-            }
-        }
-
-        File(backup.root, "active-manifest.yaml").takeIf { it.isFile }?.copyTo(activeManifestFile, overwrite = true)
-        File(backup.root, "default.custom.yaml").takeIf { it.isFile }?.copyTo(customFile(), overwrite = true)
-
-        // Keep the running Rime engine in sync with the restored files: the
-        // failed activation may already have reloaded the new schema list and
-        // selected the new package's schema.
-        val restoredManifest = File(backup.root, "active-manifest.yaml")
-        if (restoredManifest.isFile) {
-            val oldSchemaId = readActiveManifest(restoredManifest)["schema_id"] as? String
-            if (oldSchemaId != null) {
-                RimeDaemon.getFirstSessionOrNull()?.run {
-                    updateConfig()
-                    selectSchema(oldSchemaId)
-                }
-            }
-        }
-    }
-
-    private fun requireSafeFileName(
-        value: String,
-        what: String,
-    ) {
-        if (!isSafeFileName(value)) {
-            throw IllegalArgumentException("$what contains unsafe characters: '$value'")
-        }
-    }
-
-    private fun isSafeFileName(value: String): Boolean =
-        value.isNotEmpty() && value != "." && value != ".." && value.matches(SAFE_FILE_NAME)
-
-    private val SAFE_FILE_NAME = Regex("[A-Za-z0-9._-]+")
-
-    /** Uninstall the active package, preserving user/generated data. */
-    fun uninstallActive() {
-        val active = activeManifestFile
-        if (!active.isFile) return
-        val data = readActiveManifest(active)
-
-        @Suppress("UNCHECKED_CAST")
-        val rimeFiles = (data["rime_files"] as? List<String>) ?: emptyList()
-        rimeFiles.forEach { relative ->
-            val file = File(DataManager.userDataDir, relative)
-            if (file.isFile) {
-                file.delete()
-            }
-        }
-
-        (data["package_id"] as? String)?.let { packageId ->
-            val stateDir = File(imesDir, packageId)
-            if (stateDir.isDirectory) {
-                stateDir.deleteRecursively()
-            }
-        }
-
-        // Compiled artifacts are derived from the package and must not survive a switch.
-        buildDir.listFiles()?.forEach { it.deleteRecursively() }
-
-        active.delete()
+        applyTheme(theme)
     }
 
     /**
-     * Remove leftover activation staging/backup dirs from a previous process
-     * death. Runs under [activationLock] so it can never delete a live
-     * activation's staging/backup dirs. If no active manifest exists, every
-     * state dir under IMEs/ is stale and is removed too; this is an explicit
-     * fallback-to-Default policy rather than an attempt to recover the previous
-     * custom package's backup.
+     * Compile a package workspace in the separate `:compile` process and wait
+     * for `compiled.marker`.
      */
-    private fun cleanupInterruptedActivation() {
-        synchronized(activationLock) {
-            val activeExists = activeManifestFile.isFile
-            imesDir.listFiles { file -> file.isDirectory }?.forEach { dir ->
-                val name = dir.name
-                val isTemp = name.startsWith(".staging-") || name.startsWith(".backup-")
-                if (isTemp || (!activeExists && !name.startsWith("."))) {
-                    dir.deleteRecursively()
+    private suspend fun compilePackage(packageId: String) {
+        compileMutex.withLock {
+            val workspace = PackageStore.workspaceDir(packageId)
+            if (!workspace.isDirectory) {
+                throw IllegalArgumentException("Package workspace missing: $workspace")
+            }
+            if (PackageStore.isCompiled(packageId)) return@withLock
+            val marker = File(workspace, "compiled.marker")
+            val error = File(workspace, "compiled.error")
+            marker.delete()
+            error.delete()
+            val intent =
+                Intent(appContext, PackageCompileService::class.java).apply {
+                    putExtra(PackageCompileService.EXTRA_WORKSPACE_DIR, workspace.absolutePath)
+                    putExtra(
+                        PackageCompileService.EXTRA_SHARED_DIR,
+                        DataManager.sharedDataDir.absolutePath,
+                    )
+                    putExtra(PackageCompileService.EXTRA_VERSION, BuildConfig.BUILD_VERSION_NAME)
+                }
+            ContextCompat.startForegroundService(appContext, intent)
+            val deadline = System.currentTimeMillis() + COMPILE_TIMEOUT_MS
+            while (!marker.isFile && !error.isFile && System.currentTimeMillis() < deadline) {
+                delay(COMPILE_POLL_INTERVAL_MS)
+            }
+            if (error.isFile) {
+                throw IllegalStateException("IME package compile failed: $packageId")
+            }
+            if (!marker.isFile) {
+                throw IllegalStateException("IME package compile timed out: $packageId")
+            }
+            // If the active package was recompiled in place, restart Rime so it
+            // picks up the new workspace contents.
+            if (PackageStore.activePackageId() == packageId) {
+                RimeDaemon.restartRime()
+            }
+        }
+    }
+
+    /**
+     * Overlay-extract [zip] into [workspace] without deleting existing files.
+     * Package files overwrite old versions; files not present in the zip are
+     * left untouched, which preserves user data across re-import/update.
+     */
+    private fun extractZipOverlay(
+        zip: File,
+        workspace: File,
+    ) {
+        ZipFile(zip).use { z ->
+            z.entries().asSequence().forEach { entry ->
+                if (entry.isDirectory) return@forEach
+                val name = entry.name
+                val normalizedName = File(name).toPath().normalize()
+                if (normalizedName.isAbsolute || normalizedName.startsWith("..")) {
+                    throw IllegalArgumentException("Unsafe path in IME package: $name")
+                }
+                val relative =
+                    if (name.startsWith("rime/")) name.removePrefix("rime/") else name
+                val target = File(workspace, relative)
+                val normalizedTarget = target.toPath().toAbsolutePath().normalize()
+                if (!normalizedTarget.startsWith(workspace.toPath().toAbsolutePath().normalize())) {
+                    throw IllegalArgumentException("Unsafe path in IME package: $name")
+                }
+                target.parentFile?.mkdirs()
+                z.getInputStream(entry).use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
                 }
             }
         }
     }
 
     /**
-     * Remove schema files and legacy schema-layout package state that may have
-     * been left behind by previous packages or manual schema-list edits. A
-     * self-contained IME package owns the whole Rime schema set, so switching
-     * packages must start from a clean schema section.
+     * Collect schema ids from the package zip itself (after flattening
+     * `rime/`). This is the authoritative schema list for the imported package;
+     * it must not scan the workspace because overlay imports leave old schemas
+     * behind.
      */
-    private fun cleanLegacySchemas() {
-        DataManager.userDataDir.listFiles { file ->
-            file.isFile && file.name.endsWith(".schema.yaml")
-        }?.forEach { file ->
-            file.delete()
+    private fun schemaIdsFromZip(
+        zip: File,
+        mainSchemaId: String,
+    ): List<String> {
+        val ids = mutableListOf<String>()
+        ZipFile(zip).use { z ->
+            z.entries().asSequence().forEach { entry ->
+                if (entry.isDirectory) return@forEach
+                val name = entry.name
+                val relative =
+                    if (name.startsWith("rime/")) name.removePrefix("rime/") else name
+                if (relative.endsWith(".schema.yaml")) {
+                    ids += relative.substringAfterLast('/').removeSuffix(".schema.yaml")
+                }
+            }
         }
-        File(DataManager.userDataDir, "schema-packages").deleteRecursively()
+        return ids.distinct().toMutableList().also { list ->
+            list.remove(mainSchemaId)
+            list.add(0, mainSchemaId)
+        }
+    }
+
+    /**
+     * Write `default.custom.yaml` in the workspace with exactly the schemas
+     * contained in the imported package. Required for Rime deploy to know which
+     * schemas to build.
+     */
+    private fun writeWorkspaceSchemaList(
+        workspace: File,
+        schemaIds: List<String>,
+    ) {
+        SchemaListUpdater.setSchemas(File(workspace, "default.custom.yaml"), schemaIds)
+    }
+
+    private fun readWorkspaceMeta(workspace: File): ImePackageMeta {
+        val manifest =
+            listOf(File(workspace, "manifest.yaml"), File(workspace, "component.yaml"))
+                .firstOrNull { it.isFile }
+                ?: throw IllegalArgumentException("Package workspace is missing manifest.yaml")
+        val node = Yaml.Default.parseToYamlNode(manifest.readText(Charsets.UTF_8)).mapping
+            ?: throw IllegalArgumentException("Package workspace manifest is not a YAML mapping")
+        val schemaId = node["schema_id"]?.string ?: workspace.name
+        return ImePackageMeta(
+            fileName = "$schemaId.zip",
+            packageId = schemaId,
+            name = node["name"]?.string ?: schemaId,
+            version = node["version"]?.string,
+            schemaId = schemaId,
+            defaultKeyboard = node["default_keyboard"]?.string,
+        )
     }
 
     private fun readPackageMeta(packageFile: File): ImePackageMeta {
@@ -634,8 +524,6 @@ object ImePackageManager {
                 version = node["version"]?.string,
                 schemaId = node["schema_id"]?.string ?: packageFile.nameWithoutExtension,
                 defaultKeyboard = node["default_keyboard"]?.string,
-                size = packageFile.length(),
-                sha256 = sha256(packageFile),
             )
         }
     }
@@ -650,19 +538,14 @@ object ImePackageManager {
             ?: throw IllegalArgumentException("IME package manifest is not a YAML mapping")
     }
 
-    private fun loadPackageTheme(
-        stateDir: File,
-        manifestNode: Node.Mapping,
-        fallbackName: String,
-    ): Theme {
+    private fun loadPackageTheme(workspace: File): Theme {
         val componentManifest =
-            listOf(File(stateDir, "component.yaml"), File(stateDir, "manifest.yaml"))
+            listOf(File(workspace, "component.yaml"), File(workspace, "manifest.yaml"))
                 .firstOrNull { it.isFile && ComponentThemeLoader.isComponentManifest(it) }
         if (componentManifest != null) {
             return ComponentThemeLoader.loadTheme(componentManifest)
         }
-        // Legacy/simple fallback: a standalone theme.yaml without components.
-        val themeFile = File(stateDir, "theme.yaml")
+        val themeFile = File(workspace, "theme.yaml")
         if (themeFile.isFile) {
             val node = Yaml.Default.parseToYamlNode(themeFile.readText(Charsets.UTF_8)).mapping
                 ?: throw IllegalArgumentException("theme.yaml is not a mapping")
@@ -676,7 +559,7 @@ object ImePackageManager {
             if (!hasColorSchemes) {
                 throw IllegalArgumentException("theme.yaml must define at least one color scheme")
             }
-            val name = node["name"]?.string ?: fallbackName
+            val name = node["name"]?.string ?: workspace.name
             return Theme.decode(
                 Node.Mapping(
                     LinkedHashMap(node.pairs).apply {
@@ -687,67 +570,6 @@ object ImePackageManager {
         }
         throw IllegalArgumentException("IME package has no component manifest or theme.yaml")
     }
-
-    private fun deploySchemas(
-        rimeFiles: List<String>,
-        schemaId: String,
-    ) {
-        val mainSchema = "$schemaId.schema.yaml"
-        val schemaFiles =
-            rimeFiles
-                .filter { it.endsWith(".schema.yaml") }
-                .sortedBy { if (it == mainSchema) 1 else 0 }
-        if (schemaFiles.none { it == mainSchema }) {
-            throw IllegalArgumentException("IME package does not contain main schema $mainSchema")
-        }
-        RimeDaemon.notifyDeployStart()
-        try {
-            schemaFiles.forEach { name ->
-                val file = File(DataManager.userDataDir, name)
-                if (!file.isFile) {
-                    throw IllegalArgumentException("Schema file missing after extraction: $name")
-                }
-                if (!Rime.deployRimeSchemaFile(file.absolutePath)) {
-                    throw IllegalStateException("Rime failed to deploy schema: $name")
-                }
-            }
-            RimeDaemon.notifyDeploySuccess()
-        } catch (t: Throwable) {
-            RimeDaemon.notifyDeployFailure()
-            throw t
-        }
-    }
-
-    private fun writeActiveManifest(
-        meta: ImePackageMeta,
-        rimeFiles: List<String>,
-    ) {
-        val data =
-            linkedMapOf<String, Any?>(
-                "active_package" to meta.fileName,
-                "package_id" to meta.packageId,
-                "name" to meta.name,
-                "version" to meta.version,
-                "schema_id" to meta.schemaId,
-                "default_keyboard" to meta.defaultKeyboard,
-                "package_size" to meta.size,
-                "package_sha256" to meta.sha256,
-                "rime_files" to rimeFiles,
-            )
-        activeManifestFile.parentFile?.mkdirs()
-        activeManifestFile.writeText(SnakeYaml().dump(data), Charsets.UTF_8)
-    }
-
-    private fun readActiveManifest(file: File): Map<String, Any?> =
-        try {
-            val loaded = SnakeYaml().load<Any?>(file.readText(Charsets.UTF_8))
-            loaded as? Map<String, Any?> ?: emptyMap()
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to parse active manifest ${file.name}; treating it as empty")
-            emptyMap()
-        }
-
-    private fun customFile(): File = File(DataManager.userDataDir, "default.custom.yaml")
 
     private fun sha256(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256")
@@ -762,11 +584,12 @@ object ImePackageManager {
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
-    /**
-     * Apply a package theme on the main thread. Package activation runs on a
-     * background dispatcher, while ThemeManager listeners rebuild input views,
-     * which must happen on the thread that created the view hierarchy.
-     */
+    private fun requireSafePackageId(packageId: String) {
+        if (!PackageStore.isSafePackageId(packageId)) {
+            throw IllegalArgumentException("Unsafe package id: '$packageId'")
+        }
+    }
+
     private fun applyTheme(theme: Theme) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             ThemeManager.applySchemaLayout(theme, replaceTheme = true)
@@ -784,31 +607,10 @@ object ImePackageManager {
         val version: String?,
         val schemaId: String,
         val defaultKeyboard: String?,
-        val size: Long,
-        val sha256: String,
     )
 
-    private data class StagedEntry(
-        val zipName: String,
-        val relative: String,
-        val isRime: Boolean,
-    )
-
-    private data class PreparedPackage(
-        val meta: ImePackageMeta,
-        val packageId: String,
-        val rimeFiles: List<String>,
-        val theme: Theme,
-        val stagingDir: File,
-        val stagedEntries: List<StagedEntry>,
-    )
-
-    private data class ActiveBackup(val root: File)
-
-    private data class ActiveThemeRestore(
-        val data: Map<String, Any?>,
-        val packageId: String?,
-        val staleRimeFiles: List<String>,
-        val componentManifest: File?,
-    )
+    private const val COMPILE_TIMEOUT_MS = 10 * 60 * 1000L
+    private const val COMPILE_POLL_INTERVAL_MS = 500L
+    private const val ENGINE_DEPLOY_WAIT_MS = 30 * 1000L
+    private const val ENGINE_DEPLOY_POLL_INTERVAL_MS = 200L
 }

@@ -67,6 +67,28 @@ class Rime {
     return rime->deploy_config_file(configFile.data(), versionKey.data());
   }
 
+  // Runs a full workspace deploy synchronously against the given directories.
+  // Unlike startup(), this does not start the service or a maintenance thread,
+  // so it is safe to use in a separate compile process without racing the live
+  // engine (and in the same process only when no engine is running).
+  bool deployWorkspace(const char *sharedDir, const char *userDir,
+                       const char *versionName) {
+    if (!rime) return false;
+    RIME_STRUCT(RimeTraits, trime_traits)
+    trime_traits.shared_data_dir = sharedDir;
+    trime_traits.user_data_dir = userDir;
+    trime_traits.log_dir = "";  // set empty log_dir to log to logcat only
+    trime_traits.app_name = "rime.trime";
+    trime_traits.distribution_name = "Trime";
+    trime_traits.distribution_code_name = "trime";
+    trime_traits.distribution_version = versionName;
+    // setup() configures logging as well as the deployer paths; deployer_initialize()
+    // then loads the deployer modules without starting the service.
+    rime->setup(&trime_traits);
+    rime->deployer_initialize(&trime_traits);
+    return rime->deploy();
+  }
+
   bool processKey(int keycode, int mask) {
     return rime->process_key(session(), keycode, mask);
   }
@@ -273,6 +295,17 @@ Java_com_osfans_trime_core_Rime_exitRime(JNIEnv *env, jclass /* thiz */) {
 }
 
 // deployment
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_osfans_trime_core_Rime_deployRimeWorkspace(JNIEnv *env,
+                                                    jclass /* thiz */,
+                                                    jstring shared_dir,
+                                                    jstring user_dir,
+                                                    jstring version_name) {
+  return Rime::Instance().deployWorkspace(
+      *CString(env, shared_dir), *CString(env, user_dir),
+      *CString(env, version_name));
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_osfans_trime_core_Rime_deployRimeSchemaFile(JNIEnv *env,
                                                      jclass /* thiz */,

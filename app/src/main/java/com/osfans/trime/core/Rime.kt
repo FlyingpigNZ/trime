@@ -426,6 +426,14 @@ class Rime(
         @JvmStatic
         external fun exitRime()
 
+        /** Synchronously deploy a full workspace without starting the engine. */
+        @JvmStatic
+        external fun deployRimeWorkspace(
+            sharedDir: String,
+            userDir: String,
+            versionName: String,
+        ): Boolean
+
         @JvmStatic
         external fun deployRimeSchemaFile(schemaFile: String): Boolean
 

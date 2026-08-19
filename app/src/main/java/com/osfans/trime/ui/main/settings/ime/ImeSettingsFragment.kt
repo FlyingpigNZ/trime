@@ -13,7 +13,6 @@ import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.R
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
-import com.osfans.trime.ui.common.withLoadingDialog
 import com.osfans.trime.ui.main.settings.ImePickerDialog
 import com.osfans.trime.util.addCategory
 import com.osfans.trime.util.addPreference
@@ -21,16 +20,44 @@ import com.osfans.trime.util.toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.File
 
 class ImeSettingsFragment : PaddingPreferenceFragment() {
     private lateinit var packageLauncher: ActivityResultLauncher<String>
+    private lateinit var exportLauncher: ActivityResultLauncher<String>
+    private var pendingExportFile: File? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         packageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             if (uri != null) installImePackage(uri)
         }
+        exportLauncher =
+            registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+                val file = pendingExportFile ?: return@registerForActivityResult
+                pendingExportFile = null
+                val ctx = requireContext()
+                if (uri == null) {
+                    file.delete()
+                    return@registerForActivityResult
+                }
+                lifecycleScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            ctx.contentResolver.openOutputStream(uri)?.use { out ->
+                                file.inputStream().use { it.copyTo(out) }
+                            }
+                        }
+                        ctx.toast(R.string.export)
+                    } catch (t: Exception) {
+                        Timber.w(t, "Failed to export IME package")
+                        ctx.toast(R.string.install_schema_layout_package_failure)
+                    } finally {
+                        file.delete()
+                    }
+                }
+            }
     }
 
     override fun onCreatePreferences(
@@ -44,7 +71,13 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                     R.string.selected_ime,
                     R.string.selected_ime_summary,
                 ) {
-                    lifecycleScope.launch { ImePickerDialog.build(lifecycleScope, requireContext()).show() }
+                    lifecycleScope.launch {
+                        ImePickerDialog.build(
+                            lifecycleScope,
+                            requireContext(),
+                            onExport = { pkg -> startExport(pkg) },
+                        ).show()
+                    }
                 }
                 addPreference(
                     R.string.install_schema_layout_package,
@@ -52,25 +85,67 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                 ) {
                     packageLauncher.launch("application/zip")
                 }
+                addPreference(
+                    R.string.export_migrated_workspace,
+                    R.string.export_migrated_workspace_summary,
+                ) {
+                    startExport(
+                        ImePackageManager.ImePackage(
+                            fileName = "Migrated.zip",
+                            name = "Migrated",
+                            version = null,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun startExport(pkg: ImePackageManager.ImePackage) {
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            try {
+                val file = withContext(Dispatchers.IO) {
+                    ImePackageManager.exportPackage(pkg.fileName)
+                }
+                pendingExportFile = file
+                exportLauncher.launch("${pkg.fileName.removeSuffix(".zip")}-export.zip")
+            } catch (t: Exception) {
+                Timber.w(t, "Failed to prepare IME package export")
+                ctx.toast(R.string.install_schema_layout_package_failure)
             }
         }
     }
 
     private fun installImePackage(uri: Uri) {
         val ctx = requireContext()
-        lifecycleScope.withLoadingDialog(ctx, R.string.deploy_progress) {
+        // No modal dialog: the compile runs in the foreground :compile service
+        // and shows a notification, so the user can keep using the app.
+        lifecycleScope.launch {
             val tempFile = File.createTempFile("ime-package-", ".zip", ctx.cacheDir)
-            try {
-                withContext(Dispatchers.IO) {
-                    ctx.contentResolver.openInputStream(uri)!!.use { input ->
-                        tempFile.outputStream().use { input.copyTo(it) }
+            val imported =
+                try {
+                    withContext(Dispatchers.IO) {
+                        ctx.contentResolver.openInputStream(uri)!!.use { input ->
+                            tempFile.outputStream().use { input.copyTo(it) }
+                        }
+                        ImePackageManager.importPackage(tempFile)
                     }
-                    val imported = ImePackageManager.importPackage(tempFile)
-                    ImePackageManager.activate(imported)
+                } catch (t: Exception) {
+                    Timber.w(t, "Failed to import IME package")
+                    ctx.toast(R.string.install_schema_layout_package_failure)
+                    tempFile.delete()
+                    return@launch
                 }
-                ctx.toast(R.string.install_schema_layout_package_success)
-            } catch (_: Exception) {
-                ctx.toast(R.string.install_schema_layout_package_failure)
+            try {
+                val packageId = ImePackageManager.packageIdOf(imported)
+                // Compile runs in the foreground :compile service; its
+                // notification reports start/success/failure.
+                ImePackageManager.compilePackageFile("$packageId.zip")
+            } catch (t: Exception) {
+                // Compile failures are reported by the compile service
+                // notification; only log here to avoid duplicate toasts.
+                Timber.w(t, "IME package compile failed")
             } finally {
                 tempFile.delete()
             }

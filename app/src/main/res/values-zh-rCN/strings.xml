@@ -122,6 +122,12 @@
     <string name="install_schema_layout_package_summary">安装包含 Rime 方案、布局和可选资源的 .zip 文件</string>
     <string name="install_schema_layout_package_success">方案键盘布局包安装成功</string>
     <string name="install_schema_layout_package_failure">方案键盘布局包安装失败</string>
+    <string name="ime_package_not_compiled">输入方案包尚未编译完成</string>
+    <string name="ime_package_compiled_switch_hint">方案包编译完成，可以切换了</string>
+    <string name="ime_package_compiling_start">开始编译输入法方案包…</string>
+    <string name="ime_package_activation_success">输入方案包切换完成</string>
+    <string name="export_migrated_workspace">导出迁移数据</string>
+    <string name="export_migrated_workspace_summary">导出没有对应输入法包的旧数据</string>
     <string name="ime_package_deleted">输入方案包已删除</string>
     <string name="cannot_delete_default_ime_package">默认输入方案包不可删除</string>
     <string name="cannot_delete_active_ime_package">请先切换到其他输入方案包再删除当前方案</string>

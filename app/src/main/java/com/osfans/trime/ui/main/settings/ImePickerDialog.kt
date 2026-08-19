@@ -17,7 +17,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.osfans.trime.R
 import com.osfans.trime.data.schema.ImePackageManager
-import com.osfans.trime.ui.common.withLoadingDialog
 import com.osfans.trime.util.toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,6 +28,7 @@ object ImePickerDialog {
     suspend fun build(
         scope: LifecycleCoroutineScope,
         context: Context,
+        onExport: (ImePackageManager.ImePackage) -> Unit = {},
     ): AlertDialog {
         val packages =
             withContext(Dispatchers.IO) {
@@ -57,9 +57,17 @@ object ImePickerDialog {
                         }
                     val activeSuffix = if (item.fileName == active) "  ✓" else ""
                     val brokenSuffix = item.error?.let { "  (broken: $it)" } ?: ""
+                    val compiled = ImePackageManager.isCompiled(item.fileName)
+                    val notCompiledSuffix =
+                        if (!compiled && item.error == null) {
+                            "  (${context.getString(R.string.ime_package_not_compiled)})"
+                        } else {
+                            ""
+                        }
+                    row.alpha = if (compiled) 1f else 0.5f
                     row.addView(
                         TextView(context).apply {
-                            text = item.name + activeSuffix + brokenSuffix
+                            text = item.name + activeSuffix + notCompiledSuffix + brokenSuffix
                             textSize = 16f
                             layoutParams =
                                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -105,6 +113,18 @@ object ImePickerDialog {
                             },
                         )
                     }
+                    row.addView(
+                        ImageButton(context).apply {
+                            setImageResource(R.drawable.ic_baseline_share_24)
+                            setColorFilter(ContextCompat.getColor(context, android.R.color.darker_gray))
+                            contentDescription = context.getString(R.string.export)
+                            background = null
+                            isFocusable = false
+                            isFocusableInTouchMode = false
+                            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+                            setOnClickListener { onExport(item) }
+                        },
+                    )
                     return row
                 }
             }
@@ -127,18 +147,23 @@ object ImePickerDialog {
                                         )
                                     }
                                 Timber.i("IME picker: isActive=$isActive for ${selected.fileName}")
-                                dialog.dismiss()
                                 if (isActive) {
+                                    dialog.dismiss()
                                     context.toast(R.string.ime_package_already_active)
                                     return@launch
                                 }
-                                scope.withLoadingDialog(context, R.string.deploy_progress) {
+                                if (!ImePackageManager.isCompiled(selected.fileName)) {
+                                    context.toast(R.string.ime_package_not_compiled)
+                                    return@launch
+                                }
+                                dialog.dismiss()
+                                scope.launch {
                                     try {
                                         Timber.i("IME picker: activating ${selected.fileName}")
                                         withContext(Dispatchers.IO) {
                                             ImePackageManager.activate(ImePackageManager.packageFile(selected.fileName))
                                         }
-                                        context.toast(R.string.install_schema_layout_package_success)
+                                        context.toast(R.string.ime_package_activation_success)
                                     } catch (t: Throwable) {
                                         Timber.w(t, "IME picker: activation failed for ${selected.fileName}")
                                         context.toast(R.string.install_schema_layout_package_failure)
