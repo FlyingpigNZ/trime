@@ -5,19 +5,13 @@
 
 package com.osfans.trime.daemon
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.Process
-import androidx.core.app.NotificationCompat
 import com.osfans.trime.BuildConfig
-import com.osfans.trime.R
 import com.osfans.trime.core.Rime
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.schema.PackageStore
@@ -38,12 +32,15 @@ class PackageCompileService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
-                NOTIFICATION_ID,
-                buildNotification(),
+                ImePackageNotifications.NOTIFICATION_ID,
+                ImePackageNotifications.buildCompilingNotification(this),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
             )
         } else {
-            startForeground(NOTIFICATION_ID, buildNotification())
+            startForeground(
+                ImePackageNotifications.NOTIFICATION_ID,
+                ImePackageNotifications.buildCompilingNotification(this),
+            )
         }
         val sourceDir = intent?.getStringExtra(EXTRA_SOURCE_DIR)
         val targetDir = intent?.getStringExtra(EXTRA_TARGET_DIR)
@@ -136,42 +133,23 @@ class PackageCompileService : Service() {
     }
 
     private fun notifyFinished(success: Boolean) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val text =
-            if (success) {
-                getString(R.string.ime_package_compiled_switch_hint)
-            } else {
-                getString(R.string.install_schema_layout_package_failure)
-            }
-        val notification =
-            NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_baseline_refresh_reversed_24)
-                .setContentTitle(getString(R.string.rime_daemon))
-                .setContentText(text)
-                .setOngoing(false)
-                .setAutoCancel(true)
-                .setTimeoutAfter(5000L)
-                .build()
-        manager.notify(NOTIFICATION_ID, notification)
-    }
-
-    private fun buildNotification(): Notification {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(CHANNEL_ID, "IME package compile", NotificationManager.IMPORTANCE_LOW)
-            manager.createNotificationChannel(channel)
+        if (success) {
+            ImePackageNotifications.notifyCompiled(this)
+        } else {
+            ImePackageNotifications.notifyCompileFailed(this)
         }
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_baseline_refresh_reversed_24)
-            .setContentTitle(getString(R.string.rime_daemon))
-            .setContentText(getString(R.string.ime_package_compiling_start))
-            .setOngoing(true)
-            .build()
+        // Detach the foreground notification before stopping the service so the
+        // completion result stays in the notification shade instead of being
+        // removed together with the foreground service.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            stopForeground(STOP_FOREGROUND_DETACH)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(false)
+        }
     }
 
     companion object {
-        private const val CHANNEL_ID = "ime-package-compile"
-        private const val NOTIFICATION_ID = 2332
         const val EXTRA_SOURCE_DIR = "source_dir"
         const val EXTRA_TARGET_DIR = "target_dir"
         const val EXTRA_WORKSPACE_DIR = "workspace_dir"

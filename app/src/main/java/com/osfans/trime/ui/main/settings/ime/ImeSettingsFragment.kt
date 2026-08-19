@@ -10,13 +10,16 @@ import android.os.Bundle
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.Preference
 import com.osfans.trime.R
+import com.osfans.trime.daemon.ImePackageNotifications
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.schema.PackageStore
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
 import com.osfans.trime.ui.main.settings.ImePickerDialog
 import com.osfans.trime.util.addCategory
 import com.osfans.trime.util.addPreference
+import com.osfans.trime.util.setup
 import com.osfans.trime.util.toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,6 +31,7 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
     private lateinit var packageLauncher: ActivityResultLauncher<String>
     private lateinit var exportLauncher: ActivityResultLauncher<String>
     private var pendingExportFile: File? = null
+    private var importPreference: Preference? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,12 +91,20 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                         ).show()
                     }
                 }
-                addPreference(
-                    R.string.install_schema_layout_package,
-                    R.string.install_schema_layout_package_summary,
-                ) {
-                    packageLauncher.launch("application/zip")
-                }
+                val importPref =
+                    Preference(requireContext()).apply {
+                        isEnabled = !ImePackageManager.isBusy()
+                        setup(
+                            requireContext().getString(R.string.install_schema_layout_package),
+                            requireContext().getString(R.string.install_schema_layout_package_summary),
+                        ) {
+                            if (!ImePackageManager.isBusy()) {
+                                packageLauncher.launch("application/zip")
+                            }
+                        }
+                    }
+                addPreference(importPref)
+                importPreference = importPref
                 if (PackageStore.workspaceDir(PackageStore.MIGRATED_PACKAGE_ID).isDirectory) {
                     addPreference(
                         R.string.export_migrated_workspace,
@@ -129,35 +141,44 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
 
     private fun installImePackage(uri: Uri) {
         val ctx = requireContext()
+        if (ImePackageManager.isBusy()) return
+        importPreference?.isEnabled = false
+        importPreference?.setSummary(R.string.ime_package_import_in_progress)
+        // Surface the import phase immediately; the compile service will take
+        // over the same notification when it starts.
+        ImePackageNotifications.notifyImporting(ctx)
         // No modal dialog: the compile runs in the foreground :compile service
         // and shows a notification, so the user can keep using the app.
         lifecycleScope.launch {
             val tempFile = File.createTempFile("ime-package-", ".zip", ctx.cacheDir)
-            val imported =
-                try {
+            var imported: File? = null
+            try {
+                imported =
                     withContext(Dispatchers.IO) {
                         ctx.contentResolver.openInputStream(uri)!!.use { input ->
                             tempFile.outputStream().use { input.copyTo(it) }
                         }
                         ImePackageManager.importPackage(tempFile)
                     }
-                } catch (t: Exception) {
-                    Timber.w(t, "Failed to import IME package")
-                    ctx.toast(R.string.install_schema_layout_package_failure)
-                    tempFile.delete()
-                    return@launch
-                }
-            try {
                 val packageId = ImePackageManager.packageIdOf(imported)
                 // Compile runs in the foreground :compile service; its
                 // notification reports start/success/failure.
                 ImePackageManager.compilePackageFile("$packageId.zip")
             } catch (t: Exception) {
-                // Compile failures are reported by the compile service
-                // notification; only log here to avoid duplicate toasts.
-                Timber.w(t, "IME package compile failed")
+                Timber.w(t, "IME package import/compile failed")
+                if (imported == null) {
+                    ImePackageNotifications.cancel(ctx)
+                } else {
+                    // Compile failures are reported by the compile service
+                    // notification; update it here too in case the main process
+                    // gave up on a timeout before the service could report.
+                    ImePackageNotifications.notifyCompileFailed(ctx)
+                }
+                ctx.toast(R.string.install_schema_layout_package_failure)
             } finally {
                 tempFile.delete()
+                importPreference?.isEnabled = true
+                importPreference?.setSummary(R.string.install_schema_layout_package_summary)
             }
         }
     }

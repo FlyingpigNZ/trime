@@ -7,6 +7,7 @@ package com.osfans.trime.data.schema
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import com.osfans.trime.BuildConfig
+import com.osfans.trime.daemon.ImePackageNotifications
 import com.osfans.trime.daemon.PackageCompileService
 import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.data.base.DataManager
@@ -45,6 +46,7 @@ object ImePackageManager {
     const val DEFAULT_PACKAGE_FILE_NAME = "Default.zip"
 
     private val activating = AtomicBoolean(false)
+    private val compiling = AtomicBoolean(false)
     private val compileMutex = Mutex()
     private val ensureMutex = Mutex()
 
@@ -403,6 +405,9 @@ object ImePackageManager {
     /** True while a package is being compiled/activated; input should be blocked. */
     fun isActivating(): Boolean = activating.get()
 
+    /** True while a compile/activation is running; UI should block new imports. */
+    fun isBusy(): Boolean = activating.get() || compiling.get()
+
     /** Registry view of the active package's schema → keyboard binding. */
     fun registry(): DefaultKeyboardRegistry {
         val workspace = PackageStore.activeWorkspaceDir() ?: return DefaultKeyboardRegistry.Empty
@@ -440,34 +445,44 @@ object ImePackageManager {
                 throw IllegalArgumentException("Package workspace missing: $workspace")
             }
             if (PackageStore.isCompiled(packageId)) return@withLock
-            val marker = File(workspace, "compiled.marker")
-            val error = File(workspace, "compiled.error")
-            marker.delete()
-            error.delete()
-            val intent =
-                Intent(appContext, PackageCompileService::class.java).apply {
-                    putExtra(PackageCompileService.EXTRA_WORKSPACE_DIR, workspace.absolutePath)
-                    putExtra(
-                        PackageCompileService.EXTRA_SHARED_DIR,
-                        DataManager.sharedDataDir.absolutePath,
-                    )
-                    putExtra(PackageCompileService.EXTRA_VERSION, BuildConfig.BUILD_VERSION_NAME)
+            if (!compiling.compareAndSet(false, true)) {
+                throw IllegalStateException("IME package compile is already in progress")
+            }
+            try {
+                val marker = File(workspace, "compiled.marker")
+                val error = File(workspace, "compiled.error")
+                marker.delete()
+                error.delete()
+                val intent =
+                    Intent(appContext, PackageCompileService::class.java).apply {
+                        putExtra(PackageCompileService.EXTRA_WORKSPACE_DIR, workspace.absolutePath)
+                        putExtra(
+                            PackageCompileService.EXTRA_SHARED_DIR,
+                            DataManager.sharedDataDir.absolutePath,
+                        )
+                        putExtra(PackageCompileService.EXTRA_VERSION, BuildConfig.BUILD_VERSION_NAME)
+                    }
+                ContextCompat.startForegroundService(appContext, intent)
+                val deadline = System.currentTimeMillis() + COMPILE_TIMEOUT_MS
+                while (!marker.isFile && !error.isFile && System.currentTimeMillis() < deadline) {
+                    delay(COMPILE_POLL_INTERVAL_MS)
                 }
-            ContextCompat.startForegroundService(appContext, intent)
-            val deadline = System.currentTimeMillis() + COMPILE_TIMEOUT_MS
-            while (!marker.isFile && !error.isFile && System.currentTimeMillis() < deadline) {
-                delay(COMPILE_POLL_INTERVAL_MS)
-            }
-            if (error.isFile) {
-                throw IllegalStateException("IME package compile failed: $packageId")
-            }
-            if (!marker.isFile) {
-                throw IllegalStateException("IME package compile timed out: $packageId")
-            }
-            // If the active package was recompiled in place, restart Rime so it
-            // picks up the new workspace contents.
-            if (PackageStore.activePackageId() == packageId) {
-                RimeDaemon.restartRime()
+                if (error.isFile) {
+                    throw IllegalStateException("IME package compile failed: $packageId")
+                }
+                if (!marker.isFile) {
+                    throw IllegalStateException("IME package compile timed out: $packageId")
+                }
+                // If the active package was recompiled in place, restart Rime so it
+                // picks up the new workspace contents, and reload the theme so the
+                // in-memory keyboard layout reflects the updated package immediately.
+                if (PackageStore.activePackageId() == packageId) {
+                    RimeDaemon.restartRime()
+                    restoreActiveTheme()
+                    ImePackageNotifications.notifyRefreshed(appContext)
+                }
+            } finally {
+                compiling.set(false)
             }
         }
     }

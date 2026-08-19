@@ -85,6 +85,9 @@ object ImePickerDialog {
                                 layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
                                 setOnClickListener {
                                     scope.launch {
+                                        if (ImePackageManager.isBusy()) {
+                                            return@launch
+                                        }
                                         context.toast(R.string.ime_package_compiling_start)
                                         try {
                                             withContext(Dispatchers.IO) {

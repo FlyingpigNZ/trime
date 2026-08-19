@@ -334,16 +334,16 @@ preset_keys:
     send: PROG_RED
   Help:
     label: 说明
-    send: Help
+    send: HELP
   Info:
     label: 关于
     send: INFO
   Menu:
     label: ◉
-    send: Menu
+    send: MENU
   Menu1:
     label: 菜单
-    send: Menu
+    send: MENU
   Settings:
     label: 设置
     send: SETTINGS
