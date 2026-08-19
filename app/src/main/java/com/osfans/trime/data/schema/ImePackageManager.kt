@@ -5,8 +5,6 @@
 package com.osfans.trime.data.schema
 
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.osfans.trime.BuildConfig
 import com.osfans.trime.daemon.PackageCompileService
@@ -248,12 +246,8 @@ object ImePackageManager {
                         if (t is CancellationException) throw t
                         Timber.w(t, "Active package theme is unusable; falling back to Default")
                         PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
-                        RimeDaemon.restartRime()
-                        restoreActiveTheme()
-                        return@withContext
                     }
-                }
-                if (active != null && active != PackageStore.DEFAULT_PACKAGE_ID) {
+                } else if (active != null && active != PackageStore.DEFAULT_PACKAGE_ID) {
                     // Active package is unusable; fall back to Default.
                     Timber.w("Active package $active is not compiled; falling back to Default")
                     PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
@@ -594,13 +588,9 @@ object ImePackageManager {
         }
     }
 
-    private fun applyTheme(theme: Theme) {
-        if (Looper.myLooper() == Looper.getMainLooper()) {
+    private suspend fun applyTheme(theme: Theme) {
+        withContext(Dispatchers.Main) {
             ThemeManager.applySchemaLayout(theme, replaceTheme = true)
-        } else {
-            Handler(Looper.getMainLooper()).post {
-                ThemeManager.applySchemaLayout(theme, replaceTheme = true)
-            }
         }
     }
 

@@ -160,7 +160,16 @@ object DataManager {
         if (targetWorkspace.listFiles()?.isNotEmpty() == true) {
             if (activePackageId != null) {
                 writeMigratedCompiledMarker(targetWorkspace, activePackageId)
-                PackageStore.setActivePackage(activePackageId)
+                if (activePackageId == PackageStore.DEFAULT_PACKAGE_ID ||
+                    PackageStore.isCompiled(activePackageId)
+                ) {
+                    PackageStore.setActivePackage(activePackageId)
+                } else {
+                    // Do not start Rime with a migrated package that cannot be
+                    // opened; let ensureDefaultPackageReady compile/activate it
+                    // later from the package list.
+                    PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
+                }
             } else {
                 PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
             }
@@ -208,9 +217,17 @@ object DataManager {
                 writeMigratedCompiledMarker(targetWorkspace, activePackageId)
             }
             marker.writeText(managed.absolutePath)
-            if (activePackageId != null) {
+            if (activePackageId != null &&
+                (activePackageId == PackageStore.DEFAULT_PACKAGE_ID ||
+                    PackageStore.isCompiled(activePackageId))
+            ) {
                 PackageStore.setActivePackage(activePackageId)
                 Timber.i("Migrated managed /rime to package workspace $activePackageId")
+            } else if (activePackageId != null) {
+                PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
+                Timber.w(
+                    "Migrated package $activePackageId is not compiled/usable; activating Default",
+                )
             } else {
                 PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
                 Timber.i("No matching package for managed /rime; preserved as Migrated workspace")

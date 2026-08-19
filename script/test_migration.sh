@@ -74,9 +74,14 @@ YAML"
 sleep 10
 # Trigger the IME so ensureDefaultPackageReady runs the full startup path;
 # the migrated package must stay active instead of being rolled back.
+"$ADB" shell input keyevent KEYCODE_HOME >/dev/null
 "$ADB" shell am start -a android.intent.action.SENDTO -d sms:12345 >/dev/null
+sleep 2
+"$ADB" shell ime enable "$PKG/com.osfans.trime.ime.core.TrimeInputMethodService" >/dev/null
 "$ADB" shell ime set "$PKG/com.osfans.trime.ime.core.TrimeInputMethodService" >/dev/null
 "$ADB" shell am start -a android.intent.action.SENDTO -d sms:12345 >/dev/null
+sleep 2
+"$ADB" shell ime set "$PKG/com.osfans.trime.ime.core.TrimeInputMethodService" >/dev/null
 sleep 5
 "$ADB" shell test -f "$BASE/packages/14jian/workspace/manifest.yaml"
 ACTIVE_B=$("$ADB" shell run-as "$PKG" cat files/active-package | tr -d '\r')
@@ -119,9 +124,14 @@ YAML"
 "$ADB" logcat -c
 "$ADB" shell am start -n "$PKG/com.osfans.trime.ui.main.MainActivity" >/dev/null
 sleep 10
+"$ADB" shell input keyevent KEYCODE_HOME >/dev/null
 "$ADB" shell am start -a android.intent.action.SENDTO -d sms:12345 >/dev/null
+sleep 2
+"$ADB" shell ime enable "$PKG/com.osfans.trime.ime.core.TrimeInputMethodService" >/dev/null
 "$ADB" shell ime set "$PKG/com.osfans.trime.ime.core.TrimeInputMethodService" >/dev/null
 "$ADB" shell am start -a android.intent.action.SENDTO -d sms:12345 >/dev/null
+sleep 2
+"$ADB" shell ime set "$PKG/com.osfans.trime.ime.core.TrimeInputMethodService" >/dev/null
 sleep 5
 ACTIVE_C=$("$ADB" shell run-as "$PKG" cat files/active-package | tr -d '\r')
 if [ "$ACTIVE_C" != "Default" ]; then

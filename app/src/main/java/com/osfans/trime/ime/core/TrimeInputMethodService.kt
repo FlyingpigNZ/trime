@@ -267,11 +267,10 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                     // (e.g. Default during first startup); record that so the
                     // compile service does not redundantly compile it again.
                     ImePackageManager.markCurrentWorkspaceCompiled()
-                    if (ImePackageManager.activePackageFileName() != null) {
-                        lifecycleScope.launch { ImePackageManager.restoreActiveTheme() }
-                    } else {
-                        lifecycleScope.launch { ImePackageManager.ensureDefaultPackageReady() }
-                    }
+                    // Always go through ensureDefaultPackageReady: it restores a
+                    // usable active theme, and falls back to a compiled Default
+                    // when the active workspace's theme is unusable.
+                    lifecycleScope.launch { ImePackageManager.ensureDefaultPackageReady() }
                 }
             }
             else -> {}
