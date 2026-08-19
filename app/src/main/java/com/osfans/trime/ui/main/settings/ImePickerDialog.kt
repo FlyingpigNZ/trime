@@ -73,6 +73,34 @@ object ImePickerDialog {
                                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                         },
                     )
+                    if (!compiled && item.error == null) {
+                        row.addView(
+                            ImageButton(context).apply {
+                                setImageResource(R.drawable.ic_baseline_refresh_reversed_24)
+                                setColorFilter(ContextCompat.getColor(context, android.R.color.darker_gray))
+                                contentDescription = context.getString(R.string.ime_package_compile)
+                                background = null
+                                isFocusable = false
+                                isFocusableInTouchMode = false
+                                layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+                                setOnClickListener {
+                                    scope.launch {
+                                        context.toast(R.string.ime_package_compiling_start)
+                                        try {
+                                            withContext(Dispatchers.IO) {
+                                                ImePackageManager.compilePackageFile(item.fileName)
+                                            }
+                                            notifyDataSetChanged()
+                                            context.toast(R.string.ime_package_compiled_switch_hint)
+                                        } catch (t: Throwable) {
+                                            Timber.w(t, "IME picker: compile failed for ${item.fileName}")
+                                            context.toast(R.string.install_schema_layout_package_failure)
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    }
                     if (!ImePackageManager.isDefaultPackage(item.fileName)) {
                         row.addView(
                             ImageButton(context).apply {

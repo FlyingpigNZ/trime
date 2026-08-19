@@ -123,6 +123,7 @@
     <string name="install_schema_layout_package_success">方案键盘布局包安装成功</string>
     <string name="install_schema_layout_package_failure">方案键盘布局包安装失败</string>
     <string name="ime_package_not_compiled">输入方案包尚未编译完成</string>
+    <string name="ime_package_compile">编译输入方案包</string>
     <string name="ime_package_compiled_switch_hint">方案包编译完成，可以切换了</string>
     <string name="ime_package_compiling_start">开始编译输入法方案包…</string>
     <string name="ime_package_activation_success">输入方案包切换完成</string>

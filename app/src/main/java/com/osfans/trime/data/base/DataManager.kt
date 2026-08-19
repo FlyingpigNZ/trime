@@ -9,6 +9,10 @@ import android.os.Build
 import android.os.Environment
 import androidx.preference.PreferenceManager
 import com.osfans.trime.data.prefs.AppPrefs
+// DataManager uses ImePackageManager.hasUsableTheme during migration to avoid
+// marking unusable migrated data as compiled. This forms a package-level cycle
+// with ImePackageManager's DataManager import; it is accepted for now and can
+// be untangled later by extracting theme usability into a lower-level helper.
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.schema.PackageStore
 import com.osfans.trime.util.FileUtils

@@ -118,6 +118,11 @@ object ImePackageManager {
      * The exported zip can be fed back into [importPackage]. `build/` and
      * compile markers are excluded; if the workspace has no manifest, a minimal
      * manifest is generated so the export remains importable.
+     *
+     * Note: re-importing an exported workspace creates a package whose id comes
+     * from its manifest `schema_id`. In particular, exporting `Default` and
+     * re-importing it produces a package named e.g. `luna_pinyin`, not
+     * `Default`; this is the normal "package id = schema_id" import semantics.
      */
     fun exportPackage(fileName: String): File {
         val id = fileName.removeSuffix(".zip")
@@ -476,10 +481,13 @@ object ImePackageManager {
                 }
             }
         }
-        return ids.distinct().toMutableList().also { list ->
-            list.remove(mainSchemaId)
-            list.add(0, mainSchemaId)
+        val distinctIds = ids.distinct()
+        if (mainSchemaId !in distinctIds) {
+            throw IllegalArgumentException(
+                "IME package does not contain $mainSchemaId.schema.yaml",
+            )
         }
+        return listOf(mainSchemaId) + distinctIds.filter { it != mainSchemaId }
     }
 
     /**

@@ -46,9 +46,10 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                 lifecycleScope.launch {
                     try {
                         withContext(Dispatchers.IO) {
-                            ctx.contentResolver.openOutputStream(uri)?.use { out ->
-                                file.inputStream().use { it.copyTo(out) }
-                            }
+                            val out =
+                                ctx.contentResolver.openOutputStream(uri)
+                                    ?: throw IllegalStateException("SAF returned no output stream for $uri")
+                            out.use { file.inputStream().use { it.copyTo(out) } }
                         }
                         ctx.toast(R.string.export)
                     } catch (t: Exception) {
@@ -59,6 +60,12 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                     }
                 }
             }
+    }
+
+    override fun onDestroy() {
+        pendingExportFile?.delete()
+        pendingExportFile = null
+        super.onDestroy()
     }
 
     override fun onCreatePreferences(
