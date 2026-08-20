@@ -46,6 +46,23 @@ class ColorVerifierTest(unittest.TestCase):
         )
         self.assertTrue(any("invalid color reference" in error for error in errors))
 
+    def test_drawable_background_keys_accept_image_filenames(self) -> None:
+        sections = {
+            "preset_color_schemes": {
+                "default": {
+                    "light": {
+                        "back_color": "#ffffff",
+                        "keyboard_background": "default.jpg",
+                    },
+                    "dark": {
+                        "back_color": "#000000",
+                        "keyboard_background": "dark_temple.jpg",
+                    },
+                },
+            },
+        }
+        self.assertEqual(verify(sections), [])
+
 
 if __name__ == "__main__":
     unittest.main()

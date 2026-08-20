@@ -55,6 +55,15 @@ BUILTIN_FALLBACK_KEYS = {
     "long_text_back_color",
 }
 
+# Palette keys that accept a drawable value (image file name or color), not a
+# color literal. The runtime treats these as "背景图/色".
+DRAWABLE_KEYS = {
+    "root_background",
+    "candidate_background",
+    "keyboard_background",
+    "liquid_keyboard_background",
+}
+
 
 def is_hex_color(value: str) -> bool:
     if not isinstance(value, str):
@@ -87,6 +96,8 @@ def _collect_palette_keys(sections: dict[str, Any], known: set[str]) -> list[str
                 if key in ("name", "author"):
                     continue
                 known.add(key)
+                if key in DRAWABLE_KEYS:
+                    continue
                 if not is_hex_color(value):
                     errors.append(
                         f"preset_color_schemes.{scheme_name}.{key}: invalid color '{value}'"

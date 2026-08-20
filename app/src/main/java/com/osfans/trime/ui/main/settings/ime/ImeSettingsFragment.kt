@@ -33,6 +33,7 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
     private lateinit var exportLauncher: ActivityResultLauncher<String>
     private var pendingExportFile: File? = null
     private var importPreference: Preference? = null
+    private var importInProgress = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,9 +71,13 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
 
     override fun onResume() {
         super.onResume()
-        importPreference?.isEnabled = !ImePackageManager.isBusy()
+        refreshImportPreference()
+    }
+
+    private fun refreshImportPreference() {
+        importPreference?.isEnabled = !importInProgress && !ImePackageManager.isBusy()
         importPreference?.setSummary(
-            if (ImePackageManager.isBusy()) {
+            if (importInProgress || ImePackageManager.isBusy()) {
                 R.string.ime_package_import_in_progress
             } else {
                 R.string.install_schema_layout_package_summary
@@ -107,12 +112,12 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                 }
                 val importPref =
                     Preference(requireContext()).apply {
-                        isEnabled = !ImePackageManager.isBusy()
+                        isEnabled = !importInProgress && !ImePackageManager.isBusy()
                         setup(
                             requireContext().getString(R.string.install_schema_layout_package),
                             requireContext().getString(R.string.install_schema_layout_package_summary),
                         ) {
-                            if (!ImePackageManager.isBusy()) {
+                            if (!importInProgress && !ImePackageManager.isBusy()) {
                                 packageLauncher.launch("application/zip")
                             }
                         }
@@ -160,9 +165,9 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
 
     private fun installImePackage(uri: Uri) {
         val ctx = requireContext()
-        if (ImePackageManager.isBusy()) return
-        importPreference?.isEnabled = false
-        importPreference?.setSummary(R.string.ime_package_import_in_progress)
+        if (importInProgress || ImePackageManager.isBusy()) return
+        importInProgress = true
+        refreshImportPreference()
         // Surface the import phase immediately; the compile service will take
         // over the same notification when it starts.
         ImePackageNotifications.notifyImporting(ctx)
@@ -198,8 +203,8 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
                 ctx.toast(R.string.install_schema_layout_package_failure)
             } finally {
                 tempFile.delete()
-                importPreference?.isEnabled = true
-                importPreference?.setSummary(R.string.install_schema_layout_package_summary)
+                importInProgress = false
+                refreshImportPreference()
             }
         }
     }

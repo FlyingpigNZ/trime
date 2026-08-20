@@ -727,6 +727,11 @@
           "default": "border_color",
           "description": "键盘区的背景图/色"
         },
+        "keyboard_background": {
+          "type": "string",
+          "default": "keyboard_back_color",
+          "description": "键盘区的背景图/色"
+        },
         "liquid_keyboard_background": {
           "type": "string",
           "default": "keyboard_back_color",

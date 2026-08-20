@@ -184,7 +184,7 @@ object ComponentValidator {
             palettes.forEach { palette ->
                 palette.pairs.forEach { (keyNode, valueNode) ->
                     val key = keyNode.string ?: return@forEach
-                    if (key == "name" || key == "author") return@forEach
+                    if (key == "name" || key == "author" || key in DefinitionValidator.DRAWABLE_KEYS) return@forEach
                     val value = valueNode.string ?: return@forEach
                     if (!isHexColor(value)) {
                         errors += "$path.preset_color_schemes.$name.$key: invalid color '$value'"

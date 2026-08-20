@@ -20,6 +20,15 @@ import com.osfans.trime.util.yaml.string
  * callers can show all problems at once.
  */
 object DefinitionValidator {
+    /** Palette keys that accept a drawable value (image file name or color). */
+    val DRAWABLE_KEYS =
+        setOf(
+            "root_background",
+            "candidate_background",
+            "keyboard_background",
+            "liquid_keyboard_background",
+        )
+
     fun validateComponentManifest(
         yaml: String,
         source: ComponentSource? = null,
@@ -55,6 +64,7 @@ object DefinitionValidator {
                     val key = keyNode.string ?: return@forEach
                     if (key == "name" || key == "author") return@forEach
                     knownColorKeys += key
+                    if (key in DRAWABLE_KEYS) return@forEach
                     val value = valueNode.string ?: return@forEach
                     if (!isHexColor(value)) {
                         errors += "preset_color_schemes: invalid color '$value' for '$key'"

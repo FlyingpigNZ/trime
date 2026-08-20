@@ -209,6 +209,38 @@ class DefinitionValidatorTest :
             DefinitionValidator.validateColorLiterals(sections).shouldBeEmpty()
         }
 
+        "component manifest with drawable background key passes" {
+            val colorFile =
+                mapping(
+                    """
+                    preset_color_schemes:
+                      default:
+                        light:
+                          back_color: '#ffffff'
+                          keyboard_background: default.jpg
+                        dark:
+                          back_color: '#000000'
+                          keyboard_background: dark_temple.jpg
+                    """.trimIndent(),
+                )
+            DefinitionValidator.validateComponentManifest(
+                """
+                name: test
+                components:
+                  - color:
+                      file: color.yaml
+                  - style:
+                      file: style.yaml
+                """.trimIndent(),
+                ComponentSource.fromMap(
+                    mapOf(
+                        "color.yaml" to colorFile,
+                        "style.yaml" to mapping("style:\n  keyboard_height: 200\n"),
+                    ),
+                ),
+            ).shouldBeEmpty()
+        }
+
         "component manifest with decimal color scheme fails" {
             val colorFile =
                 Yaml.Default.parseToYamlNode(
