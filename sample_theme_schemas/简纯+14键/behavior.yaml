@@ -226,29 +226,33 @@ preset_keys:
     send: Control+z
   liquid_keyboard_switch:
     label: 更多
-    send: function
+    send: FUNCTION
     command: liquid_keyboard
     option: 更多
   liquid_keyboard_exit:
     label: 返回
-    send: function
+    send: FUNCTION
     command: liquid_keyboard
     option: '-1'
   liquid_keyboard_emoji:
     label: 🙂
-    send: function
+    send: FUNCTION
     command: liquid_keyboard
-    option: emoji
+    option: 表情
   liquid_keyboard_clipboard:
     label: 剪贴
-    send: function
+    send: FUNCTION
     command: liquid_keyboard
     option: 剪贴
   liquid_keyboard_clipboard1:
     label: 📋
-    send: function
+    send: FUNCTION
     command: liquid_keyboard
     option: 剪贴
+  menu_keyboard:
+    label: 菜单
+    send: FUNCTION
+    command: menu_keyboard
   F4:
     label: 方案选单
     send: F4
@@ -269,49 +273,49 @@ preset_keys:
     send: Control+Delete
   Mode_switch:
     toggle: ascii_mode
-    send: Mode_switch
+    send: SWITCH_CHARSET
     states:
     - 中
     - 英
   Zenkaku_Hankaku:
     toggle: full_shape
-    send: Mode_switch
+    send: SWITCH_CHARSET
     states:
     - 半角
     - 全角
   Henkan:
     toggle: simplification
-    send: Mode_switch
+    send: SWITCH_CHARSET
     states:
     - 汉字
     - 汉字
   Charset_switch:
     toggle: extended_charset
-    send: Mode_switch
+    send: SWITCH_CHARSET
     states:
     - 常用
     - 增广
   Punct_switch:
     toggle: ascii_punct
-    send: Mode_switch
+    send: SWITCH_CHARSET
     states:
     - 。，
     - ．，
   Candidate_switch:
     toggle: _hide_candidate
-    send: Mode_switch
+    send: SWITCH_CHARSET
     states:
     - 有候选
     - 无候选
   Comment_switch:
     toggle: _hide_comment
-    send: Mode_switch
+    send: SWITCH_CHARSET
     states:
     - 有注释
     - 无注释
   Hint_switch:
     toggle: _hide_key_hint
-    send: Mode_switch
+    send: SWITCH_CHARSET
     states:
     - 有下标
     - 无下标
@@ -361,7 +365,7 @@ preset_keys:
     option: schema
   Mode_switch_space:
     toggle: ascii_mode
-    send: Mode_switch
+    send: SWITCH_CHARSET
     states:
     - ' '
     - ascii

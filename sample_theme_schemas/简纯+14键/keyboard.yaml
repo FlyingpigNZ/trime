@@ -29,7 +29,7 @@ x-menu-styles:
     hilited_key_text_color: hilited_menu_text_color
 preset_keyboards:
 preset_keyboards:
-  default:
+  default: &default
     name: 26键
     author: amzxyz
     ascii_mode: 0
@@ -38,52 +38,52 @@ preset_keyboards:
     reset_ascii_mode: false
     width: 11
     keys:
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num1
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num2
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num3
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num4
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num5
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num6
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num7
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num8
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num9
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
@@ -157,7 +157,7 @@ preset_keyboards:
       width: 10
       click: a
       long_click: select_all
-      height: 18
+      height: 52
     - key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       width: 10
@@ -206,7 +206,7 @@ preset_keyboards:
       long_click: ;
       swipe_down: chongzhi
       hint: 重置
-    - height: 18
+    - height: 52
       click: Shift_L
       composing: split_word
       width: 15
@@ -258,7 +258,7 @@ preset_keyboards:
       composing: Tab
       width: 11
       key_back_color: off_key_back_color
-      height: 18
+      height: 52
     - key_symbol_color: off_key_symbol_color
       hilited_key_symbol_color: off_key_symbol_color
       key_symbol_offset_x: 0
@@ -307,7 +307,7 @@ preset_keyboards:
     - width: 0
       height: 1
     height: 52
-    horizontal_gap: 16
+    horizontal_gap: 4
     vertical_gap: 7
     key_symbol_offset_x: 9
     key_hint_offset_x: 0
@@ -916,52 +916,52 @@ preset_keyboards:
     reset_ascii_mode: false
     width: 11
     keys:
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num1
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num2
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num3
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num4
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num5
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num6
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num7
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num8
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       click: num9
-    - height: 12
+    - height: 52
       width: 10
       key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
@@ -1035,7 +1035,7 @@ preset_keyboards:
       width: 10
       click: a
       long_click: select_all
-      height: 18
+      height: 52
     - key_back_color: main_back_color
       hilited_key_back_color: hilited_main_back_color
       width: 10
@@ -1084,7 +1084,7 @@ preset_keyboards:
       long_click: ;
       swipe_down: chongzhi
       hint: 重置
-    - height: 18
+    - height: 52
       click: Shift_L
       composing: split_word
       width: 15
@@ -1136,7 +1136,7 @@ preset_keyboards:
       composing: Tab
       width: 11
       key_back_color: off_key_back_color
-      height: 18
+      height: 52
     - key_symbol_color: off_key_symbol_color
       hilited_key_symbol_color: off_key_symbol_color
       key_symbol_offset_x: 0
@@ -1189,13 +1189,21 @@ preset_keyboards:
     - width: 0
       height: 1
     height: 52
-    horizontal_gap: 16
+    horizontal_gap: 4
     vertical_gap: 7
     key_symbol_offset_x: 9
     key_hint_offset_x: 0
     key_hint_offset_y: -0.5
     key_press_offset_x: 2
     key_press_offset_y: 2
+  rime_ice:
+    <<: *default
+    name: 全拼26键
+    ascii_keyboard: letter
+  double_pinyin_flypy:
+    <<: *default
+    name: 小鹤双拼26键
+    ascii_keyboard: letter
   number:
     name: 数字
     author: amzxyz
@@ -5471,7 +5479,7 @@ preset_keyboards:
     - width: 0
       height: 1
     height: 52
-    horizontal_gap: 16
+    horizontal_gap: 4
     vertical_gap: 7
     key_symbol_offset_x: 9
     key_hint_offset_x: 0
@@ -5684,7 +5692,7 @@ preset_keyboards:
     - width: 0
       height: 1
     height: 52
-    horizontal_gap: 16
+    horizontal_gap: 4
     vertical_gap: 7
     key_symbol_offset_x: 9
     key_hint_offset_x: 0

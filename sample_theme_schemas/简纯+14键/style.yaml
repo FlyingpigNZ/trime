@@ -15,6 +15,7 @@ style:
   latin_locale: en_US
   locale: zh_CN
   background_dim_amount: 0.5
+  background_folder: /
   keyboards:
   - .default
   - symbols
@@ -75,6 +76,8 @@ style:
   - ywz61
   - ywz62
   - default
+  - rime_ice
+  - double_pinyin_flypy
   - 14jian
   - letter
   - letter_14jian

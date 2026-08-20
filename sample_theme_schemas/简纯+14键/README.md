@@ -13,7 +13,11 @@ structure as `Default.zip`.
 - `color.yaml` — `preset_color_schemes` + `fallback_colors`
 - `style.yaml` — `style`
 - `liquid_keyboard.yaml` — `liquid_keyboard`
-- `14jian.schema.yaml` — full Rime schema
+- `chrome.yaml` — `tool_bar` buttons (modeled after the default luna_pinyin package)
+- `14jian.schema.yaml` — 小鹤双拼14键 Rime schema
+- `double_pinyin_flypy.schema.yaml` — 小鹤双拼（26键）Rime schema
+- `rime_ice.schema.yaml` — 雾凇拼音全拼（26键）Rime schema
+- `backgrounds/` — keyboard background images referenced by `keyboard_background`
 
 The Rime files themselves are not stored in this directory; `script/package_schema.py`
 copies them from `../rime.雾凇` (or `--rime-source`) when generating

@@ -7,6 +7,10 @@ default_keyboard: 14jian
 components:
 - schema:
     file: 14jian.schema.yaml
+- schema:
+    file: double_pinyin_flypy.schema.yaml
+- schema:
+    file: rime_ice.schema.yaml
 - keyboard:
     file: keyboard.yaml
 - behavior:
@@ -17,11 +21,15 @@ components:
     file: style.yaml
 - style:
     file: liquid_keyboard.yaml
+- style:
+    file: chrome.yaml
 # Rime files required by the full rime-ice based schema. They are stored under
 # rime/ inside the zip and copied to the Rime user data dir during install.
 rime_files:
 - rime/default.yaml
 - rime/symbols_caps_v.yaml
+- rime/symbols_v.yaml
+- rime/custom_phrase.txt
 - rime/melt_eng.schema.yaml
 - rime/melt_eng.dict.yaml
 - rime/radical_pinyin.schema.yaml
@@ -41,9 +49,11 @@ rime_files:
 - rime/lua/corrector.lua
 - rime/lua/date_translator.lua
 - rime/lua/force_gc.lua
+- rime/lua/long_word_filter.lua
 - rime/lua/lunar.lua
 - rime/lua/number_translator.lua
 - rime/lua/pin_cand_filter.lua
+- rime/lua/v_filter.lua
 - rime/lua/reduce_english_filter.lua
 - rime/lua/search.lua
 - rime/lua/select_character.lua

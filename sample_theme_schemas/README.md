@@ -61,7 +61,8 @@ asset symlinks must resolve).
     `color.yaml`, `style.yaml`, `chrome.yaml`, `liquid_keyboard.yaml`)
   - `14jian.schema.yaml`
   - optional `rime/` (Rime files required by the schema)
-  - optional `resources/` (backgrounds, fonts)
+  - optional `backgrounds/` (keyboard background images) or `resources/`
+    (future fonts/backgrounds packaging)
 
 Generate the 14键 package zip locally:
 

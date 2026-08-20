@@ -1,0 +1,49 @@
+# 14键 toolbar buttons, modeled after the default tongwenfeng/luna_pinyin
+# chrome.yaml. Actions reference preset_keys that already exist in behavior.yaml.
+tool_bar:
+  button_spacing: 5
+  button_font: iconfont.ttf
+  back_style: ic@arrow-left
+  primary_button:
+    background:
+      type: circle
+      corner_radius: 10
+      normal: 0x00
+      highlight: hilited_candidate_button_color
+      vertical_inset: 4
+      horizontal_inset: 4
+    foreground:
+      style: ic@dots_horizontal
+      normal: candidate_text_color
+      padding: 10
+    action: menu_keyboard
+    long_press_action: Settings
+  hide_button: &id001
+    foreground:
+      style: ic@keyboard_close
+      normal: candidate_text_color
+    action: Hide
+  emoji_button: &id002
+    foreground:
+      style: ic@emoticon
+    action: liquid_keyboard_emoji
+  clipboard_button: &id003
+    foreground:
+      style: ic@clipboard
+    action: liquid_keyboard_clipboard
+  edit_button: &id004
+    foreground:
+      style: ic@cursor_text
+    action: kb_edit
+  full_shape_button: &id005
+    foreground:
+      option_styles:
+      - ic@moon_full
+      - ic@moon_new
+    action: Zenkaku_Hankaku
+  buttons:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
