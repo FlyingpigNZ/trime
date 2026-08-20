@@ -39,16 +39,20 @@ asset symlinks must resolve).
 
 ## Customized package
 
-`简纯+14键/` is a self-contained IME package:
+`简纯+14键.zip` is a self-contained IME package. It is the shipping artifact and
+already contains everything needed on import:
 
-- `manifest.yaml` — the single component manifest referencing root
-  `keyboard.yaml`, `behavior.yaml`, `color.yaml`, `style.yaml`,
-  `liquid_keyboard.yaml`, and schema files
+- `manifest.yaml` — component manifest with `components`
 - `keyboard.yaml` / `behavior.yaml` / `color.yaml` / `style.yaml` /
-  `liquid_keyboard.yaml` — direct definition splits
-- `14jian.schema.yaml` — full Rime schema
-- `rime_files` — Rime resources pulled from the sibling `rime.雾凇/` folder
-  when packaging
+  `chrome.yaml` / `liquid_keyboard.yaml`
+- Rime schemas: `14jian.schema.yaml`, `double_pinyin_flypy.schema.yaml`,
+  `rime_ice.schema.yaml`
+- optional `rime/` (Rime files required by the schemas)
+- optional `backgrounds/` (keyboard background images)
+
+There is no unpacked source directory checked in; the zip itself is the source
+of truth. To modify the package, unzip it, edit the files, and re-zip, or keep
+a local source copy outside the repo.
 
 ## Shipping boundary
 
@@ -63,9 +67,3 @@ asset symlinks must resolve).
   - optional `rime/` (Rime files required by the schema)
   - optional `backgrounds/` (keyboard background images) or `resources/`
     (future fonts/backgrounds packaging)
-
-Generate the 14键 package zip locally:
-
-```bash
-python3 script/package_schema.py sample_theme_schemas/简纯+14键
-```
