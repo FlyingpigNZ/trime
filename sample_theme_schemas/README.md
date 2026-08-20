@@ -18,15 +18,11 @@ Packages are flat: all definition YAMLs live at the package root, with no
 
 ## Default package
 
-`tongwenfeng/` is the split default IME package:
-
-- `manifest.yaml` — component manifest (`keyboard.yaml`, `behavior.yaml`,
-  `color.yaml`, `style.yaml`, `liquid_keyboard.yaml`, `chrome.yaml`,
-  `rime_files`)
-- `style.yaml` / `liquid_keyboard.yaml` / `color.yaml` / `chrome.yaml` —
-  theme-specific definition blocks
-- `rime_files` — built-in Rime schemas/resources (`luna_*`, `stroke`,
-  `pinyin`, prelude files) pulled from `app/src/main/assets/shared/`
+The app-provided default package source lives in
+`app/src/main/assets/shared/Default/`, not under `sample_theme_schemas/`.
+It is a self-contained split package with `manifest.yaml`, `keyboard.yaml`,
+`behavior.yaml`, `color.yaml`, `style.yaml`, `chrome.yaml`,
+`liquid_keyboard.yaml`, and its own `rime/` files.
 
 Build `Default.zip`:
 
