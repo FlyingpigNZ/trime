@@ -49,6 +49,10 @@ jobs:
         run: |
           sdkmanager --install "cmake;3.31.6"
 
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --user pyyaml || python3 -m pip install --user --break-system-packages pyyaml
+
       - name: Calculate JNI cache hash
         id: cache-hash
         run: |
