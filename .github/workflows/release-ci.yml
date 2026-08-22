@@ -81,17 +81,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Write release body
-        run: |
-          cat > release_body.md <<'TRIME_CHANGELOG_EOF'
-          ${{ steps.build_changelog.outputs.changelog }}
-          TRIME_CHANGELOG_EOF
-
       - name: Create Stable release
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           artifacts: "app/build/outputs/apk/release/*.apk"
-          bodyFile: release_body.md
+          body: |
+            ${{ steps.build_changelog.outputs.changelog }}
           token: ${{ secrets.GITHUB_TOKEN }}
