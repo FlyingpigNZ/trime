@@ -86,28 +86,31 @@ fun Context.getFileFromUri(uri: Uri): File? {
                     val isPrimary = storageVolumeClazz.getMethod("isPrimary")
                     val isEmulated = storageVolumeClazz.getMethod("isEmulated")
                     val result = getVolumeList.invoke(mStorageManager)
-                    val length = result?.let { Array.getLength(it) } ?: 0
-                    for (i in 0 until length) {
-                        val storageVolumeElement = Array.get(result, i)
-                        val mounted =
-                            Environment.MEDIA_MOUNTED ==
-                                getState.invoke(
-                                    storageVolumeElement,
-                                ) ||
-                                Environment.MEDIA_MOUNTED_READ_ONLY == getState.invoke(storageVolumeElement)
+                    if (result != null) {
+                        val length = Array.getLength(result)
+                        for (i in 0 until length) {
+                            val storageVolumeElement = Array.get(result, i)
+                            val mounted =
+                                Environment.MEDIA_MOUNTED ==
+                                    getState.invoke(
+                                        storageVolumeElement,
+                                    ) ||
+                                    Environment.MEDIA_MOUNTED_READ_ONLY == getState.invoke(storageVolumeElement)
 
-                        // if the media is not mounted, we need not get the volume details
-                        if (!mounted) continue
+                            // if the media is not mounted, we need not get the volume details
+                            if (!mounted) continue
 
-                        // Primary storage is already handled.
-                        if (isPrimary.invoke(storageVolumeElement) as Boolean &&
-                            isEmulated.invoke(storageVolumeElement) as Boolean
-                        ) {
-                            continue
-                        }
-                        val uuid = getUuid.invoke(storageVolumeElement) as? String
-                        if (uuid != null && uuid == type) {
-                            return File(getPath.invoke(storageVolumeElement).toString() + "/" + split[1])
+                            // Primary storage is already handled.
+                            if (isPrimary.invoke(storageVolumeElement) as Boolean &&
+                                isEmulated.invoke(storageVolumeElement) as Boolean
+                            ) {
+                                continue
+                            }
+                            val uuid = getUuid.invoke(storageVolumeElement) as? String
+                            val path = getPath.invoke(storageVolumeElement)?.toString()
+                            if (uuid != null && uuid == type && path != null) {
+                                return File(path + "/" + split[1])
+                            }
                         }
                     }
                 }.getOrElse {

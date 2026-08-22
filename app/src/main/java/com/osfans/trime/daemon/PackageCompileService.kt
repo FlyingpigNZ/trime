@@ -53,7 +53,7 @@ class PackageCompileService : Service() {
             try {
                 workspace = resolveWorkspace(sourceDir, targetDir, workspaceDir, zipPath)
                 if (sharedDir == null) error("missing shared dir")
-                val result = compile(workspace!!, sharedDir, version)
+                val result = compile(workspace, sharedDir, version)
                 Timber.i("PackageCompileService result: $result")
                 notifyFinished(success = true)
             } catch (t: Throwable) {

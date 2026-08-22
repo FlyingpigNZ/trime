@@ -12,25 +12,38 @@ import java.io.File
  * available input-method list and selected as the default (first) entry.
  */
 object SchemaListUpdater {
-    fun addSchema(
-        customFile: File,
-        schemaId: String,
-    ) {
-        val yaml = Yaml()
+    private fun loadRoot(customFile: File): LinkedHashMap<String, Any?> {
         val root = LinkedHashMap<String, Any?>()
         if (customFile.exists()) {
-            val loaded = yaml.load<Any?>(customFile.readText())
+            val loaded = Yaml().load<Any?>(customFile.readText())
             if (loaded is Map<*, *>) {
                 loaded.forEach { (key, value) -> root[key.toString()] = value }
             }
         }
+        return root
+    }
 
-        val patch =
-            root["patch"] as? MutableMap<String, Any?>
-                ?: LinkedHashMap<String, Any?>().also { root["patch"] = it }
-        val schemaList =
-            patch["schema_list"] as? MutableList<Any?>
-                ?: ArrayList<Any?>().also { patch["schema_list"] = it }
+    private fun patchMap(root: MutableMap<String, Any?>): LinkedHashMap<String, Any?> {
+        val patch = LinkedHashMap<String, Any?>()
+        (root["patch"] as? Map<*, *>)?.forEach { (key, value) -> patch[key.toString()] = value }
+        root["patch"] = patch
+        return patch
+    }
+
+    private fun schemaList(patch: MutableMap<String, Any?>): MutableList<Any?> {
+        val list = ArrayList<Any?>()
+        (patch["schema_list"] as? List<*>)?.forEach { list.add(it) }
+        patch["schema_list"] = list
+        return list
+    }
+
+    fun addSchema(
+        customFile: File,
+        schemaId: String,
+    ) {
+        val root = loadRoot(customFile)
+        val patch = patchMap(root)
+        val schemaList = schemaList(patch)
 
         schemaList.removeAll { entry ->
             (entry as? Map<*, *>)?.get("schema") == schemaId
@@ -38,7 +51,7 @@ object SchemaListUpdater {
         schemaList.add(0, mapOf("schema" to schemaId))
 
         customFile.parentFile?.mkdirs()
-        customFile.writeText(yaml.dump(root))
+        customFile.writeText(Yaml().dump(root))
     }
 
     /**
@@ -50,22 +63,12 @@ object SchemaListUpdater {
         customFile: File,
         schemaIds: List<String>,
     ) {
-        val yaml = Yaml()
-        val root = LinkedHashMap<String, Any?>()
-        if (customFile.exists()) {
-            val loaded = yaml.load<Any?>(customFile.readText())
-            if (loaded is Map<*, *>) {
-                loaded.forEach { (key, value) -> root[key.toString()] = value }
-            }
-        }
-
-        val patch =
-            root["patch"] as? MutableMap<String, Any?>
-                ?: LinkedHashMap<String, Any?>().also { root["patch"] = it }
+        val root = loadRoot(customFile)
+        val patch = patchMap(root)
         patch["schema_list"] =
             schemaIds.distinct().map { mapOf("schema" to it) }
 
         customFile.parentFile?.mkdirs()
-        customFile.writeText(yaml.dump(root))
+        customFile.writeText(Yaml().dump(root))
     }
 }

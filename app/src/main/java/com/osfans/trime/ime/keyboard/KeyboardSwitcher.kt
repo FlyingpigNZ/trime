@@ -7,6 +7,7 @@ package com.osfans.trime.ime.keyboard
 import android.content.Context
 import android.text.InputType
 import android.view.inputmethod.EditorInfo
+import com.osfans.trime.core.RimeUiState
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.schema.DefaultKeyboardRegistry
 import com.osfans.trime.data.theme.Theme
@@ -41,6 +42,7 @@ class KeyboardSwitcher(
     private val keyboards = mutableMapOf<String, Keyboard>()
 
     val currentKeyboard: Keyboard? get() = keyboards[currentKeyboardId]
+    val currentUiState: RimeUiState get() = rime.uiState.value
 
     private fun selectKeyboardConfig(name: String): TextKeyboard? =
         theme.presetKeyboards[name] ?: theme.presetKeyboards["default"]
@@ -113,8 +115,6 @@ class KeyboardSwitcher(
         val keyboard = getOrCreateKeyboard(resolved)
         if (keyboard.isLock) lastLockKeyboardId = resolved
         syncAsciiMode(keyboard)
-        KeyboardSwitcherLegacy.currentKeyboard = keyboard
-        KeyboardSwitcherLegacy.currentUiState = rime.uiState.value
         return keyboard
     }
 

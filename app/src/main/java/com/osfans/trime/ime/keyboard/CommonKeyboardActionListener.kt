@@ -51,6 +51,7 @@ class CommonKeyboardActionListener {
     private val context: Context by di.instance()
     private val service: TrimeInputMethodService by di.instance()
     private val rime: RimeSession by di.instance()
+    private val keyboardSwitcher: KeyboardSwitcher by di.instance()
     private val windowManager: BoardWindowManager by di.instance()
     private val keyboardWindow: KeyboardWindow by di.instance()
     private val liquidWindow: LiquidWindow by di.instance()
@@ -110,7 +111,8 @@ class CommonKeyboardActionListener {
             }
 
             override fun onAction(action: KeyAction) {
-                val text = action.getText(KeyboardSwitcherLegacy.currentKeyboard, rime.uiState.value)
+                val keyboard = keyboardSwitcher.currentKeyboard ?: return
+                val text = action.getText(keyboard, rime.uiState.value)
                 val shouldHandle = when {
                     action.commit.isNotEmpty() -> {
                         service.commitText(action.commit)
@@ -298,6 +300,7 @@ class CommonKeyboardActionListener {
             }
 
             private fun handleDefaultKeyAction(action: KeyAction) {
+                val keyboard = keyboardSwitcher.currentKeyboard ?: return
                 val shouldHookShiftKey = when {
                     prefs.keyboard.hookShiftSpace.getValue() && action.code == KeyEvent.KEYCODE_SPACE -> true
                     prefs.keyboard.hookShiftNum.getValue() && action.code in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> true
@@ -306,15 +309,15 @@ class CommonKeyboardActionListener {
                     else -> false
                 }
 
-                if (action.modifier == 0 && KeyboardSwitcherLegacy.currentKeyboard.isOnlyShiftOn && shouldHookShiftKey) {
+                if (action.modifier == 0 && keyboard.isOnlyShiftOn && shouldHookShiftKey) {
                     onKey(action.code, 0)
                     return
                 }
 
                 val modifier = when {
-                    action.modifier == 0 -> KeyboardSwitcherLegacy.currentKeyboard.modifier
+                    action.modifier == 0 -> keyboard.modifier
                     (action.modifier and KeyEvent.META_CTRL_ON) != 0 && isNavigationKey(action.code) ->
-                        action.modifier or KeyboardSwitcherLegacy.currentKeyboard.modifier
+                        action.modifier or keyboard.modifier
                     else -> action.modifier
                 }
 

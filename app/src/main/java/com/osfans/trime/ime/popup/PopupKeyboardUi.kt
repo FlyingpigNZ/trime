@@ -19,7 +19,7 @@ import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.core.AutoScaleTextView
-import com.osfans.trime.ime.keyboard.KeyboardSwitcherLegacy
+import com.osfans.trime.ime.keyboard.KeyboardSwitcher
 import com.osfans.trime.ime.keyboard.isIconFont
 import com.osfans.trime.ime.keyboard.toIconName
 import splitties.dimensions.dp
@@ -57,6 +57,7 @@ import com.osfans.trime.data.theme.ThemeColor
 class PopupKeyboardUi(
     override val ctx: Context,
     theme: Theme,
+    private val keyboardSwitcher: KeyboardSwitcher,
     outerBounds: Rect,
     triggerBounds: Rect,
     onDismissSelf: PopupContainerUi.() -> Unit = {},
@@ -196,7 +197,9 @@ class PopupKeyboardUi(
             if (label.length == 1 && label[0].code < 128) {
                 label
             } else {
-                KeyActionManager.getAction(label).getLabel(KeyboardSwitcherLegacy.currentKeyboard, KeyboardSwitcherLegacy.currentUiState).let {
+                keyboardSwitcher.currentKeyboard?.let { keyboard ->
+                    KeyActionManager.getAction(label).getLabel(keyboard, keyboardSwitcher.currentUiState)
+                }.orEmpty().let {
                     when {
                         it.isIconFont -> it
                         it.isNotEmpty() -> String(Character.toChars(it.codePointAt(0)))

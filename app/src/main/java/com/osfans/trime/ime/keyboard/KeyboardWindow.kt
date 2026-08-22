@@ -104,9 +104,6 @@ class KeyboardWindow :
         keyboard.also {
             runBlocking { _currentKeyboardHeight.emit(it.keyboardHeight) }
             dispatchCapsState(it::setShifted)
-
-            // TODO：为避免过量重构，这里暂时将 currentKeyboard 同步到 KeyboardSwitcherLegacy
-            KeyboardSwitcherLegacy.currentKeyboard = it
         }
 
         view.let {

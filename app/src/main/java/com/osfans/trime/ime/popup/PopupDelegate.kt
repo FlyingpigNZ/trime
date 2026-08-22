@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.core.TrimeInputMethodService
+import com.osfans.trime.ime.keyboard.KeyboardSwitcher
 import com.osfans.trime.ime.dependency.InputDependencyManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -26,6 +27,7 @@ class PopupDelegate {
     private val context: Context by InputDependencyManager.getInstance().di.instance()
     private val theme: Theme by InputDependencyManager.getInstance().di.instance()
     private val service: TrimeInputMethodService by InputDependencyManager.getInstance().di.instance()
+    private val keyboardSwitcher: KeyboardSwitcher by InputDependencyManager.getInstance().di.instance()
 
     private val showingEntryUi = HashMap<Int, PopupEntryUi>()
     private val dismissJobs = HashMap<Int, Job>()
@@ -120,6 +122,7 @@ class PopupDelegate {
         val keyboardUi = PopupKeyboardUi(
             context,
             theme,
+            keyboardSwitcher,
             rootBounds,
             bounds,
             { dismissPopup(viewId) },
