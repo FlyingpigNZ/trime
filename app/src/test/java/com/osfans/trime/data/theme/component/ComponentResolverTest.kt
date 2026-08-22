@@ -15,11 +15,9 @@ import io.kotest.matchers.shouldNotBe
 
 class ComponentResolverTest :
     StringSpec({
-        fun mapping(yaml: String): Node.Mapping =
-            Yaml.Default.parseToYamlNode(yaml.trimIndent()).mapping!!
+        fun mapping(yaml: String): Node.Mapping = Yaml.Default.parseToYamlNode(yaml.trimIndent()).mapping!!
 
-        fun manifest(yaml: String): ComponentManifest =
-            ComponentManifest.parse(mapping(yaml))
+        fun manifest(yaml: String): ComponentManifest = ComponentManifest.parse(mapping(yaml))
 
         fun resolve(
             manifestYaml: String,

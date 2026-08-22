@@ -44,13 +44,11 @@ class KeyboardSwitcher(
     val currentKeyboard: Keyboard? get() = keyboards[currentKeyboardId]
     val currentUiState: RimeUiState get() = rime.uiState.value
 
-    private fun selectKeyboardConfig(name: String): TextKeyboard? =
-        theme.presetKeyboards[name] ?: theme.presetKeyboards["default"]
+    private fun selectKeyboardConfig(name: String): TextKeyboard? = theme.presetKeyboards[name] ?: theme.presetKeyboards["default"]
 
-    private fun getOrCreateKeyboard(id: String): Keyboard =
-        keyboards.getOrPut(id) {
-            Keyboard(context, theme, selectKeyboardConfig(id), rime).also { it.lastAsciiMode = it.asciiMode }
-        }
+    private fun getOrCreateKeyboard(id: String): Keyboard = keyboards.getOrPut(id) {
+        Keyboard(context, theme, selectKeyboardConfig(id), rime).also { it.lastAsciiMode = it.asciiMode }
+    }
 
     /** Resolve a symbolic or literal keyboard id to an actual keyboard id. */
     fun resolveKeyboard(target: String): String {
@@ -124,30 +122,29 @@ class KeyboardSwitcher(
     }
 
     /** Compute the keyboard target for a new input session (pure policy). */
-    fun startInputTarget(info: EditorInfo): String =
-        when (info.imeOptions and EditorInfo.IME_FLAG_FORCE_ASCII) {
-            EditorInfo.IME_FLAG_FORCE_ASCII -> ".ascii"
-            else -> {
-                when (info.inputType and InputType.TYPE_MASK_CLASS) {
-                    InputType.TYPE_CLASS_NUMBER,
-                    InputType.TYPE_CLASS_PHONE,
-                    InputType.TYPE_CLASS_DATETIME,
-                    -> "number"
-                    InputType.TYPE_CLASS_TEXT -> {
-                        when (info.inputType and InputType.TYPE_MASK_VARIATION) {
-                            InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-                            InputType.TYPE_TEXT_VARIATION_PASSWORD,
-                            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
-                            InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
-                            InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
-                            -> ".ascii"
-                            else -> ""
-                        }
+    fun startInputTarget(info: EditorInfo): String = when (info.imeOptions and EditorInfo.IME_FLAG_FORCE_ASCII) {
+        EditorInfo.IME_FLAG_FORCE_ASCII -> ".ascii"
+        else -> {
+            when (info.inputType and InputType.TYPE_MASK_CLASS) {
+                InputType.TYPE_CLASS_NUMBER,
+                InputType.TYPE_CLASS_PHONE,
+                InputType.TYPE_CLASS_DATETIME,
+                -> "number"
+                InputType.TYPE_CLASS_TEXT -> {
+                    when (info.inputType and InputType.TYPE_MASK_VARIATION) {
+                        InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+                        InputType.TYPE_TEXT_VARIATION_PASSWORD,
+                        InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+                        InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
+                        InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+                        -> ".ascii"
+                        else -> ""
                     }
-                    else -> ""
                 }
+                else -> ""
             }
         }
+    }
 
     /**
      * The ascii-mode policy for a new input session.

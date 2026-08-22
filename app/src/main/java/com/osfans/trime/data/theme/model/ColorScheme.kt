@@ -5,7 +5,6 @@
 
 package com.osfans.trime.data.theme.model
 
-
 /**
  * A self-contained color scheme pair.
  *

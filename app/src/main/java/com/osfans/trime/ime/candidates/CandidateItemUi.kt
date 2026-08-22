@@ -15,6 +15,7 @@ import com.osfans.trime.core.CandidateProto
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.model.GeneralStyle
 import com.osfans.trime.ime.core.AutoScaleTextView
 import com.osfans.trime.ime.keyboard.GestureFrame
@@ -42,7 +43,6 @@ import splitties.views.dsl.core.view
 import splitties.views.dsl.core.wrapContent
 import splitties.views.gravityCenter
 import splitties.views.horizontalPadding
-import com.osfans.trime.data.theme.ThemeColor
 
 class CandidateItemUi(
     override val ctx: Context,

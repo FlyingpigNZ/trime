@@ -22,6 +22,7 @@ import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.data.theme.ThemePrefs
 import com.osfans.trime.ime.keyboard.InputFeedbackManager
@@ -30,7 +31,6 @@ import kotlinx.coroutines.launch
 import splitties.dimensions.dp
 import splitties.views.dsl.core.withTheme
 import kotlin.math.max
-import com.osfans.trime.data.theme.ThemeColor
 
 abstract class BaseInputView(
     val service: TrimeInputMethodService,

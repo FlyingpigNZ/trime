@@ -40,13 +40,12 @@ class KeyAction(
     val modifierKeyOnMask: Int
         get() = definition.modifierKeyOnMask
 
-    fun isShiftLock(ui: RimeUiState): Boolean =
-        when (shiftLock) {
-            "long" -> false // 长按锁定
-            "click" -> true // 点击锁定
-            "ascii_long" -> !ui.isAsciiMode // 英文长按锁定，中文点击锁定
-            else -> false
-        }
+    fun isShiftLock(ui: RimeUiState): Boolean = when (shiftLock) {
+        "long" -> false // 长按锁定
+        "click" -> true // 点击锁定
+        "ascii_long" -> !ui.isAsciiMode // 英文长按锁定，中文点击锁定
+        else -> false
+    }
 
     private val text get() = definition.text
     private val label get() = definition.label
@@ -64,12 +63,11 @@ class KeyAction(
         str: String,
         keyboard: Keyboard,
         ui: RimeUiState,
-    ): String =
-        if (str.length == 1 && (keyboard.isShifted || (!ui.isAsciiMode && keyboard.isLabelUppercase))) {
-            str.uppercase()
-        } else {
-            str
-        }
+    ): String = if (str.length == 1 && (keyboard.isShifted || (!ui.isAsciiMode && keyboard.isLabelUppercase))) {
+        str.uppercase()
+    } else {
+        str
+    }
 
     fun getLabel(
         keyboard: Keyboard,

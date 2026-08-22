@@ -57,29 +57,28 @@ object ImePackageManager {
         val error: String? = null,
     )
 
-    fun listPackages(): List<ImePackage> =
-        PackageStore.rootDir
-            .listFiles { file -> file.isDirectory }
-            ?.mapNotNull { dir ->
-                val id = dir.name
-                if (!PackageStore.isSafePackageId(id)) return@mapNotNull null
-                if (id == PackageStore.MIGRATED_PACKAGE_ID) return@mapNotNull null
-                val zip = File(dir, "package.zip")
-                val meta =
-                    if (zip.isFile) {
-                        runCatching { readPackageMeta(zip) }.getOrNull()
-                    } else {
-                        runCatching { readWorkspaceMeta(PackageStore.workspaceDir(id)) }.getOrNull()
-                    }
-                ImePackage(
-                    fileName = "$id.zip",
-                    name = meta?.name ?: id,
-                    version = meta?.version,
-                    error = if (meta == null) "Invalid or missing package.zip" else null,
-                )
-            }
-            ?.sortedBy { it.fileName.lowercase() }
-            ?: emptyList()
+    fun listPackages(): List<ImePackage> = PackageStore.rootDir
+        .listFiles { file -> file.isDirectory }
+        ?.mapNotNull { dir ->
+            val id = dir.name
+            if (!PackageStore.isSafePackageId(id)) return@mapNotNull null
+            if (id == PackageStore.MIGRATED_PACKAGE_ID) return@mapNotNull null
+            val zip = File(dir, "package.zip")
+            val meta =
+                if (zip.isFile) {
+                    runCatching { readPackageMeta(zip) }.getOrNull()
+                } else {
+                    runCatching { readWorkspaceMeta(PackageStore.workspaceDir(id)) }.getOrNull()
+                }
+            ImePackage(
+                fileName = "$id.zip",
+                name = meta?.name ?: id,
+                version = meta?.version,
+                error = if (meta == null) "Invalid or missing package.zip" else null,
+            )
+        }
+        ?.sortedBy { it.fileName.lowercase() }
+        ?: emptyList()
 
     fun activePackageFileName(): String? = PackageStore.activePackageId()?.let { "$it.zip" }
 
@@ -92,16 +91,14 @@ object ImePackageManager {
     fun packageIdOf(packageFile: File): String = readPackageMeta(packageFile).schemaId
 
     /** Internal package zips are stored as `<packageDir>/package.zip`. */
-    private fun packageIdFromPackageFile(packageFile: File): String =
-        packageFile.parentFile?.name ?: packageFile.nameWithoutExtension
+    private fun packageIdFromPackageFile(packageFile: File): String = packageFile.parentFile?.name ?: packageFile.nameWithoutExtension
 
     fun isDefaultPackage(fileName: String): Boolean = fileName == DEFAULT_PACKAGE_FILE_NAME
 
     /** Whether the workspace contains a theme the app can actually load. */
     fun hasUsableTheme(workspace: File): Boolean = PackageThemeLoader.hasUsableTheme(workspace)
 
-    fun isActivePackage(packageFile: File): Boolean =
-        packageIdFromPackageFile(packageFile) == PackageStore.activePackageId()
+    fun isActivePackage(packageFile: File): Boolean = packageIdFromPackageFile(packageFile) == PackageStore.activePackageId()
 
     fun deletePackage(fileName: String): Boolean {
         if (isDefaultPackage(fileName)) return false
@@ -219,15 +216,14 @@ object ImePackageManager {
     private fun hasSchemaFile(
         workspace: File,
         schemaId: String,
-    ): Boolean =
-        workspace.walkTopDown().any { file ->
-            if (!file.isFile) return@any false
-            val relative = file.relativeTo(workspace).path
-            if (relative == "build" || relative.startsWith("build/")) {
-                return@any false
-            }
-            file.name == "$schemaId.schema.yaml"
+    ): Boolean = workspace.walkTopDown().any { file ->
+        if (!file.isFile) return@any false
+        val relative = file.relativeTo(workspace).path
+        if (relative == "build" || relative.startsWith("build/")) {
+            return@any false
         }
+        file.name == "$schemaId.schema.yaml"
+    }
 
     /**
      * Import a package zip into the package library and extract it into its
@@ -383,8 +379,7 @@ object ImePackageManager {
         }
     }
 
-    fun isCompiled(fileName: String): Boolean =
-        PackageStore.isCompiled(fileName.removeSuffix(".zip"))
+    fun isCompiled(fileName: String): Boolean = PackageStore.isCompiled(fileName.removeSuffix(".zip"))
 
     /**
      * Mark the current Rime user data dir as compiled. Called when the engine

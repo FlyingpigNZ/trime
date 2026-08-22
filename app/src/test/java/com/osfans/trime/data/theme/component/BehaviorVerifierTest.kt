@@ -13,8 +13,7 @@ import io.kotest.matchers.collections.shouldContain
 
 class BehaviorVerifierTest :
     StringSpec({
-        fun mapping(yaml: String): Node.Mapping =
-            Yaml.Default.parseToYamlNode(yaml.trimIndent()).mapping!!
+        fun mapping(yaml: String): Node.Mapping = Yaml.Default.parseToYamlNode(yaml.trimIndent()).mapping!!
 
         fun sections(yaml: String): Map<String, Node.Mapping> {
             val root = mapping(yaml)

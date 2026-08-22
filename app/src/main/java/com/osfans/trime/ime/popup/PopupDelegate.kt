@@ -11,8 +11,8 @@ import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.core.TrimeInputMethodService
-import com.osfans.trime.ime.keyboard.KeyboardSwitcher
 import com.osfans.trime.ime.dependency.InputDependencyManager
+import com.osfans.trime.ime.keyboard.KeyboardSwitcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

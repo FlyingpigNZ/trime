@@ -73,8 +73,11 @@ class ComponentResolver(
     ) {
         val resolvedData = resolveColorSchemes(data)
         val sectionsToApply =
-            if (onlySection != null) listOf(onlySection)
-            else SECTION_NAMES
+            if (onlySection != null) {
+                listOf(onlySection)
+            } else {
+                SECTION_NAMES
+            }
         sectionsToApply.forEach { section ->
             resolvedData[section]?.mapping?.let { value ->
                 if (section in NAMED_SECTIONS) {
@@ -179,9 +182,12 @@ class ComponentResolver(
                     palettes[lightName]
                         ?: throw IllegalArgumentException("color_schemes.$id: unknown light palette '$lightName'")
                 val dark =
-                    if (darkName == lightName) light
-                    else palettes[darkName]
-                        ?: throw IllegalArgumentException("color_schemes.$id: unknown dark palette '$darkName'")
+                    if (darkName == lightName) {
+                        light
+                    } else {
+                        palettes[darkName]
+                            ?: throw IllegalArgumentException("color_schemes.$id: unknown dark palette '$darkName'")
+                    }
                 val scheme = LinkedHashMap<Node, Node>()
                 pair["name"]?.let { scheme[Node.Scalar("name")] = it }
                 pair["author"]?.let { scheme[Node.Scalar("author")] = it }

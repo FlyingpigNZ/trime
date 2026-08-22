@@ -11,11 +11,11 @@ import android.view.Window
 import androidx.annotation.ColorInt
 import androidx.core.view.WindowCompat
 import com.osfans.trime.data.theme.ColorManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.data.theme.ThemePrefs
 import com.osfans.trime.util.ColorUtils
 import com.osfans.trime.util.DeviceUtils
-import com.osfans.trime.data.theme.ThemeColor
 
 class NavigationBarManager {
     private val navbarBackground by ThemeManager.prefs.navbarBackground

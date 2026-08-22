@@ -141,14 +141,20 @@ object ComponentValidator {
         keyboards.pairs.forEach { (nameNode, valueNode) ->
             val name = nameNode.string ?: return@forEach
             val keyboard = valueNode.mapping
-                ?: run { errors += "$path.preset_keyboards.$name: must be a mapping"; return@forEach }
+                ?: run {
+                    errors += "$path.preset_keyboards.$name: must be a mapping"
+                    return@forEach
+                }
             if (keyboard["name"]?.string.isNullOrEmpty() && keyboard["__include"]?.string.isNullOrEmpty()) {
                 errors += "$path.preset_keyboards.$name: missing 'name' or '__include'"
             }
             val keys = keyboard["keys"]?.sequence?.nodes ?: emptyList()
             keys.forEachIndexed { index, keyNode ->
                 val key = keyNode.mapping
-                    ?: run { errors += "$path.preset_keyboards.$name.keys[$index]: must be a mapping"; return@forEachIndexed }
+                    ?: run {
+                        errors += "$path.preset_keyboards.$name.keys[$index]: must be a mapping"
+                        return@forEachIndexed
+                    }
                 if (key.pairs.isEmpty()) {
                     errors += "$path.preset_keyboards.$name.keys[$index]: key mapping must not be empty"
                 }
@@ -162,7 +168,10 @@ object ComponentValidator {
         data["preset_keys"]?.mapping?.pairs?.forEach { (nameNode, valueNode) ->
             val name = nameNode.string ?: return@forEach
             val key = valueNode.mapping
-                ?: run { errors += "$path.preset_keys.$name: must be a mapping"; return@forEach }
+                ?: run {
+                    errors += "$path.preset_keys.$name: must be a mapping"
+                    return@forEach
+                }
             val hasAction = PRESET_KEY_ACTIONS.any { key[it] != null }
             if (!hasAction) {
                 errors += "$path.preset_keys.$name: missing an action (send/text/commit/command/toggle/select)"
@@ -176,7 +185,10 @@ object ComponentValidator {
         data["preset_color_schemes"]?.mapping?.pairs?.forEach { (nameNode, schemeNode) ->
             val name = nameNode.string ?: return@forEach
             val scheme = schemeNode.mapping
-                ?: run { errors += "$path.preset_color_schemes.$name: must be a mapping"; return@forEach }
+                ?: run {
+                    errors += "$path.preset_color_schemes.$name: must be a mapping"
+                    return@forEach
+                }
             val palettes = mutableListOf<Node.Mapping>()
             scheme["light"]?.mapping?.let { palettes += it }
             scheme["dark"]?.mapping?.let { palettes += it }

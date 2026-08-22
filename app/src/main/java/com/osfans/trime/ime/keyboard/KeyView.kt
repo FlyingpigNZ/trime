@@ -20,6 +20,7 @@ import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.popup.PopupAction
@@ -27,7 +28,6 @@ import com.osfans.trime.ime.popup.PopupDelegate
 import com.osfans.trime.util.sp
 import splitties.dimensions.dp
 import timber.log.Timber
-import com.osfans.trime.data.theme.ThemeColor
 
 @SuppressLint("ClickableViewAccessibility", "ViewConstructor")
 class KeyView(

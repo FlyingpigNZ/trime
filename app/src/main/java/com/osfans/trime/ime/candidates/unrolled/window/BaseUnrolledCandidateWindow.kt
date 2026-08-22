@@ -18,6 +18,7 @@ import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.bar.InputBarDelegate
 import com.osfans.trime.ime.bar.UnrollButtonStateMachine
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
@@ -37,7 +38,6 @@ import kotlinx.coroutines.launch
 import org.kodein.di.instance
 import splitties.dimensions.dp
 import kotlin.math.max
-import com.osfans.trime.data.theme.ThemeColor
 
 abstract class BaseUnrolledCandidateWindow :
     BoardWindow.NoBarBoardWindow(),

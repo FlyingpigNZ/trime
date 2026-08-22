@@ -18,9 +18,9 @@ import com.osfans.trime.R
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.data.theme.DefinitionValidator
 import com.osfans.trime.data.theme.component.ComponentSource
-import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
 import com.osfans.trime.ui.common.withLoadingDialog
 import com.osfans.trime.ui.main.MainViewModel
@@ -30,10 +30,10 @@ import com.osfans.trime.util.addPreference
 import com.osfans.trime.util.customFormatTimeInDefault
 import com.osfans.trime.util.getFileFromUri
 import com.osfans.trime.util.toast
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class ProfileSettingsFragment : PaddingPreferenceFragment() {
     private val viewModel: MainViewModel by activityViewModels()

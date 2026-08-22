@@ -12,10 +12,9 @@ object KeyActionManager {
 
     fun getAction(token: String) = getAction(KeyActionToken.Plain(token))
 
-    fun getAction(token: KeyActionToken): KeyAction =
-        actionCache.getOrPut(token) {
-            KeyAction(token, ThemeManager.activeTheme.presetKeys)
-        }
+    fun getAction(token: KeyActionToken): KeyAction = actionCache.getOrPut(token) {
+        KeyAction(token, ThemeManager.activeTheme.presetKeys)
+    }
 
     fun resetCache() = actionCache.clear()
 }

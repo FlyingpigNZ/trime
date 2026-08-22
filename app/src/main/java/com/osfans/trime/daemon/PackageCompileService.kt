@@ -77,24 +77,23 @@ class PackageCompileService : Service() {
         targetDir: String?,
         workspaceDir: String?,
         zipPath: String?,
-    ): File =
-        when {
-            zipPath != null -> {
-                val imported = ImePackageManager.importPackage(File(zipPath))
-                val packageId = ImePackageManager.packageIdOf(imported)
-                PackageStore.workspaceDir(packageId)
-            }
-            workspaceDir != null -> File(workspaceDir)
-            targetDir != null && sourceDir != null -> {
-                val source = File(sourceDir)
-                val target = File(targetDir)
-                if (!source.isDirectory) error("source dir missing: $source")
-                target.mkdirs()
-                source.copyRecursively(target, overwrite = true)
-                target
-            }
-            else -> error("missing required extras")
+    ): File = when {
+        zipPath != null -> {
+            val imported = ImePackageManager.importPackage(File(zipPath))
+            val packageId = ImePackageManager.packageIdOf(imported)
+            PackageStore.workspaceDir(packageId)
         }
+        workspaceDir != null -> File(workspaceDir)
+        targetDir != null && sourceDir != null -> {
+            val source = File(sourceDir)
+            val target = File(targetDir)
+            if (!source.isDirectory) error("source dir missing: $source")
+            target.mkdirs()
+            source.copyRecursively(target, overwrite = true)
+            target
+        }
+        else -> error("missing required extras")
+    }
 
     private fun compile(workspace: File, sharedDir: String, version: String): Boolean {
         if (!workspace.isDirectory) error("workspace dir missing: $workspace")

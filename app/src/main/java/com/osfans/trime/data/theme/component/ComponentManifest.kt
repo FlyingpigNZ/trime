@@ -96,7 +96,6 @@ data class ComponentSpec(
     val override: Node.Mapping?,
     val remove: List<String>,
 ) {
-    fun singleFile(): String =
-        files.singleOrNull()
-            ?: throw IllegalArgumentException("Expected exactly one file, got $files")
+    fun singleFile(): String = files.singleOrNull()
+        ?: throw IllegalArgumentException("Expected exactly one file, got $files")
 }

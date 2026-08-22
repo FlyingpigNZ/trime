@@ -8,6 +8,7 @@ import android.content.Context
 import android.text.TextUtils
 import com.osfans.trime.R
 import com.osfans.trime.data.theme.ColorManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.keyboard.GestureFrame
 import com.osfans.trime.util.rippleDrawable
 import splitties.dimensions.dp
@@ -30,7 +31,6 @@ import splitties.views.dsl.core.textView
 import splitties.views.dsl.core.verticalMargin
 import splitties.views.dsl.core.wrapContent
 import splitties.views.imageDrawable
-import com.osfans.trime.data.theme.ThemeColor
 
 class ClipboardSuggestionUi(
     override val ctx: Context,

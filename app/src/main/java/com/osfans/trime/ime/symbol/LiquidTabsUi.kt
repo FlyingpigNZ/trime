@@ -12,6 +12,7 @@ import com.chad.library.adapter4.BaseQuickAdapter
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.keyboard.GestureFrame
 import com.osfans.trime.util.roundedRippleDrawable
 import splitties.dimensions.dp
@@ -26,7 +27,6 @@ import splitties.views.dsl.recyclerview.recyclerView
 import splitties.views.gravityCenter
 import splitties.views.horizontalPadding
 import splitties.views.recyclerview.horizontalLayoutManager
-import com.osfans.trime.data.theme.ThemeColor
 
 class LiquidTabsUi(
     override val ctx: Context,

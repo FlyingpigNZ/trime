@@ -46,12 +46,11 @@ object PackageStore {
 
     fun defaultWorkspaceDir(): File = workspaceDir(DEFAULT_PACKAGE_ID)
 
-    fun activePackageId(): String? =
-        activePointerFile
-            .takeIf { it.isFile }
-            ?.readText()
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() && isSafePackageId(it) }
+    fun activePackageId(): String? = activePointerFile
+        .takeIf { it.isFile }
+        ?.readText()
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() && isSafePackageId(it) }
 
     fun activeWorkspaceDir(): File? = activePackageId()?.let(::workspaceDir)
 
@@ -73,12 +72,10 @@ object PackageStore {
         }
     }
 
-    fun isSafePackageId(packageId: String): Boolean =
-        packageId.isNotEmpty() &&
-            packageId != "." &&
-            packageId != ".." &&
-            packageId.matches(Regex("[A-Za-z0-9._-]+"))
+    fun isSafePackageId(packageId: String): Boolean = packageId.isNotEmpty() &&
+        packageId != "." &&
+        packageId != ".." &&
+        packageId.matches(Regex("[A-Za-z0-9._-]+"))
 
-    fun isCompiled(packageId: String): Boolean =
-        File(workspaceDir(packageId), "compiled.marker").isFile
+    fun isCompiled(packageId: String): Boolean = File(workspaceDir(packageId), "compiled.marker").isFile
 }

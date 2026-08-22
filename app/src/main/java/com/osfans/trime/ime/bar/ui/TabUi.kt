@@ -12,6 +12,7 @@ import androidx.core.view.isVisible
 import com.osfans.trime.R
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.after
 import splitties.views.dsl.constraintlayout.centerHorizontally
@@ -26,7 +27,6 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.textView
 import splitties.views.dsl.core.wrapContent
 import splitties.views.gravityVerticalCenter
-import com.osfans.trime.data.theme.ThemeColor
 
 class TabUi(
     override val ctx: Context,

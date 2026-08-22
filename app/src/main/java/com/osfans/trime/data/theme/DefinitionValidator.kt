@@ -159,10 +159,9 @@ object DefinitionValidator {
         return body.length in 1..8 && body.all { it in '0'..'9' || it.lowercaseChar() in 'a'..'f' }
     }
 
-    private fun parseMapping(yaml: String): Node.Mapping? =
-        try {
-            Yaml.Default.parseToYamlNode(yaml).mapping
-        } catch (_: Exception) {
-            null
-        }
+    private fun parseMapping(yaml: String): Node.Mapping? = try {
+        Yaml.Default.parseToYamlNode(yaml).mapping
+    } catch (_: Exception) {
+        null
+    }
 }

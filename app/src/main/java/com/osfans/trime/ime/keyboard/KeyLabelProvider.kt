@@ -30,8 +30,7 @@ object AndroidKeyLabelProvider : KeyLabelProvider {
 
     override fun get(code: Int, metaState: Int): Int = virtualKeyCharacterMap.get(code, metaState)
 
-    override fun getDisplayLabel(code: Int, metaState: Int): String =
-        KeyCode.getDisplayLabel(code, metaState)
+    override fun getDisplayLabel(code: Int, metaState: Int): String = KeyCode.getDisplayLabel(code, metaState)
 }
 
 /** Pure ASCII mapping used by unit tests and as a deterministic label source. */
@@ -118,9 +117,8 @@ object AsciiKeyLabelProvider : KeyLabelProvider {
             "space" to ' ',
         )
 
-    override fun isPrintingKey(code: Int): Boolean =
-        RimeKeyMapping.symbolCodeToLabel(code) != null ||
-            RimeKeyMapping.keyCodeToName(code) in printableNames
+    override fun isPrintingKey(code: Int): Boolean = RimeKeyMapping.symbolCodeToLabel(code) != null ||
+        RimeKeyMapping.keyCodeToName(code) in printableNames
 
     override fun get(
         code: Int,

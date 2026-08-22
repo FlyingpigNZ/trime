@@ -17,11 +17,11 @@ import com.osfans.trime.core.CompositionProto
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.view
-import com.osfans.trime.data.theme.ThemeColor
 
 open class PreeditUi(
     final override val ctx: Context,

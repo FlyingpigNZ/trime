@@ -14,13 +14,13 @@ import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
 import com.osfans.trime.ime.core.TouchEventReceiverWindow
 import com.osfans.trime.ime.dependency.InputDependencyManager
 import org.kodein.di.instance
 import splitties.dimensions.dp
 import splitties.views.horizontalPadding
-import com.osfans.trime.data.theme.ThemeColor
 
 class PreeditDelegate : InputBroadcastReceiver {
 

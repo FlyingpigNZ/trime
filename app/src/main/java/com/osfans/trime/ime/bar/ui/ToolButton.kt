@@ -21,11 +21,13 @@ import com.mikepenz.iconics.utils.sizeDp
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.KeyActionManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.model.ToolBar
 import com.osfans.trime.ime.core.AutoScaleTextView
 import com.osfans.trime.ime.dependency.InputDependencyManager
 import com.osfans.trime.ime.keyboard.GestureFrame
 import com.osfans.trime.ime.keyboard.KeyboardSwitcher
+import org.kodein.di.instance
 import splitties.dimensions.dp
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.imageView
@@ -35,8 +37,6 @@ import splitties.views.gravityCenter
 import splitties.views.imageDrawable
 import splitties.views.imageResource
 import splitties.views.padding
-import com.osfans.trime.data.theme.ThemeColor
-import org.kodein.di.instance
 
 class ToolButton(context: Context) : GestureFrame(context) {
     private val keyboardSwitcher: KeyboardSwitcher by InputDependencyManager.getInstance().di.instance()

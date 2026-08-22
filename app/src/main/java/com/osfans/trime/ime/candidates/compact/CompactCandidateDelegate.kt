@@ -19,6 +19,7 @@ import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.bar.InputBarDelegate
 import com.osfans.trime.ime.bar.UnrollButtonStateMachine
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
@@ -33,7 +34,6 @@ import org.kodein.di.instance
 import splitties.dimensions.dp
 import splitties.views.dsl.recyclerview.recyclerView
 import kotlin.math.max
-import com.osfans.trime.data.theme.ThemeColor
 
 class CompactCandidateDelegate : InputBroadcastReceiver {
     private val di = InputDependencyManager.getInstance().di

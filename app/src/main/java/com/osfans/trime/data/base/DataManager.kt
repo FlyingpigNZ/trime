@@ -218,8 +218,10 @@ object DataManager {
             }
             marker.writeText(managed.absolutePath)
             if (activePackageId != null &&
-                (activePackageId == PackageStore.DEFAULT_PACKAGE_ID ||
-                    PackageStore.isCompiled(activePackageId))
+                (
+                    activePackageId == PackageStore.DEFAULT_PACKAGE_ID ||
+                        PackageStore.isCompiled(activePackageId)
+                    )
             ) {
                 PackageStore.setActivePackage(activePackageId)
                 Timber.i("Migrated managed /rime to package workspace $activePackageId")

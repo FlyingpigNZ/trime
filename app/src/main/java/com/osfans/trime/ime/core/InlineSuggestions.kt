@@ -22,9 +22,9 @@ import androidx.autofill.inline.common.ViewStyle
 import androidx.autofill.inline.v1.InlineSuggestionUi
 import com.osfans.trime.R
 import com.osfans.trime.data.theme.ColorManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.util.ColorUtils
 import splitties.dimensions.dp
-import com.osfans.trime.data.theme.ThemeColor
 
 object InlineSuggestions {
     @SuppressLint("RestrictedApi")

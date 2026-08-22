@@ -24,6 +24,7 @@ import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.bar.InputBarDelegate
 import com.osfans.trime.ime.broadcast.EnterKeyDisplayDelegate
 import com.osfans.trime.ime.broadcast.InputBroadcaster
@@ -57,7 +58,6 @@ import splitties.views.dsl.core.matchParent
 import splitties.views.dsl.core.view
 import splitties.views.dsl.core.wrapContent
 import splitties.views.imageDrawable
-import com.osfans.trime.data.theme.ThemeColor
 
 /**
  * Successor of the old InputRoot

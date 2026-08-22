@@ -10,9 +10,9 @@ import androidx.annotation.ColorInt
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.KeyActionManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.model.TextKeyboard
 import splitties.bitflags.hasFlag
-import com.osfans.trime.data.theme.ThemeColor
 
 /** [鍵盤][Keyboard]中的各個按鍵，包含單擊、長按、滑動等多種[事件][KeyAction]  */
 class Key(

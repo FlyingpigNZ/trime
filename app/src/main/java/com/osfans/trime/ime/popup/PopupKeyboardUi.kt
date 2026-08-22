@@ -18,6 +18,7 @@ import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.core.AutoScaleTextView
 import com.osfans.trime.ime.keyboard.KeyboardSwitcher
 import com.osfans.trime.ime.keyboard.isIconFont
@@ -37,7 +38,6 @@ import splitties.views.gravityStart
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
-import com.osfans.trime.data.theme.ThemeColor
 
 /**
  * @param ctx [Context]

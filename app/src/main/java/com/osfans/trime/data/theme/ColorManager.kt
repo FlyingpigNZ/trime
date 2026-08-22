@@ -99,10 +99,9 @@ object ColorManager {
         fireChange()
     }
 
-    private fun evaluateActiveColorScheme(): ColorScheme =
-        colorScheme(normalModeColor)
-            ?: colorScheme("default")
-            ?: theme.colorSchemes.first()
+    private fun evaluateActiveColorScheme(): ColorScheme = colorScheme(normalModeColor)
+        ?: colorScheme("default")
+        ?: theme.colorSchemes.first()
 
     /** 每次切换主题后，都要调用此函数，初始化配色 */
     fun switchTheme(theme: Theme) {

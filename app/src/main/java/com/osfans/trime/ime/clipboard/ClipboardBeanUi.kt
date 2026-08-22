@@ -12,6 +12,7 @@ import com.osfans.trime.R
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.keyboard.GestureFrame
 import splitties.dimensions.dp
 import splitties.resources.drawable
@@ -29,7 +30,6 @@ import splitties.views.dsl.core.textView
 import splitties.views.dsl.core.wrapContent
 import splitties.views.imageDrawable
 import splitties.views.setPaddingDp
-import com.osfans.trime.data.theme.ThemeColor
 
 class ClipboardBeanUi(override val ctx: Context, private val theme: Theme) : Ui {
     val textView =

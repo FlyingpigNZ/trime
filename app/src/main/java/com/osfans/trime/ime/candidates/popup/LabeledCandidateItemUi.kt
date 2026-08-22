@@ -17,11 +17,11 @@ import com.osfans.trime.core.CandidateProto
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.util.sp
 import splitties.dimensions.dp
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.textView
-import com.osfans.trime.data.theme.ThemeColor
 
 class LabeledCandidateItemUi(
     override val ctx: Context,

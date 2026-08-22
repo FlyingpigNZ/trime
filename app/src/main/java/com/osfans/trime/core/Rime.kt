@@ -31,8 +31,7 @@ class Rime(
     private val environment: () -> RimeEnvironment,
     private val onBeforeStart: () -> Unit = {},
     private val onDeployStart: () -> Unit = {},
-) :
-    RimeApi,
+) : RimeApi,
     RimeLifecycleOwner {
     private val lifecycleRegistry = RimeLifecycleRegistry()
     override val lifecycle get() = lifecycleRegistry

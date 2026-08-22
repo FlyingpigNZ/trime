@@ -26,13 +26,13 @@ class RimeUiStateTest :
             val state =
                 RimeUiState(
                     status =
-                        StatusProto(
-                            schemaId = "luna_pinyin",
-                            schemaName = "朙月拼音",
-                            isAsciiMode = false,
-                            isAsciiPunct = false,
-                            isComposing = true,
-                        ),
+                    StatusProto(
+                        schemaId = "luna_pinyin",
+                        schemaName = "朙月拼音",
+                        isAsciiMode = false,
+                        isAsciiPunct = false,
+                        isComposing = true,
+                    ),
                     hasMenu = true,
                     paging = true,
                     options = mapOf("_hide_key_symbol" to true),

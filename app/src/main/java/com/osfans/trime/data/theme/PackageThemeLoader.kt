@@ -18,8 +18,7 @@ import java.io.File
  */
 object PackageThemeLoader {
     /** Whether the workspace contains a theme the app can actually load. */
-    fun hasUsableTheme(workspace: File): Boolean =
-        runCatching { load(workspace) }.isSuccess
+    fun hasUsableTheme(workspace: File): Boolean = runCatching { load(workspace) }.isSuccess
 
     fun load(workspace: File): Theme {
         val componentManifest =

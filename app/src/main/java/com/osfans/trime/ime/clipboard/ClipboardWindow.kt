@@ -20,6 +20,7 @@ import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.keyboard.KeyboardWindow
 import com.osfans.trime.ime.segments.SegmentsWindow
@@ -31,7 +32,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.kodein.di.instance
 import splitties.views.recyclerview.verticalLayoutManager
-import com.osfans.trime.data.theme.ThemeColor
 
 class ClipboardWindow(private val initialTab: Int = 0) : BoardWindow.BarBoardWindow() {
 

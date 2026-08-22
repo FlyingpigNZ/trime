@@ -19,16 +19,14 @@ data class DefaultKeyboardRegistry(
 
     fun isEmpty(): Boolean = bindings.isEmpty()
 
-    operator fun plus(other: DefaultKeyboardRegistry): DefaultKeyboardRegistry =
-        DefaultKeyboardRegistry(
-            bindings = bindings + other.bindings,
-        )
+    operator fun plus(other: DefaultKeyboardRegistry): DefaultKeyboardRegistry = DefaultKeyboardRegistry(
+        bindings = bindings + other.bindings,
+    )
 
     companion object {
         val Empty = DefaultKeyboardRegistry()
 
         /** A registry that only carries explicit schema → default-keyboard bindings. */
-        fun fromDefaultKeyboards(defaultKeyboards: Map<String, String>): DefaultKeyboardRegistry =
-            DefaultKeyboardRegistry(bindings = defaultKeyboards)
+        fun fromDefaultKeyboards(defaultKeyboards: Map<String, String>): DefaultKeyboardRegistry = DefaultKeyboardRegistry(bindings = defaultKeyboards)
     }
 }

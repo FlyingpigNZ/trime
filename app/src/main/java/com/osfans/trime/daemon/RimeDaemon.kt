@@ -45,18 +45,18 @@ object RimeDaemon {
         val prefs = AppPrefs.defaultInstance()
         Rime(
             inputOptions =
-                object : InputOptions {
-                    override val inlinePreeditMode: InlinePreeditStyle
-                        get() =
-                            when (prefs.general.inlinePreeditMode.getValue()) {
-                                InlinePreeditMode.DISABLE -> InlinePreeditStyle.DISABLE
-                                InlinePreeditMode.COMPOSING_TEXT -> InlinePreeditStyle.COMPOSING_TEXT
-                                InlinePreeditMode.COMMIT_TEXT_PREVIEW -> InlinePreeditStyle.COMMIT_TEXT_PREVIEW
-                            }
+            object : InputOptions {
+                override val inlinePreeditMode: InlinePreeditStyle
+                    get() =
+                        when (prefs.general.inlinePreeditMode.getValue()) {
+                            InlinePreeditMode.DISABLE -> InlinePreeditStyle.DISABLE
+                            InlinePreeditMode.COMPOSING_TEXT -> InlinePreeditStyle.COMPOSING_TEXT
+                            InlinePreeditMode.COMMIT_TEXT_PREVIEW -> InlinePreeditStyle.COMMIT_TEXT_PREVIEW
+                        }
 
-                    override val asciiSwitchTips: Boolean
-                        get() = prefs.general.asciiSwitchTips.getValue()
-                },
+                override val asciiSwitchTips: Boolean
+                    get() = prefs.general.asciiSwitchTips.getValue()
+            },
             environment = {
                 RimeEnvironment(
                     sharedDataDir = DataManager.sharedDataDir.absolutePath,

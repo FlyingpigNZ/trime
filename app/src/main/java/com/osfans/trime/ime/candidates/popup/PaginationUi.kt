@@ -13,6 +13,7 @@ import com.osfans.trime.R
 import com.osfans.trime.core.Candidates
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.util.styledFloat
 import splitties.dimensions.dp
 import splitties.resources.drawable
@@ -25,7 +26,6 @@ import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.imageView
 import splitties.views.imageDrawable
-import com.osfans.trime.data.theme.ThemeColor
 
 class PaginationUi(
     override val ctx: Context,
