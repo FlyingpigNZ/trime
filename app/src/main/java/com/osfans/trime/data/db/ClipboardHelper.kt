@@ -102,7 +102,7 @@ object ClipboardHelper :
         clbDb =
             Room
                 .databaseBuilder(context, Database::class.java, "clipboard.db")
-                .addMigrations(Database.MIGRATION_3_4)
+                .addMigrations(Database.MIGRATION_1_2, Database.MIGRATION_2_3, Database.MIGRATION_3_4)
                 .build()
         clbDao = clbDb.databaseDao()
         enabledListener.onChange(enabledPref.key, enabledPref.getValue())
@@ -158,7 +158,12 @@ object ClipboardHelper :
      * - [outputRules] 输出规则。如果剪贴板内容与规则匹配，则不通知剪贴板管理器。
      */
     override fun onPrimaryClipChanged() {
-        val clip = clipboardManager.primaryClip ?: return
+        // On API 33+ a clipboard read while the app has no window focus can
+        // throw SecurityException on some OEMs; never let that crash the IME
+        // process. (The system clipboard-access notice is unavoidable for a
+        // process-wide listener; disabling clipboard monitoring removes the
+        // listener entirely via enabledListener.)
+        val clip = runCatching { clipboardManager.primaryClip }.getOrNull() ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val timestamp = clip.description.timestamp
             if (timestamp == lastClipTimestamp) return

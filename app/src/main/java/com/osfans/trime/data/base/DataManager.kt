@@ -322,7 +322,9 @@ object DataManager {
                 }
                 is DataDiff.DeleteDir,
                 is DataDiff.DeleteFile,
-                -> FileUtils.delete(sharedDataDir.resolve(it.path.substringAfterLast('/'))).getOrThrow()
+                // Same destination convention as the create/update branch:
+                // checksum paths are relative to the parent of sharedDataDir.
+                -> FileUtils.delete(sharedDataDir.resolveSibling(it.path)).getOrThrow()
             }
         }
 

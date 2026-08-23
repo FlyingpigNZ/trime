@@ -50,8 +50,10 @@ class ClipEditActivity : Activity() {
                 FROM_COLLECTION -> CollectionHelper.updateText(beanId, str)
                 else -> {}
             }
+            // Finish only after the write completes: finishing first would
+            // trigger onDestroy -> scope.cancel(), rolling back the Room write.
+            finish()
         }
-        finish()
     }
 
     private fun setBean(bean: DatabaseBean) {
@@ -80,11 +82,6 @@ class ClipEditActivity : Activity() {
                 }
             }
         }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        finish()
     }
 
     override fun onDestroy() {

@@ -145,11 +145,7 @@ object ImePackageManager {
                 workspace.walkTopDown().forEach { file ->
                     if (!file.isFile) return@forEach
                     val relative = file.relativeTo(workspace).path
-                    if (relative == "build" ||
-                        relative.startsWith("build/") ||
-                        relative == "compiled.marker" ||
-                        relative == "compiled.error"
-                    ) {
+                    if (isCompileArtifact(relative)) {
                         return@forEach
                     }
                     zipOut.putNextEntry(ZipEntry(relative))
@@ -551,6 +547,11 @@ object ImePackageManager {
                 }
                 val relative =
                     if (name.startsWith("rime/")) name.removePrefix("rime/") else name
+                // Never let a package inject compile state: markers and deploy
+                // output are owned by the compile flow, not package data.
+                if (isCompileArtifact(relative)) {
+                    return@forEach
+                }
                 val target = File(workspace, relative)
                 val normalizedTarget = target.toPath().toAbsolutePath().normalize()
                 if (!normalizedTarget.startsWith(workspace.toPath().toAbsolutePath().normalize())) {
@@ -661,6 +662,16 @@ object ImePackageManager {
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
+
+    /**
+     * Paths inside a workspace that are owned by the compile flow and must
+     * never be imported from a package zip or exported as package data.
+     */
+    private fun isCompileArtifact(relativePath: String): Boolean =
+        relativePath == "build" ||
+            relativePath.startsWith("build/") ||
+            relativePath == "compiled.marker" ||
+            relativePath == "compiled.error"
 
     private fun requireSafePackageId(packageId: String) {
         if (!PackageStore.isSafePackageId(packageId)) {

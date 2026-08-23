@@ -45,6 +45,6 @@ data class DatabaseBean(
         fun beanTypeToInt(beanType: BeanType?): Int? = beanType?.ordinal
 
         @TypeConverter
-        fun intToBeanType(ordinal: Int?): BeanType? = ordinal?.let { BeanType.entries[it] }
+        fun intToBeanType(ordinal: Int?): BeanType? = ordinal?.let { BeanType.entries.getOrNull(it) }
     }
 }
