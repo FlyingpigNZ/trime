@@ -187,7 +187,6 @@ class AppPrefs(
             0,
             100,
             "%",
-            defaultLabel = R.string.system_default,
         ) { soundOnKeyPress.getValue() }
 
         val useCustomSoundEffect = switch(

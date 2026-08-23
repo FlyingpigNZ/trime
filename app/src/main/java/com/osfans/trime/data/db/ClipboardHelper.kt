@@ -74,17 +74,20 @@ object ClipboardHelper :
         launch { removeOutdated() }
     }
 
-    private val compareRules: Set<Regex> by lazy {
+    // Rule sets are re-derived from the preferences on every use: a `lazy`
+    // snapshot would never refresh after the user edits the rules (D-4). The
+    // sets are small and only consulted per clipboard change.
+    private fun compareRules(): Set<Regex> {
         val rules by clipPref.clipboardCompareRules
-        rules
+        return rules
             .split('\n')
             .map { Regex(it.trim()) }
             .toSet()
     }
 
-    private val outputRules: Set<Regex> by lazy {
+    private fun outputRules(): Set<Regex> {
         val rules by clipPref.clipboardOutputRules
-        rules
+        return rules
             .split('\n')
             .map { Regex(it) }
             .toSet()
@@ -179,8 +182,8 @@ object ClipboardHelper :
             mutex.withLock {
                 val bean = DatabaseBean.fromClipData(clip) ?: return@withLock
                 if (bean.text.isNullOrBlank()) return@withLock
-                if (bean.text.matchesAny(outputRules) ||
-                    bean.text.removeRegexSet(compareRules).isEmpty()
+                if (bean.text.matchesAny(outputRules()) ||
+                    bean.text.removeRegexSet(compareRules()).isEmpty()
                 ) {
                     return@withLock
                 }
@@ -211,9 +214,11 @@ object ClipboardHelper :
         val limit = limitPref.getValue()
         val unpinned = clbDao.getAllUnpinned()
         if (unpinned.size > limit) {
+            // Evict by recency (time), not insertion order (id): re-copied
+            // entries refresh their timestamp and must be kept (D-3).
             val outdated =
                 unpinned
-                    .sortedBy { it.id }
+                    .sortedBy { it.time }
                     .getOrNull(unpinned.size - limit)
             clbDao.deletedUnpinnedEarlierThan(outdated?.time ?: System.currentTimeMillis())
         }

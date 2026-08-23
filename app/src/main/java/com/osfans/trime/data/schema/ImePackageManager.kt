@@ -55,6 +55,8 @@ object ImePackageManager {
         val name: String,
         val version: String?,
         val error: String? = null,
+        /** Whether the workspace carries a valid compiled.marker. */
+        val compiled: Boolean = false,
     )
 
     fun listPackages(): List<ImePackage> = PackageStore.rootDir
@@ -75,6 +77,9 @@ object ImePackageManager {
                 name = meta?.name ?: id,
                 version = meta?.version,
                 error = if (meta == null) "Invalid or missing package.zip" else null,
+                // Precomputed here (caller runs this on IO) so the list
+                // adapter never stats the workspace from the main thread.
+                compiled = PackageStore.isCompiled(id),
             )
         }
         ?.sortedBy { it.fileName.lowercase() }

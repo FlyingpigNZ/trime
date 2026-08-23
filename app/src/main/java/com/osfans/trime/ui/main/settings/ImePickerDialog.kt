@@ -51,117 +51,81 @@ object ImePickerDialog {
                     parent: ViewGroup,
                 ): View {
                     val item = getItem(position) ?: return convertView ?: View(context)
-                    val row =
-                        LinearLayout(context).apply {
-                            orientation = LinearLayout.HORIZONTAL
-                            gravity = Gravity.CENTER_VERTICAL
-                            setPadding(dp(16), dp(8), dp(8), dp(8))
-                        }
+                    val row = (convertView as? LinearLayout) ?: LinearLayout(context)
+                    val holder = row.tag as? RowHolder ?: RowHolder(row).also { row.tag = it }
                     val activeSuffix = if (item.fileName == active) "  ✓" else ""
                     val brokenSuffix = item.error?.let { "  (broken: $it)" } ?: ""
-                    val compiled = ImePackageManager.isCompiled(item.fileName)
                     val notCompiledSuffix =
-                        if (!compiled && item.error == null) {
+                        if (!item.compiled && item.error == null) {
                             "  (${context.getString(R.string.ime_package_not_compiled)})"
                         } else {
                             ""
                         }
-                    row.alpha = if (compiled) 1f else 0.5f
-                    row.addView(
-                        TextView(context).apply {
-                            text = item.name + activeSuffix + notCompiledSuffix + brokenSuffix
-                            textSize = 16f
-                            layoutParams =
-                                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                        },
-                    )
-                    if (!compiled && item.error == null) {
-                        row.addView(
-                            ImageButton(context).apply {
-                                setImageResource(R.drawable.ic_baseline_refresh_reversed_24)
-                                setColorFilter(ContextCompat.getColor(context, android.R.color.darker_gray))
-                                contentDescription = context.getString(R.string.ime_package_compile)
-                                background = null
-                                isFocusable = false
-                                isFocusableInTouchMode = false
-                                layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
-                                val compileStarted = AtomicBoolean(false)
-                                setOnClickListener {
-                                    scope.launch {
-                                        if (ImePackageManager.isBusy() || !compileStarted.compareAndSet(false, true)) {
-                                            return@launch
-                                        }
-                                        try {
-                                            context.toast(R.string.ime_package_compiling_start)
-                                            withContext(Dispatchers.IO) {
-                                                ImePackageManager.compilePackageFile(item.fileName)
-                                            }
-                                            notifyDataSetChanged()
-                                            context.toast(R.string.ime_package_compiled_switch_hint)
-                                        } catch (t: Throwable) {
-                                            if (t is CancellationException) throw t
-                                            Timber.w(t, "IME picker: compile failed for ${item.fileName}")
-                                            context.toast(R.string.install_schema_layout_package_failure)
-                                        } finally {
-                                            compileStarted.set(false)
-                                        }
-                                    }
+                    holder.text.text = item.name + activeSuffix + notCompiledSuffix + brokenSuffix
+                    row.alpha = if (item.compiled) 1f else 0.5f
+
+                    val showCompile = !item.compiled && item.error == null
+                    holder.compileBtn.visibility = if (showCompile) View.VISIBLE else View.GONE
+                    if (showCompile) {
+                        val compileStarted = AtomicBoolean(false)
+                        holder.compileBtn.setOnClickListener {
+                            scope.launch {
+                                if (ImePackageManager.isBusy() || !compileStarted.compareAndSet(false, true)) {
+                                    return@launch
                                 }
-                            },
-                        )
-                    }
-                    if (!ImePackageManager.isDefaultPackage(item.fileName)) {
-                        row.addView(
-                            ImageButton(context).apply {
-                                setImageResource(R.drawable.ic_baseline_delete_24)
-                                setColorFilter(ContextCompat.getColor(context, android.R.color.darker_gray))
-                                contentDescription = context.getString(R.string.delete)
-                                background = null
-                                // Prevent the button from stealing list-item clicks;
-                                // it remains clickable through touch events.
-                                isFocusable = false
-                                isFocusableInTouchMode = false
-                                layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
-                                setOnClickListener {
-                                    scope.launch {
-                                        val isActive =
-                                            withContext(Dispatchers.IO) {
-                                                ImePackageManager.isActivePackage(
-                                                    ImePackageManager.packageFile(item.fileName),
-                                                )
-                                            }
-                                        if (isActive) {
-                                            context.toast(R.string.cannot_delete_active_ime_package)
-                                            return@launch
-                                        }
-                                        val deleted =
-                                            withContext(Dispatchers.IO) {
-                                                ImePackageManager.deletePackage(item.fileName)
-                                            }
-                                        if (deleted) {
-                                            remove(item)
-                                            notifyDataSetChanged()
-                                            context.toast(R.string.ime_package_deleted)
-                                        } else {
-                                            context.toast(R.string.install_schema_layout_package_failure)
-                                        }
+                                try {
+                                    context.toast(R.string.ime_package_compiling_start)
+                                    withContext(Dispatchers.IO) {
+                                        ImePackageManager.compilePackageFile(item.fileName)
                                     }
+                                    notifyDataSetChanged()
+                                    context.toast(R.string.ime_package_compiled_switch_hint)
+                                } catch (t: Throwable) {
+                                    if (t is CancellationException) throw t
+                                    Timber.w(t, "IME picker: compile failed for ${item.fileName}")
+                                    context.toast(R.string.install_schema_layout_package_failure)
+                                } finally {
+                                    compileStarted.set(false)
                                 }
-                            },
-                        )
+                            }
+                        }
+                    } else {
+                        holder.compileBtn.setOnClickListener(null)
                     }
-                    row.addView(
-                        ImageButton(context).apply {
-                            setImageResource(R.drawable.ic_baseline_share_24)
-                            setColorFilter(ContextCompat.getColor(context, android.R.color.darker_gray))
-                            contentDescription = context.getString(R.string.export)
-                            background = null
-                            isFocusable = false
-                            isFocusableInTouchMode = false
-                            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
-                            setOnClickListener { onExport(item) }
-                        },
-                    )
+
+                    val showDelete = !ImePackageManager.isDefaultPackage(item.fileName)
+                    holder.deleteBtn.visibility = if (showDelete) View.VISIBLE else View.GONE
+                    if (showDelete) {
+                        holder.deleteBtn.setOnClickListener {
+                            scope.launch {
+                                val isActive =
+                                    withContext(Dispatchers.IO) {
+                                        ImePackageManager.isActivePackage(
+                                            ImePackageManager.packageFile(item.fileName),
+                                        )
+                                    }
+                                if (isActive) {
+                                    context.toast(R.string.cannot_delete_active_ime_package)
+                                    return@launch
+                                }
+                                val deleted =
+                                    withContext(Dispatchers.IO) {
+                                        ImePackageManager.deletePackage(item.fileName)
+                                    }
+                                if (deleted) {
+                                    remove(item)
+                                    notifyDataSetChanged()
+                                    context.toast(R.string.ime_package_deleted)
+                                } else {
+                                    context.toast(R.string.install_schema_layout_package_failure)
+                                }
+                            }
+                        }
+                    } else {
+                        holder.deleteBtn.setOnClickListener(null)
+                    }
+
+                    holder.exportBtn.setOnClickListener { onExport(item) }
                     return row
                 }
             }
@@ -218,5 +182,56 @@ object ImePickerDialog {
                 }
                 setNegativeButton(android.R.string.cancel, null)
             }.create()
+    }
+
+    /**
+     * Recycled row structure for the package list: one text label plus the
+     * compile/delete/export buttons, with per-row visibility and click
+     * handlers re-bound in [android.widget.ArrayAdapter.getView]. Keeps the
+     * adapter from re-inflating views (and re-stat'ing the workspace) on
+     * every bind.
+     */
+    private class RowHolder(row: LinearLayout) {
+        val text: TextView
+        val compileBtn: ImageButton
+        val deleteBtn: ImageButton
+        val exportBtn: ImageButton
+
+        init {
+            val ctx = row.context
+            row.orientation = LinearLayout.HORIZONTAL
+            row.gravity = Gravity.CENTER_VERTICAL
+            row.setPadding(ctx.dp(16), ctx.dp(8), ctx.dp(8), ctx.dp(8))
+            text =
+                TextView(ctx).apply {
+                    textSize = 16f
+                    layoutParams =
+                        LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                }
+            compileBtn = iconButton(ctx, R.drawable.ic_baseline_refresh_reversed_24, R.string.ime_package_compile)
+            deleteBtn = iconButton(ctx, R.drawable.ic_baseline_delete_24, R.string.delete)
+            exportBtn = iconButton(ctx, R.drawable.ic_baseline_share_24, R.string.export)
+            row.addView(text)
+            row.addView(compileBtn)
+            row.addView(deleteBtn)
+            row.addView(exportBtn)
+        }
+
+        private fun iconButton(
+            ctx: Context,
+            iconRes: Int,
+            contentDescriptionRes: Int,
+        ): ImageButton =
+            ImageButton(ctx).apply {
+                setImageResource(iconRes)
+                setColorFilter(ContextCompat.getColor(ctx, android.R.color.darker_gray))
+                contentDescription = ctx.getString(contentDescriptionRes)
+                background = null
+                // Keep buttons from stealing list-item clicks; they remain
+                // clickable through touch events.
+                isFocusable = false
+                isFocusableInTouchMode = false
+                layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+            }
     }
 }

@@ -202,7 +202,10 @@ class PopupKeyboardUi(
                 }.orEmpty().let {
                     when {
                         it.isIconFont -> it
-                        it.isNotEmpty() -> String(Character.toChars(it.codePointAt(0)))
+                        // Keep the full label: AutoScaleTextView fits it, and
+                        // truncating to the first code point mangles multi-
+                        // code-point graphemes (ZWJ emoji, accents, CJK).
+                        it.isNotEmpty() -> it
                         else -> ""
                     }
                 }

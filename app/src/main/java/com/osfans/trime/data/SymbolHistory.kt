@@ -5,6 +5,10 @@
 package com.osfans.trime.data
 
 import com.osfans.trime.util.appContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import timber.log.Timber
+import java.io.File
 
 class SymbolHistory(
     val capacity: Int,
@@ -13,19 +17,35 @@ class SymbolHistory(
         const val FILE_NAME = "symbol_history"
     }
 
-    private val file = appContext.filesDir.resolve(FILE_NAME).apply { createNewFile() }
+    /** Resolved lazily; no file I/O happens at construction. */
+    private val file: File
+        get() = appContext.filesDir.resolve(FILE_NAME)
 
-    fun load() {
-        val all = file.readLines()
-        all.forEach {
+    /** Load the persisted history from disk (off the main thread). */
+    suspend fun load() = withContext(Dispatchers.IO) {
+        runCatching { file.readLines() }.getOrElse { t ->
+            Timber.w(t, "Failed to read symbol history")
+            emptyList()
+        }.forEach {
             if (it.isNotBlank()) {
                 put(it, it)
             }
         }
     }
 
-    fun save() {
-        file.writeText(values.joinToString("\n"))
+    /** Persist the current history atomically (off the main thread). */
+    suspend fun save() = withContext(Dispatchers.IO) {
+        val content = values.joinToString("\n")
+        runCatching {
+            val tmp = File(file.parentFile, "${file.name}.tmp")
+            tmp.writeText(content)
+            if (!tmp.renameTo(file)) {
+                // renameTo can fail across some filesystems; fall back to a
+                // direct write so the history is still persisted.
+                file.writeText(content)
+                tmp.delete()
+            }
+        }.onFailure { t -> Timber.w(t, "Failed to write symbol history") }
     }
 
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > capacity

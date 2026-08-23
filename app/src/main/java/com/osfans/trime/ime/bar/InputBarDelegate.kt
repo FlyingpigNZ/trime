@@ -267,6 +267,11 @@ class InputBarDelegate : InputBroadcastReceiver {
             add(tabUi.root, lParams(matchParent, matchParent))
 
             evalAlwaysUiState()
+            // Not unregistered on teardown by design: ClipboardHelper keeps
+            // listeners in a WeakHashSet, so a discarded delegate (theme
+            // rebuild replaces the whole DI graph) is collected and its entry
+            // disappears — no hard leak. A stale callback that fires in the
+            // meantime only touches the delegate's detached views.
             ClipboardHelper.addOnUpdateListener(onClipboardUpdateListener)
             syncToolbarOptionStates()
         }

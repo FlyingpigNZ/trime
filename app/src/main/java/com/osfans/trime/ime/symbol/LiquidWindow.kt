@@ -7,6 +7,7 @@ package com.osfans.trime.ime.symbol
 
 import android.view.View
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager
@@ -21,6 +22,7 @@ import com.osfans.trime.ime.keyboard.KeyboardWindow
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.BoardWindowManager
 import com.osfans.trime.ime.window.ResidentWindow
+import kotlinx.coroutines.launch
 import org.kodein.di.instance
 
 class LiquidWindow :
@@ -54,7 +56,9 @@ class LiquidWindow :
                     service.commitText(this.text)
                     if (currentDataType != LiquidData.Type.HISTORY) {
                         symbolHistory.insert(this.text)
-                        symbolHistory.save()
+                        // Persist off the main thread; the map was already
+                        // updated synchronously above.
+                        service.lifecycleScope.launch { symbolHistory.save() }
                     }
                 }
             }
@@ -103,8 +107,10 @@ class LiquidWindow :
         liquidLayout.tabsUi.activateTab(i)
         when (tag.type) {
             LiquidData.Type.HISTORY -> {
-                symbolHistory.load()
-                submitData(symbolHistory.toOrderedList().map { LiquidKeyboard.KeyItem(it) })
+                service.lifecycleScope.launch {
+                    symbolHistory.load()
+                    submitData(symbolHistory.toOrderedList().map { LiquidKeyboard.KeyItem(it) })
+                }
             }
             else -> {
                 val data = LiquidData.getDataByIndex(i)

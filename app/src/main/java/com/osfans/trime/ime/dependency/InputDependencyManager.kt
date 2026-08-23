@@ -68,9 +68,17 @@ class InputDependencyManager(
 
     fun stop() {
         broadcaster.clear()
+        // Release the static reference so the whole UI graph (service, views,
+        // theme, DI delegates) can be collected when the IME closes, instead
+        // of leaking to process death (K-M4/G-M5/CB-M2). Guard against
+        // clearing a newer instance (theme-change replacement races).
+        if (instance === this) {
+            instance = null
+        }
     }
 
     companion object Factory {
+        @Volatile
         private var instance: InputDependencyManager? = null
 
         fun initialize(

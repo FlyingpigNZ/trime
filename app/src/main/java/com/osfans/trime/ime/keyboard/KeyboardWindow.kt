@@ -114,22 +114,32 @@ class KeyboardWindow :
         }
     }
 
-    fun switchKeyboard(to: String) {
+    fun switchKeyboard(
+        to: String,
+        onSwitched: (() -> Unit)? = null,
+    ) {
         val target = switcher.resolveKeyboard(to)
         ContextCompat.getMainExecutor(service).execute {
             if (cachedKeyboardViews.containsKey(target)) {
-                if (target == switcher.currentKeyboardId) return@execute
+                if (target == switcher.currentKeyboardId) {
+                    // Target is already current; the post-switch callback must
+                    // still run (e.g. the start-input ascii policy).
+                    onSwitched?.invoke()
+                    return@execute
+                }
             }
             detachCurrentView()
             attachKeyboard(target)
+            onSwitched?.invoke()
         }
         Timber.d("Switched to keyboard: $target")
     }
 
     override fun onStartInput(info: EditorInfo) {
         val target = switcher.startInputTarget(info)
-        switchKeyboard(target)
-        switcher.applyStartInputPolicy(target)
+        // Apply the ascii policy after the deferred switch actually happened;
+        // applying it before would run it against the OLD keyboard (K-M1).
+        switchKeyboard(target) { switcher.applyStartInputPolicy(target) }
     }
 
     private fun dispatchCapsState(setShift: (Boolean, Boolean) -> Unit) {
