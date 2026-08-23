@@ -46,7 +46,9 @@ class LiquidWindow :
                 LiquidData.Type.TABS -> {
                     val realPosition = LiquidData.getTagList()
                         .indexOfFirst { it.label == this.text }
-                    setDataByIndex(realPosition)
+                    if (realPosition >= 0) {
+                        setDataByIndex(realPosition)
+                    }
                 }
                 else -> {
                     service.commitText(this.text)
@@ -92,7 +94,11 @@ class LiquidWindow :
     override fun onDetached() {}
 
     fun setDataByIndex(i: Int) {
-        val tag = LiquidData.getTagList()[i]
+        val tags = LiquidData.getTagList()
+        // Guard against an empty tag list (theme without liquid keyboards) and
+        // a -1 index from a failed label lookup.
+        if (i !in tags.indices) return
+        val tag = tags[i]
         currentDataType = tag.type
         liquidLayout.tabsUi.activateTab(i)
         when (tag.type) {
