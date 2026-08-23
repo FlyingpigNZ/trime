@@ -477,6 +477,30 @@ object ImePackageManager {
     }
 
     /**
+     * Detect that the `:compile` process is no longer making progress before
+     * the compile timeout expires. Three signals, in order of precision:
+     * 1. the pid file exists → the process is dead iff /proc/<pid> is gone;
+     * 2. otherwise a stale heartbeat means the process died without writing
+     *    (or before writing) its pid file, or its pid got reused;
+     * 3. neither file appeared within [COMPILE_PROCESS_GRACE_MS] → the
+     *    service never came up (startup crash).
+     */
+    private fun compileProcessDied(workspace: File, startedAt: Long): Boolean {
+        val pidFile = File(workspace, PackageStore.COMPILE_PID_FILE)
+        val pid = runCatching { pidFile.readText().trim().toIntOrNull() }.getOrNull()
+        if (pid != null) {
+            return !File("/proc/$pid").isDirectory
+        }
+        val heartbeat = File(workspace, PackageStore.COMPILE_HEARTBEAT_FILE)
+        if (heartbeat.isFile) {
+            return System.currentTimeMillis() - heartbeat.lastModified() > COMPILE_HEARTBEAT_STALE_MS
+        }
+        // Neither liveness signal exists yet: the compile process may still be
+        // spawning. Only give up once the grace period has passed.
+        return System.currentTimeMillis() - startedAt > COMPILE_PROCESS_GRACE_MS
+    }
+
+    /**
      * Compile a package workspace in the separate `:compile` process and wait
      * for `compiled.marker`.
      */
@@ -499,6 +523,11 @@ object ImePackageManager {
                 val error = File(workspace, "compiled.error")
                 marker.delete()
                 error.delete()
+                // Remove liveness artifacts left by a previously killed
+                // compile process so they cannot be mistaken for the new one
+                // (or for "no process started yet").
+                File(workspace, PackageStore.COMPILE_PID_FILE).delete()
+                File(workspace, PackageStore.COMPILE_HEARTBEAT_FILE).delete()
                 val intent =
                     Intent(appContext, PackageCompileService::class.java).apply {
                         putExtra(PackageCompileService.EXTRA_WORKSPACE_DIR, workspace.absolutePath)
@@ -509,8 +538,12 @@ object ImePackageManager {
                         putExtra(PackageCompileService.EXTRA_VERSION, BuildConfig.BUILD_VERSION_NAME)
                     }
                 ContextCompat.startForegroundService(appContext, intent)
-                val deadline = System.currentTimeMillis() + COMPILE_TIMEOUT_MS
+                val startedAt = System.currentTimeMillis()
+                val deadline = startedAt + COMPILE_TIMEOUT_MS
                 while (!marker.isFile && !error.isFile && System.currentTimeMillis() < deadline) {
+                    if (compileProcessDied(workspace, startedAt)) {
+                        throw IllegalStateException("IME package compile process died: $packageId")
+                    }
                     delay(COMPILE_POLL_INTERVAL_MS)
                 }
                 if (error.isFile) {
@@ -704,6 +737,10 @@ object ImePackageManager {
 
     private const val COMPILE_TIMEOUT_MS = 10 * 60 * 1000L
     private const val COMPILE_POLL_INTERVAL_MS = 500L
+    /** Grace period for the `:compile` process to spawn and publish its pid. */
+    private const val COMPILE_PROCESS_GRACE_MS = 10 * 1000L
+    /** Heartbeat is considered stale after this long without a refresh (5× the 2s interval). */
+    private const val COMPILE_HEARTBEAT_STALE_MS = 10 * 1000L
     private const val ENGINE_DEPLOY_WAIT_MS = 30 * 1000L
     private const val ENGINE_DEPLOY_POLL_INTERVAL_MS = 200L
 }

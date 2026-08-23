@@ -29,6 +29,15 @@ object PackageStore {
     const val DEFAULT_PACKAGE_ID = "Default"
     const val MIGRATED_PACKAGE_ID = "Migrated"
 
+    /** Written by the `:compile` process with its pid; lets the main process
+     *  detect compile-process death via /proc instead of waiting out the
+     *  compile timeout. */
+    const val COMPILE_PID_FILE = "compile.pid"
+
+    /** mtime heartbeat refreshed by the `:compile` process while alive;
+     *  fallback liveness signal when the pid file is missing/unreadable. */
+    const val COMPILE_HEARTBEAT_FILE = "compile.heartbeat"
+
     private val externalFilesDir: File?
         get() = appContext.getExternalFilesDir(null)
 

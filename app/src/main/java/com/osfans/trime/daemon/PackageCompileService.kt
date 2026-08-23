@@ -56,6 +56,43 @@ class PackageCompileService : Service() {
         val zipPath = intent?.getStringExtra(EXTRA_ZIP_PATH)
         val sharedDir = intent?.getStringExtra(EXTRA_SHARED_DIR)
         val version = intent?.getStringExtra(EXTRA_VERSION) ?: BuildConfig.BUILD_VERSION_NAME
+        // H7: publish liveness so the main process can fail fast when this
+        // process dies mid-compile (crash/kill) instead of waiting out the
+        // full timeout. The pid file lets the main process check /proc/<pid>
+        // directly; the heartbeat (mtime refreshed by a watchdog thread) is
+        // the fallback and also survives pid reuse. Both live in the workspace
+        // next to compiled.marker/compiled.error.
+        val pidFile = workspaceDir?.let { File(it, PackageStore.COMPILE_PID_FILE) }
+        val heartbeatFile = workspaceDir?.let { File(it, PackageStore.COMPILE_HEARTBEAT_FILE) }
+        runCatching {
+            pidFile?.writeText(Process.myPid().toString())
+            heartbeatFile?.let { file ->
+                file.createNewFile()
+                file.setLastModified(System.currentTimeMillis())
+            }
+        }
+        val watchdog =
+            heartbeatFile?.let { file ->
+                Thread {
+                    while (!Thread.currentThread().isInterrupted) {
+                        try {
+                            file.setLastModified(System.currentTimeMillis())
+                        } catch (_: Exception) {
+                            // Storage hiccup; the main process falls back to
+                            // the pid check / staleness, so just keep trying.
+                        }
+                        try {
+                            Thread.sleep(HEARTBEAT_INTERVAL_MS)
+                        } catch (_: InterruptedException) {
+                            break
+                        }
+                    }
+                }.apply {
+                    name = "compile-heartbeat"
+                    isDaemon = true
+                    start()
+                }
+            }
         Thread {
             var workspace: File? = null
             try {
@@ -71,6 +108,9 @@ class PackageCompileService : Service() {
                 }
                 notifyFinished(success = false)
             } finally {
+                watchdog?.interrupt()
+                pidFile?.delete()
+                heartbeatFile?.delete()
                 compiling.set(false)
                 stopSelf(startId)
                 // Kill the process so the next compile starts with a fresh
@@ -165,6 +205,9 @@ class PackageCompileService : Service() {
     companion object {
         /** True while a workspace compile is running in this process. */
         private val compiling = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        /** Heartbeat refresh period; must be well below the staleness threshold. */
+        private const val HEARTBEAT_INTERVAL_MS = 2 * 1000L
 
         const val EXTRA_SOURCE_DIR = "source_dir"
         const val EXTRA_TARGET_DIR = "target_dir"
