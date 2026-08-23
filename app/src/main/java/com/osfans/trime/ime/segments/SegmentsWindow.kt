@@ -133,7 +133,7 @@ class SegmentsWindow(private val source: String) : BoardWindow.BarBoardWindow() 
 
     private fun onSelectionChanged() {
         val joined = adapter.joinedSegments
-        service.updateComposingText(joined)
+        service.editor.updateComposingText(joined)
 
         if (adapter.isAllSelected) {
             ui.setSelectButtonToDeselect()

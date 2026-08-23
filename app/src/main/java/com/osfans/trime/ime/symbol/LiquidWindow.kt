@@ -53,7 +53,7 @@ class LiquidWindow :
                     }
                 }
                 else -> {
-                    service.commitText(this.text)
+                    service.editor.commitText(this.text)
                     if (currentDataType != LiquidData.Type.HISTORY) {
                         symbolHistory.insert(this.text)
                         // Persist off the main thread; the map was already

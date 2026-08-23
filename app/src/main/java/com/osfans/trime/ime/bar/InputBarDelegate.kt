@@ -143,7 +143,7 @@ class InputBarDelegate : InputBroadcastReceiver {
             clipboardUi.suggestionView.apply {
                 setOnClickListener {
                     val content = ClipboardHelper.lastBean?.text
-                    content?.let { service.commitText(it) }
+                    content?.let { service.editor.commitText(it) }
                     dismissClipboardSuggestion()
                 }
                 setOnLongClickListener {

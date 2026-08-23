@@ -22,6 +22,7 @@ import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.ime.clipboard.ClipboardWindow
+import com.osfans.trime.ime.core.ImeEditor
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.core.toKeyModifiers
 import com.osfans.trime.ime.dependency.InputDependencyManager
@@ -92,10 +93,10 @@ class CommonKeyboardActionListener {
 
     private fun expandActiveText(input: String): String = if (input.matches(PLACEHOLDER_PATTERN)) {
         input.format(
-            service.getActiveText(TrimeInputMethodService.ACTIVE_TEXT_LAST_COMMITTED),
-            service.getActiveText(TrimeInputMethodService.ACTIVE_TEXT_PREEDIT),
-            service.getActiveText(TrimeInputMethodService.ACTIVE_TEXT_SELECTED),
-            service.getActiveText(TrimeInputMethodService.ACTIVE_TEXT_BEFORE_CURSOR),
+            service.editor.getActiveText(ImeEditor.ACTIVE_TEXT_LAST_COMMITTED),
+            service.editor.getActiveText(ImeEditor.ACTIVE_TEXT_PREEDIT),
+            service.editor.getActiveText(ImeEditor.ACTIVE_TEXT_SELECTED),
+            service.editor.getActiveText(ImeEditor.ACTIVE_TEXT_BEFORE_CURSOR),
         )
     } else {
         input
@@ -115,7 +116,7 @@ class CommonKeyboardActionListener {
                 val text = action.getText(keyboard, rime.uiState.value)
                 val shouldHandle = when {
                     action.commit.isNotEmpty() -> {
-                        service.commitText(action.commit)
+                        service.editor.commitText(action.commit)
                         false
                     }
                     text.isNotEmpty() -> {
@@ -150,7 +151,7 @@ class CommonKeyboardActionListener {
                         api.setRuntimeOption(option, !isEnabled)
                         if (option == "ascii_mode" && isComposing) {
                             api.getRawInput().takeIf { it.isNotEmpty() }?.let {
-                                service.commitText(it)
+                                service.editor.commitText(it)
                                 api.clearComposition()
                             }
                         }
@@ -176,11 +177,11 @@ class CommonKeyboardActionListener {
                     KeyActionCommand.SetColorScheme -> handleColorScheme(arg)
                     KeyActionCommand.Broadcast -> service.sendBroadcast(Intent(arg))
                     KeyActionCommand.Clipboard -> handleClipboard()
-                    KeyActionCommand.Commit -> service.commitText(arg)
-                    KeyActionCommand.Date -> service.commitText(customFormatDateTime(arg))
+                    KeyActionCommand.Commit -> service.editor.commitText(arg)
+                    KeyActionCommand.Date -> service.editor.commitText(customFormatDateTime(arg))
                     KeyActionCommand.Run -> handleRunCommand(arg)
                     KeyActionCommand.Apply -> handleApplyCommand(arg)
-                    KeyActionCommand.ShareText -> service.shareText()
+                    KeyActionCommand.ShareText -> service.editor.shareText()
                     KeyActionCommand.SelectCandidate -> handleSelectCandidate(arg)
                     is KeyActionCommand.Intent -> handleIntentAction(command.command, arg)
                 }
@@ -222,7 +223,7 @@ class CommonKeyboardActionListener {
                 clipboardManager.primaryClip
                     ?.getItemAt(0)
                     ?.coerceToText(service)
-                    ?.let { service.commitText(it.toString()) }
+                    ?.let { service.editor.commitText(it.toString()) }
             }
 
             private fun handleRunCommand(arg: String) {
@@ -342,7 +343,7 @@ class CommonKeyboardActionListener {
                 }
                 val modifiers = m.toKeyModifiers().modifiers
                 service.postRimeJob {
-                    if (service.hookKeyboard(keyEventCode, m)) {
+                    if (service.editor.hookKeyboard(keyEventCode, m)) {
                         Timber.d("handleKey: hook")
                         return@postRimeJob
                     }
@@ -383,7 +384,7 @@ class CommonKeyboardActionListener {
                             val token = value.removeSurrounding("{", "}")
                             onAction(KeyActionManager.getAction(token))
                         } else if (!value[0].isAsciiPrintable()) {
-                            service.commitText(value)
+                            service.editor.commitText(value)
                         } else {
                             simulateKeySequence(value)
                         }

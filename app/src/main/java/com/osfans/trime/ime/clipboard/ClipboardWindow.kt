@@ -58,7 +58,7 @@ class ClipboardWindow(private val initialTab: Int = 0) : BoardWindow.BarBoardWin
         object : ClipboardAdapter(theme) {
             override fun onPaste(bean: DatabaseBean) {
                 val text = bean.text ?: return
-                service.commitText(text)
+                service.editor.commitText(text)
                 if (clipboardReturnAfterPaste) {
                     windowManager.attachWindow(KeyboardWindow)
                 }
@@ -104,7 +104,7 @@ class ClipboardWindow(private val initialTab: Int = 0) : BoardWindow.BarBoardWin
         object : ClipboardAdapter(theme) {
             override fun onPaste(bean: DatabaseBean) {
                 val text = bean.text ?: return
-                service.commitText(text)
+                service.editor.commitText(text)
                 if (clipboardReturnAfterPaste) {
                     windowManager.attachWindow(KeyboardWindow)
                 }
