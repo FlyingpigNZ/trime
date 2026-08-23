@@ -54,6 +54,10 @@ class NaiveDustman<T> {
     fun reset(initial: Map<String, T>) {
         dirty = false
         dirtyStatus.clear()
+        // Drop stale keys from the previous snapshot: a key removed in one
+        // cycle that is re-added later with the same value must be treated as
+        // a change (otherwise it is never persisted).
+        initialValues.clear()
         initialValues.putAll(initial)
     }
 }

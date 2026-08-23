@@ -9,6 +9,7 @@ import android.app.Application
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Process
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -92,6 +93,11 @@ class TrimeApplication : Application() {
             }
         }
         instance = this
+        // The :compile process only deploys a package workspace: it must not
+        // run the one-time user-data migration (which would race the main
+        // process on the same files) or start clipboard/collection/broadcast/
+        // WorkManager machinery.
+        val isCompileProcess = currentProcessName()?.endsWith(":compile") == true
         try {
             if (BuildConfig.DEBUG) {
                 Timber.plant(
@@ -130,7 +136,9 @@ class TrimeApplication : Application() {
             }
             val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
             val appPrefs = AppPrefs.initDefault(sharedPreferences)
-            DataManager.migrateLegacyUserDataIfNeeded()
+            if (!isCompileProcess) {
+                DataManager.migrateLegacyUserDataIfNeeded()
+            }
             // record last pid for crash logs
             appPrefs.internal.pid.apply {
                 val currentPid = Process.myPid()
@@ -138,10 +146,12 @@ class TrimeApplication : Application() {
                 Timber.d("Last pid is $lastPid. Set it to current pid: $currentPid")
                 setValue(currentPid)
             }
-            ClipboardHelper.init(applicationContext)
-            CollectionHelper.init(applicationContext)
-            registerBroadcastReceiver()
-            startWorkManager()
+            if (!isCompileProcess) {
+                ClipboardHelper.init(applicationContext)
+                CollectionHelper.init(applicationContext)
+                registerBroadcastReceiver()
+                startWorkManager()
+            }
         } catch (e: Exception) {
             e.fillInStackTrace()
             return
@@ -170,6 +180,16 @@ class TrimeApplication : Application() {
         fun getInstance() = instance ?: throw IllegalStateException("Trime application is not created!")
 
         fun getLastPid() = lastPid
+
+        /** Best-effort current process name (API 28+; /proc/self/cmdline fallback). */
+        private fun currentProcessName(): String? =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                Process.myProcessName()
+            } else {
+                runCatching {
+                    java.io.File("/proc/self/cmdline").readText().trim('\u0000').trim()
+                }.getOrNull()
+            }
 
         private const val MAX_STACKTRACE_SIZE = 128000
 

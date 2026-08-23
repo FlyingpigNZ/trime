@@ -107,8 +107,13 @@ class KeyboardSwitcher(
      */
     fun selectKeyboard(target: String): Keyboard {
         val resolved = resolveKeyboard(target)
+        // ".last" returns to the keyboard that was current before the last
+        // real switch; navigation commands and no-op reselects must not
+        // overwrite that memory.
+        if (resolved != currentKeyboardId && !target.startsWith(".")) {
+            lastKeyboardId = currentKeyboardId
+        }
         currentKeyboardId = resolved
-        lastKeyboardId = resolved
 
         val keyboard = getOrCreateKeyboard(resolved)
         if (keyboard.isLock) lastLockKeyboardId = resolved

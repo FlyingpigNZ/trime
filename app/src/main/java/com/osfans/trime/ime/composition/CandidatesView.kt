@@ -180,15 +180,19 @@ class CandidatesView(
                 y = maxY
             }
             PopupPosition.FOLLOW -> {
-                x =
+                // Mirror the caret position for RTL: the popup's right edge
+                // aligns with the caret (which is reported at bounds.right).
+                // Always clamp into the visible area on both axes.
+                val targetX =
                     if (layoutDirection == LAYOUT_DIRECTION_RTL) {
-                        val rtlOffset = parentWidth - horizontal
-                        if (rtlOffset + selfWidth > parentWidth) selfWidth - parentWidth else -rtlOffset
+                        horizontal - selfWidth
                     } else {
-                        if (horizontal + selfWidth > parentWidth) parentWidth - selfWidth else horizontal
+                        horizontal
                     }
+                x = targetX.coerceIn(minX, maxX)
                 val bottomLimit = parentHeight - bottomInsets - spacingDp
-                y = if (bottom + selfHeight > bottomLimit) top - selfHeight - spacingDp else bottom + spacingDp
+                y = (if (bottom + selfHeight > bottomLimit) top - selfHeight - spacingDp else bottom + spacingDp)
+                    .coerceAtLeast(minY)
             }
         }
         translationX = x

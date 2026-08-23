@@ -457,7 +457,7 @@ class Keyboard(
                 KeyEvent.META_ALT_ON -> mAltKey
                 KeyEvent.META_CTRL_ON -> mCtrlKey
                 KeyEvent.META_META_ON -> mMetaKey
-                KeyEvent.KEYCODE_SYM -> mSymKey
+                KeyEvent.META_SYM_ON -> mSymKey
                 else -> null
             }
         val keepOn = modifierKey?.setOn(on) ?: on
@@ -471,7 +471,7 @@ class Keyboard(
         if (mAltKey != null && !mAltKey!!.isOn) result = result || setModifier(KeyEvent.META_ALT_ON, false)
         if (mCtrlKey != null && !mCtrlKey!!.isOn) result = result || setModifier(KeyEvent.META_CTRL_ON, false)
         if (mMetaKey != null && !mMetaKey!!.isOn) result = result || setModifier(KeyEvent.META_META_ON, false)
-        if (mSymKey != null && !mSymKey!!.isOn) result = result || setModifier(KeyEvent.KEYCODE_SYM, false)
+        if (mSymKey != null && !mSymKey!!.isOn) result = result || setModifier(KeyEvent.META_SYM_ON, false)
         return result
     }
 
