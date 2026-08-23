@@ -18,6 +18,9 @@ interface RimeSession {
     /** Observable engine state; read [StateFlow.value] without blocking. */
     val uiState: StateFlow<RimeUiState>
 
+    /** Whether the engine is currently at the ready state. */
+    val isReady: Boolean
+
     /**
      * Engine event stream (commit/composition/candidates/status/...).
      * Collect directly without going through [run].

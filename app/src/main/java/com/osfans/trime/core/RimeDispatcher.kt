@@ -88,14 +88,27 @@ class RimeDispatcher(
         internalScope.launch {
             mutex.withLock {
                 if (isRunning.compareAndSet(false, true)) {
-                    Timber.d("nativeStartup()")
-                    controller.nativeStartup()
-                    while (isActive && isRunning.get()) {
-                        val block = queue.take()
-                        block.run()
+                    try {
+                        Timber.d("nativeStartup()")
+                        controller.nativeStartup()
+                        while (isActive && isRunning.get()) {
+                            val block = queue.take()
+                            try {
+                                block.run()
+                            } catch (t: Throwable) {
+                                // Never let one bad job wedge the engine: the
+                                // queue must keep draining and the lifecycle
+                                // must stay responsive.
+                                Timber.e(t, "Rime job failed")
+                            }
+                        }
+                        Timber.i("nativeFinalize()")
+                        controller.nativeFinalize()
+                    } catch (t: Throwable) {
+                        Timber.e(t, "Rime dispatcher startup failed")
+                    } finally {
+                        isRunning.set(false)
                     }
-                    Timber.i("nativeFinalize()")
-                    controller.nativeFinalize()
                 }
             }
         }

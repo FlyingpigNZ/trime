@@ -25,7 +25,7 @@ open class CompactCandidateViewAdapter(
         setHasStableIds(true)
     }
 
-    override fun getItemId(position: Int): Long = items.getOrNull(position).hashCode().toLong()
+    override fun getItemId(position: Int): Long = items.getOrNull(position)?.hashCode()?.toLong() ?: position.toLong()
 
     var total: Int = -1
         private set

@@ -107,6 +107,9 @@ object RimeDaemon {
         override val uiState
             get() = realRime.uiState
 
+        override val isReady: Boolean
+            get() = realRime.isReady
+
         override val messageFlow
             get() = realRime.messageFlow
 

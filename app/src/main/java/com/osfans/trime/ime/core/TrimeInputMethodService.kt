@@ -174,8 +174,12 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             jobs.consumeEach { it.join() }
         }
         lifecycleScope.launch {
-            rime.messageFlow.collect {
-                handleRimeMessage(it)
+            rime.messageFlow.collect { message ->
+                // Never let one malformed message kill the collector: that
+                // would silently stop commits/preedit/candidates/key handling
+                // for the whole service lifetime.
+                runCatching { handleRimeMessage(message) }
+                    .onFailure { t -> Timber.e(t, "Failed to handle Rime message: $message") }
             }
         }
         recreateInputViewPrefs.forEach {
@@ -266,11 +270,18 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                     // The engine itself may have deployed the current workspace
                     // (e.g. Default during first startup); record that so the
                     // compile service does not redundantly compile it again.
-                    ImePackageManager.markCurrentWorkspaceCompiled()
-                    // Always go through ensureDefaultPackageReady: it restores a
-                    // usable active theme, and falls back to a compiled Default
-                    // when the active workspace's theme is unusable.
-                    lifecycleScope.launch { ImePackageManager.ensureDefaultPackageReady() }
+                    // Marker writes and the Default.zip hash run off the main
+                    // thread.
+                    lifecycleScope.launch {
+                        withContext(Dispatchers.IO) {
+                            ImePackageManager.markCurrentWorkspaceCompiled()
+                        }
+                        // Always go through ensureDefaultPackageReady: it
+                        // restores a usable active theme, and falls back to a
+                        // compiled Default when the active workspace's theme is
+                        // unusable.
+                        ImePackageManager.ensureDefaultPackageReady()
+                    }
                 }
             }
             else -> {}
@@ -327,6 +338,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun handleReturnKey() {
+        val ic = currentInputConnection ?: return
         currentInputEditorInfo.run {
             if (inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_NULL ||
                 imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_ENTER_ACTION)
@@ -335,7 +347,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                 return
             }
             if (!actionLabel.isNullOrEmpty() && actionId != EditorInfo.IME_ACTION_UNSPECIFIED) {
-                currentInputConnection.performEditorAction(actionId)
+                ic.performEditorAction(actionId)
                 return
             }
             when (val action = imeOptions and EditorInfo.IME_MASK_ACTION) {
@@ -343,7 +355,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                 EditorInfo.IME_ACTION_NONE,
                 -> sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
 
-                else -> currentInputConnection.performEditorAction(action)
+                else -> ic.performEditorAction(action)
             }
         }
     }
@@ -747,6 +759,9 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     private fun forwardKeyEvent(event: KeyEvent): Boolean {
         // Block typing while an IME package is being replaced/deployed.
         if (ImePackageManager.isActivating()) return true
+        // If the engine is not ready (startup/deploy in progress or failed),
+        // fall through to the framework instead of swallowing the key forever.
+        if (!rime.isReady) return false
         val keyVal = event.toKeyValue()
         if (keyVal.value != RimeKeyMapping.RimeKey_VoidSymbol) {
             val modifiers = event.toKeyModifiers()
@@ -919,7 +934,9 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                     val et = ic.getExtractedText(etr, 0)
                     if (et != null) {
                         val moveTo = et.text.findSectionFrom(et.startOffset + et.selectionEnd)
-                        ic.setSelection(moveTo, moveTo)
+                        if (moveTo >= 0) {
+                            ic.setSelection(moveTo, moveTo)
+                        }
                         return true
                     }
                 }
@@ -932,7 +949,9 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                     val et = ic.getExtractedText(etr, 0)
                     if (et != null) {
                         val moveTo = et.text.findSectionFrom(et.startOffset + et.selectionStart, true)
-                        ic.setSelection(moveTo, moveTo)
+                        if (moveTo >= 0) {
+                            ic.setSelection(moveTo, moveTo)
+                        }
                         return true
                     }
                 }
@@ -955,9 +974,9 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         val ic = currentInputConnection ?: return
         ic.beginBatchEdit()
         if (composingText.isNotEmpty() || text.isNotEmpty()) {
-            if (!ic.getSelectedText(0).isNullOrEmpty()) {
-                ic.deleteSurroundingText(1, 0)
-            }
+            // setComposingText already replaces any existing selection; the
+            // previous deleteSurroundingText(1, 0) removed one character
+            // *before* the selection, swallowing it when typing over one.
             ic.setComposingText(text, 1)
             if (text.isEmpty()) {
                 ic.finishComposingText()

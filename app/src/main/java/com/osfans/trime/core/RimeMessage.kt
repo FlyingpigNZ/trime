@@ -5,6 +5,8 @@
 
 package com.osfans.trime.core
 
+import timber.log.Timber
+
 sealed class RimeMessage<T>(
     open val data: T,
 ) {
@@ -141,25 +143,32 @@ sealed class RimeMessage<T>(
         fun nativeCreate(
             type: Int,
             params: Array<Any>,
-        ) = when (type) {
-            1 -> {
-                val (id, name) = (params[0] as String).split('/', limit = 2)
-                SchemaMessage(SchemaItem(id, name))
+        ): RimeMessage<*> = runCatching {
+            when (type) {
+                1 -> {
+                    val (id, name) = (params[0] as String).split('/', limit = 2)
+                    SchemaMessage(SchemaItem(id, name))
+                }
+                2 -> {
+                    val value = params[0] as String
+                    OptionMessage(
+                        OptionMessage.Data(
+                            value.substringAfter('!'),
+                            !value.startsWith('!'),
+                        ),
+                    )
+                }
+                3 ->
+                    DeployMessage(
+                        DeployMessage.State.valueOf((params[0] as String).replaceFirstChar { it.titlecase() }),
+                    )
+                else -> UnknownMessage(params)
             }
-            2 -> {
-                val value = params[0] as String
-                OptionMessage(
-                    OptionMessage.Data(
-                        value.substringAfter('!'),
-                        !value.startsWith('!'),
-                    ),
-                )
-            }
-            3 ->
-                DeployMessage(
-                    DeployMessage.State.valueOf((params[0] as String).replaceFirstChar { it.titlecase() }),
-                )
-            else -> UnknownMessage(params)
+        }.getOrElse { t ->
+            // Runs on the rime-main thread: throwing here would escape into the
+            // dispatcher loop and wedge the whole engine.
+            Timber.w(t, "Malformed native Rime message: type=$type")
+            UnknownMessage(params)
         }
     }
 }

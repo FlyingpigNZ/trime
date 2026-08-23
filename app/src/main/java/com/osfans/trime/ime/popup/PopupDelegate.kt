@@ -156,6 +156,11 @@ class PopupDelegate {
 
     private fun dismissPopup(viewId: Int) {
         dismissPopupContainer(viewId)
+        // Cancel a pending delayed dismiss first: scheduling a second job for
+        // the same viewId would run dismissPopupEntry twice and enqueue the
+        // same PopupEntryUi into the free pool twice, so later keys could
+        // reuse a view that is still attached elsewhere.
+        dismissJobs.remove(viewId)?.cancel()
         showingEntryUi[viewId]?.also {
             val timeLeft = it.lastShowTime + hideThreshold - System.currentTimeMillis()
             if (timeLeft <= 0L) {
@@ -178,6 +183,9 @@ class PopupDelegate {
     }
 
     private fun dismissPopupEntry(viewId: Int, popup: PopupEntryUi) {
+        // Idempotent: only free the entry while it is still the shown one, so
+        // a stale delayed job cannot enqueue it into the free pool twice.
+        if (showingEntryUi[viewId] !== popup) return
         showingEntryUi.remove(viewId)
         root.removeView(popup.root)
         freeEntryUi.add(popup)
