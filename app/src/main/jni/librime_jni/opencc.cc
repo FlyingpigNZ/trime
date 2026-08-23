@@ -17,10 +17,11 @@ Java_com_osfans_trime_data_opencc_OpenCCDictManager_openCCLineConv(
     JNIEnv* env, jclass clazz, jstring input, jstring config_file_name) {
   try {
     opencc::SimpleConverter converter(CString(env, config_file_name));
-    return env->NewStringUTF(converter.Convert(*CString(env, input)).data());
+    const std::string converted = converter.Convert(*CString(env, input));
+    return NewUtf8String(env, converted.data(), converted.size());
   } catch (const opencc::Exception& e) {
     throwJavaException(env, e.what());
-    return env->NewStringUTF("");
+    return NewUtf8String(env, "", 0);
   }
 }
 

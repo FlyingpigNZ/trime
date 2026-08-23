@@ -388,7 +388,8 @@ Java_com_osfans_trime_core_Rime_getRimeSchemaList(JNIEnv* env,
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_osfans_trime_core_Rime_getCurrentRimeSchema(JNIEnv* env,
                                                      jclass /* thiz */) {
-  return env->NewStringUTF(Rime::Instance().currentSchemaId().c_str());
+  const std::string id = Rime::Instance().currentSchemaId();
+  return NewUtf8String(env, id.data(), id.size());
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -408,7 +409,8 @@ Java_com_osfans_trime_core_Rime_simulateRimeKeySequence(JNIEnv* env,
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_osfans_trime_core_Rime_getRimeRawInput(JNIEnv* env,
                                                 jclass /* thiz */) {
-  return env->NewStringUTF(Rime::Instance().rawInput().data());
+  const std::string input = Rime::Instance().rawInput();
+  return NewUtf8String(env, input.data(), input.size());
 }
 
 extern "C" JNIEXPORT jint JNICALL
