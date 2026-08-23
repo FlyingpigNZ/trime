@@ -30,6 +30,14 @@ class PackageCompileService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Single-flight: a second compile request while one is running would
+        // run two librime deploys concurrently in this process against the
+        // same global Deployer state. Drop the duplicate.
+        if (!compiling.compareAndSet(false, true)) {
+            Timber.w("PackageCompileService: compile already in progress; dropping duplicate request")
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 ImePackageNotifications.NOTIFICATION_ID,
@@ -63,6 +71,7 @@ class PackageCompileService : Service() {
                 }
                 notifyFinished(success = false)
             } finally {
+                compiling.set(false)
                 stopSelf(startId)
                 // Kill the process so the next compile starts with a fresh
                 // librime instance instead of reusing stale global state.
@@ -154,6 +163,9 @@ class PackageCompileService : Service() {
     }
 
     companion object {
+        /** True while a workspace compile is running in this process. */
+        private val compiling = java.util.concurrent.atomic.AtomicBoolean(false)
+
         const val EXTRA_SOURCE_DIR = "source_dir"
         const val EXTRA_TARGET_DIR = "target_dir"
         const val EXTRA_WORKSPACE_DIR = "workspace_dir"
