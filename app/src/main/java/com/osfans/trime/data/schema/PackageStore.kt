@@ -38,6 +38,9 @@ object PackageStore {
      *  fallback liveness signal when the pid file is missing/unreadable. */
     const val COMPILE_HEARTBEAT_FILE = "compile.heartbeat"
 
+    /** Bundled Default package zip shipped with the app. */
+    const val DEFAULT_PACKAGE_FILE_NAME = "Default.zip"
+
     private val externalFilesDir: File?
         get() = appContext.getExternalFilesDir(null)
 
