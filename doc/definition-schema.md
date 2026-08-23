@@ -136,6 +136,10 @@ Rules:
 - The legacy `preset_color_schemes` shape (inline `light:`/`dark:` palettes)
   is still accepted for compatibility, but new resources should use the flat
   `colors` + `color_schemes` shape.
+- Color values use **Android's order**: `0xRRGGBB` for opaque colors and
+  `0xAARRGGBB` (alpha **first**) for 8-digit colors. `0x80141617` is black at
+  50% alpha; writing the alpha last (`0x14161780`, CSS style) would be parsed
+  as a different color. Named colors (`red`, `blue`, …) are also accepted.
 
 ### `style.yaml` / `chrome.yaml`
 

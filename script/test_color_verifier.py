@@ -63,6 +63,34 @@ class ColorVerifierTest(unittest.TestCase):
         }
         self.assertEqual(verify(sections), [])
 
+    def test_zero_alpha_8digit_hex_is_rejected(self) -> None:
+        # 0x00141617 parses as AARRGGBB with alpha 0x00 — fully transparent,
+        # almost certainly a reversed-alpha typo.
+        errors = verify(
+            {
+                "preset_color_schemes": {
+                    "s": {
+                        "light": {"hilited_back_color": "0x00141617"},
+                    },
+                },
+            }
+        )
+        self.assertTrue(any("alpha first" in error for error in errors))
+
+    def test_zero_alpha_8digit_hex_allows_explicit_transparent(self) -> None:
+        # 0x00000000 is the documented "no shadow / no tint" value.
+        sections = {
+            "preset_color_schemes": {
+                "s": {
+                    "light": {
+                        "hilited_back_color": "0x00000000",
+                        "shadow_color": "0x00000000",
+                    },
+                },
+            },
+        }
+        self.assertEqual(verify(sections), [])
+
 
 if __name__ == "__main__":
     unittest.main()

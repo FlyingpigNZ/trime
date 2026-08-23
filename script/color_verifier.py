@@ -77,6 +77,26 @@ def is_hex_color(value: str) -> bool:
     return False
 
 
+def zero_alpha_typo(value: str) -> str | None:
+    """Flag an 8-digit hex whose alpha byte is 0x00 while RGB is non-zero.
+
+    8-digit colors are parsed as 0xAARRGGBB (alpha first, Android order), so
+    such a value renders fully transparent — it is almost always a
+    reversed-alpha typo (e.g. ``0x00141617`` written instead of
+    ``0x17141600``-style). ``0x00000000`` is exempt: it is the explicit
+    "no shadow / no tint" value.
+    """
+    for prefix in HEX_PREFIXES:
+        if value.startswith(prefix):
+            body = value[len(prefix):]
+            if len(body) == 8 and body[:2] == "00" and body[2:] != "000000":
+                return (
+                    "8-digit colors are 0xAARRGGBB (alpha first); 0x00 alpha "
+                    "with non-zero RGB renders fully transparent"
+                )
+    return None
+
+
 def _collect_palette_keys(sections: dict[str, Any], known: set[str]) -> list[str]:
     errors: list[str] = []
     schemes = sections.get("preset_color_schemes", {})
@@ -101,6 +121,10 @@ def _collect_palette_keys(sections: dict[str, Any], known: set[str]) -> list[str
                 if not is_hex_color(value):
                     errors.append(
                         f"preset_color_schemes.{scheme_name}.{key}: invalid color '{value}'"
+                    )
+                elif (typo := zero_alpha_typo(value)):
+                    errors.append(
+                        f"preset_color_schemes.{scheme_name}.{key}: {typo}"
                     )
     return errors
 

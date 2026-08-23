@@ -11,6 +11,19 @@ import androidx.core.graphics.red
 import androidx.core.graphics.toColorInt
 
 object ColorUtils {
+    /**
+     * Parse a color string into an Android [ColorInt] (`0xAARRGGBB`, alpha in
+     * the high byte — Android's native order).
+     *
+     * Accepted forms (same semantics as [android.graphics.Color.parseColor]):
+     * - `0xAARRGGBB` / `#AARRGGBB` — 8 hex digits, **alpha first**;
+     * - `0xRRGGBB` / `#RRGGBB` — 6 hex digits (opaque);
+     * - shorter forms, and named colors (`red`, `blue`, …).
+     *
+     * Theme authors must write 8-digit colors as `0xAARRGGBB`. A value like
+     * `0x80141617` is black at 50% alpha; writing the alpha last
+     * (`0x14161780`, CSS style) would be parsed as a different color.
+     */
     @ColorInt
     fun parseColor(colorString: String): Int {
         val normalized =
