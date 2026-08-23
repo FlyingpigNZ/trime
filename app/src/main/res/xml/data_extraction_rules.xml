@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: 2015 - 2026 Rime community
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
+<!--
+Data extraction rules for API 31+ (android:dataExtractionRules).
+
+Cloud backup excludes the same private data as backup_rules.xml; clipboard
+history is excluded from device-to-device transfer as well, while the Rime
+workspace transfers so users keep their config on a new device. shared/ is
+regenerated from app assets on first run, so it is excluded everywhere.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="clipboard.db" />
+        <exclude domain="database" path="collection.db" />
+        <exclude domain="external" path="rime/" />
+        <exclude domain="external" path="packages/" />
+        <exclude domain="external" path="shared/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="clipboard.db" />
+        <exclude domain="database" path="collection.db" />
+        <exclude domain="external" path="shared/" />
+    </device-transfer>
+</data-extraction-rules>

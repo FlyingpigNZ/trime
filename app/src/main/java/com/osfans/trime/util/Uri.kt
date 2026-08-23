@@ -13,17 +13,9 @@ import android.os.Environment
 import android.os.storage.StorageManager
 import android.provider.DocumentsContract
 import android.provider.MediaStore
-import androidx.core.content.FileProvider
-import androidx.core.net.toUri
 import timber.log.Timber
 import java.io.File
 import java.lang.reflect.Array
-
-fun Context.getUriForFile(file: File): Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-    FileProvider.getUriForFile(this, "${applicationInfo.packageName}.fileprovider", file)
-} else {
-    file.toUri()
-}
 
 fun Context.getFileFromUri(uri: Uri): File? {
     Timber.d(uri.toString())
