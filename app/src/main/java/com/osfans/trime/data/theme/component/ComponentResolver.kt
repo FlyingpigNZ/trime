@@ -96,12 +96,29 @@ class ComponentResolver(
         val target = sections.getValue(section)
         val result = LinkedHashMap<Node, Node>(target.pairs)
 
+        // preset_keys / preset_keyboards / preset_color_schemes are keyed by
+        // name and each value must be a definition mapping; the runtime decodes
+        // them with .mapping!! and would crash on anything else.
+        fun requireNamedEntry(key: Node, value: Node) {
+            if (section !in NAMED_SECTIONS) return
+            val name = key.string
+                ?: throw IllegalArgumentException(
+                    "$section.add/override: key must be a string, got $key",
+                )
+            if (value.mapping == null) {
+                throw IllegalArgumentException(
+                    "$section.add/override: '$name' must be a mapping, got $value",
+                )
+            }
+        }
+
         spec.add?.pairs?.forEach { (key, value) ->
             if (result.containsKey(key)) {
                 throw IllegalArgumentException(
                     "$section.add: '${key.string}' already exists; use override",
                 )
             }
+            requireNamedEntry(key, value)
             result[key] = value
         }
 
@@ -111,6 +128,7 @@ class ComponentResolver(
                     "$section.override: '${key.string}' does not exist; use add",
                 )
             }
+            requireNamedEntry(key, value)
             result[key] = value
         }
 

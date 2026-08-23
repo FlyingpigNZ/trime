@@ -41,6 +41,17 @@ object PackageThemeLoader {
             if (!hasColorSchemes) {
                 throw IllegalArgumentException("theme.yaml must define at least one color scheme")
             }
+            // The runtime decodes preset_keys / preset_keyboards entries as
+            // mappings; reject anything else loudly instead of crashing later.
+            listOf("preset_keys", "preset_keyboards").forEach { section ->
+                node[section]?.mapping?.pairs?.forEach { (key, value) ->
+                    if (key.string == null || value.mapping == null) {
+                        throw IllegalArgumentException(
+                            "theme.yaml $section entries must be mappings, got '${key.string ?: key}'",
+                        )
+                    }
+                }
+            }
             val name = node["name"]?.string ?: workspace.name
             return Theme.decode(
                 Node.Mapping(

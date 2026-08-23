@@ -59,8 +59,12 @@ data class Theme(
             window = Window.decode(node["window"]?.mapping),
             liquidKeyboard = LiquidKeyboard.decode(node["liquid_keyboard"]?.mapping),
             toolBar = ToolBar.decode(node["tool_bar"]?.mapping),
-            presetKeys = node["preset_keys"]?.mapping?.entries?.associate {
-                it.key.string!! to PresetKey.decode(it.value.mapping!!)
+            presetKeys = node["preset_keys"]?.mapping?.entries?.associate { (keyNode, valueNode) ->
+                val name = keyNode.string
+                    ?: throw IllegalArgumentException("preset_keys: key must be a string, got $keyNode")
+                val preset = valueNode.mapping
+                    ?: throw IllegalArgumentException("preset_keys.$name: must be a mapping, got $valueNode")
+                name to PresetKey.decode(preset)
             } ?: emptyMap(),
             presetKeyboards =
             resolveKeyboardIncludes(node["preset_keyboards"]?.mapping).mapValues {
