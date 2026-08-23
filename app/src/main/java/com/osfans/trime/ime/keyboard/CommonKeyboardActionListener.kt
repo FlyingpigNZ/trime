@@ -92,10 +92,10 @@ class CommonKeyboardActionListener {
 
     private fun expandActiveText(input: String): String = if (input.matches(PLACEHOLDER_PATTERN)) {
         input.format(
-            service.getActiveText(1),
-            service.getActiveText(2),
-            service.getActiveText(3),
-            service.getActiveText(4),
+            service.getActiveText(TrimeInputMethodService.ACTIVE_TEXT_LAST_COMMITTED),
+            service.getActiveText(TrimeInputMethodService.ACTIVE_TEXT_PREEDIT),
+            service.getActiveText(TrimeInputMethodService.ACTIVE_TEXT_SELECTED),
+            service.getActiveText(TrimeInputMethodService.ACTIVE_TEXT_BEFORE_CURSOR),
         )
     } else {
         input

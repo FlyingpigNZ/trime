@@ -24,8 +24,6 @@ import java.lang.ref.WeakReference
 class AppPrefs(
     private val shared: SharedPreferences,
 ) {
-    private val applicationContext: WeakReference<Context> = WeakReference(appContext)
-
     private val providers = mutableListOf<PreferenceDelegateProvider>()
 
     fun <T : PreferenceDelegateProvider> registerProvider(providerF: (SharedPreferences) -> T): T {

@@ -7,7 +7,6 @@ package com.osfans.trime.ime.keyboard
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Canvas
 import android.widget.FrameLayout
 import androidx.core.view.children
 import com.osfans.trime.daemon.RimeSession
@@ -40,7 +39,6 @@ class KeyboardView(
     internal val popupOnKeyPress by AppPrefs.defaultInstance().keyboard.popupOnKeyPress
 
     init {
-        setWillNotDraw(false)
         buildKeyViews()
     }
 
@@ -81,10 +79,6 @@ class KeyboardView(
 
         measureChildren(widthMeasureSpec, heightMeasureSpec)
         setMeasuredDimension(measuredWidth, fullHeight)
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
     }
 
     fun invalidateAllKeys() {

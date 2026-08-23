@@ -19,8 +19,6 @@
     <string name="license">License</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="build_info_format">Builder: %1$s\nBuild Git Hash: %2$s\nBuild Time: %3$s</string>
-    <string name="selected_theme">Themes</string>
-    <string name="selected_theme_summary">Select desired theme</string>
     <string name="selected_ime">IME packages</string>
     <string name="selected_ime_summary">Select self-contained IME package</string>
     <string name="normal_mode_color">Colors</string>
@@ -66,9 +64,6 @@
     <string name="system_default">System default</string>
     <string name="key_swipe_travel">Min travel for gesture</string>
     <string name="trime_app_slogan">Rimes with Your Keystrokes on Android</string>
-    <string name="external_storage_permission_not_available">External storage permission is not available</string>
-    <string name="external_storage_permission_granted">External storage permission is granted</string>
-    <string name="external_storage_permission_denied">External storage permission was denied, deployment or reading schemas and config may not be available</string>
     <string name="custom_sound_effect_name">Custom key Sound Effect</string>
     <string name="setup__next">Next</string>
     <string name="done">Done</string>
@@ -92,7 +87,6 @@
     <string name="key_swipe_velocity">The speed of triggering the button swipe gesture (the distance/velocity is sufficient)</string>
     <string name="build_info">Build Info</string>
     <string name="telegram">Telegram</string>
-    <string name="quick_bar">Quick bar</string>
     <string name="copy_done">Copied to clipboard!</string>
     <string name="hook_shift_space">Ignore Shift locked for Space</string>
     <string name="test_input">Test input</string>
@@ -124,7 +118,6 @@
     <string name="maintenance">Maintenance</string>
     <string name="install_schema_layout_package">Install schema layout package</string>
     <string name="install_schema_layout_package_summary">Install a .zip containing a Rime schema, layouts, and optional resources</string>
-    <string name="install_schema_layout_package_success">Schema layout package installed</string>
     <string name="install_schema_layout_package_failure">Failed to install schema layout package</string>
     <string name="ime_package_not_compiled">IME package is not compiled yet</string>
     <string name="ime_package_compile">Compile IME package</string>
@@ -139,7 +132,6 @@
     <string name="export_migrated_workspace">Export migrated workspace</string>
     <string name="export_migrated_workspace_summary">Export old data that has no corresponding package</string>
     <string name="ime_package_deleted">IME package deleted</string>
-    <string name="cannot_delete_default_ime_package">The default IME package cannot be deleted</string>
     <string name="cannot_delete_active_ime_package">Switch to another IME package before deleting this one</string>
     <string name="ime_package_already_active">This IME package is already active</string>
     <string name="validate_definition_file">Validate definition file</string>
@@ -168,9 +160,6 @@
     <string name="custom_sound_effect_enabled">Use custom key sound</string>
     <string name="enable_landscape_mode">Enable Landscape Mode</string>
     <string name="split_space_percent">Auto Split Keyboard Space Ratio</string>
-    <string name="setup__step_three">Setup 3</string>
-    <string name="setup__request_permission_hint">Currently Trime requests storage permissions to access its configuration\nand allow users to modify easily.</string>
-    <string name="setup__request_permission">Request storage permission</string>
     <string name="grant_permission">Grant permission</string>
     <string name="notification_permission_title">No Notification Permission</string>
     <string name="notification_permission_message">Without the permission to post notifications, we are not able to notify you when some time-consuming operations are done.</string>
@@ -179,7 +168,6 @@
     <string name="select_current_schema">Select current schema</string>
     <string name="enable_schemata">Enable schemata</string>
     <string name="no_schema_to_select">Currently there is no schema to select. Please go to enable schemata from the available list.</string>
-    <string name="no_schema_to_enable">No schema to enable. Make sure you have prelude and schema files in the user directory.</string>
     <string name="schemata">Schemata</string>
     <string name="navbar_background">Navigation bar background</string>
     <string name="no_theme_to_select">Currently there is no theme to select.</string>
@@ -194,7 +182,6 @@
     <string name="general">General</string>
     <string name="composing_text">Composing text</string>
     <string name="commit_text_preview">Commit text preview</string>
-    <string name="raw_input">Raw input</string>
     <string name="inline_preedit_mode">Inline preedit mode</string>
     <string name="depends_on_input_device">Depends on input device</string>
     <string name="always_show">Always show</string>

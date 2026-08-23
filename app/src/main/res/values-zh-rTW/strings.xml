@@ -19,8 +19,6 @@
     <string name="license">許可證</string>
     <string name="privacy_policy">隱私權政策</string>
     <string name="build_info_format">建構者：%1$s\n建構 Git 雜湊值：%2$s\n建構時間：%3$s</string>
-    <string name="selected_theme">主題</string>
-    <string name="selected_theme_summary">選取想要的主題</string>
     <string name="selected_ime">輸入法包</string>
     <string name="selected_ime_summary">選擇自包含輸入法包</string>
     <string name="normal_mode_color">配色</string>
@@ -66,9 +64,6 @@
     <string name="system_default">系統預設</string>
     <string name="key_swipe_travel">觸發滑動手勢的最短距離</string>
     <string name="trime_app_slogan">擊響中文之韻</string>
-    <string name="external_storage_permission_not_available">儲存許可權不可用</string>
-    <string name="external_storage_permission_granted">已授予儲存許可權</string>
-    <string name="external_storage_permission_denied">已拒絕授權儲存許可權，部署或讀取方案和配置功能或不可用</string>
     <string name="custom_sound_effect_name">自訂按鍵音效</string>
     <string name="setup__next">下一步</string>
     <string name="done">完成</string>
@@ -92,7 +87,6 @@
     <string name="key_swipe_velocity">觸發按鍵滑動手勢的速度（距離/速度滿足其一即可）</string>
     <string name="build_info">建構資訊</string>
     <string name="telegram">Telegram</string>
-    <string name="quick_bar">快捷欄</string>
     <string name="copy_done">已複製</string>
     <string name="hook_shift_space">點擊空格時，忽略Shift的鎖定狀態</string>
     <string name="test_input">測試輸入</string>
@@ -124,7 +118,6 @@
     <string name="maintenance">維護</string>
     <string name="install_schema_layout_package">安裝方案鍵盤佈局包</string>
     <string name="install_schema_layout_package_summary">安裝包含 Rime 方案、佈局和可選資源的 .zip 檔案</string>
-    <string name="install_schema_layout_package_success">方案鍵盤佈局包安裝成功</string>
     <string name="install_schema_layout_package_failure">方案鍵盤佈局包安裝失敗</string>
     <string name="ime_package_not_compiled">輸入方案包尚未編譯完成</string>
     <string name="ime_package_compile">編譯輸入方案包</string>
@@ -139,7 +132,6 @@
     <string name="export_migrated_workspace">匯出遷移資料</string>
     <string name="export_migrated_workspace_summary">匯出沒有對應輸入法包的舊資料</string>
     <string name="ime_package_deleted">輸入方案包已刪除</string>
-    <string name="cannot_delete_default_ime_package">預設輸入方案包不可刪除</string>
     <string name="cannot_delete_active_ime_package">請先切換到其他輸入方案包再刪除目前方案</string>
     <string name="ime_package_already_active">此輸入法包已是目前使用的方案</string>
     <string name="validate_definition_file">校驗定義檔</string>
@@ -168,9 +160,6 @@
     <string name="custom_sound_effect_enabled">使用自訂按鍵音</string>
     <string name="enable_landscape_mode">啟用橫屏模式</string>
     <string name="split_space_percent">自動分割鍵盤比例</string>
-    <string name="setup__step_three">第 3 步</string>
-    <string name="setup__request_permission_hint">當前同文須要存儲權限以訪問配置檔案、使得使用者容易修改。</string>
-    <string name="setup__request_permission">请求存储权限</string>
     <string name="grant_permission">授予權限</string>
     <string name="notification_permission_title">沒有通知權限</string>
     <string name="notification_permission_message">尚未賦予通知權限，因此無法在耗時較長的操作完成後給您發送通知。</string>
@@ -179,7 +168,6 @@
     <string name="select_current_schema">選擇當前方案</string>
     <string name="enable_schemata">啓用方案</string>
     <string name="no_schema_to_select">當前沒有方案可選擇。請前往啟用方案。</string>
-    <string name="no_schema_to_enable">沒有方案可啟用。請確保您已在使用者資料夾中放入了前置檔案和方案檔案。</string>
     <string name="schemata">方案</string>
     <string name="navbar_background">導航欄背景</string>
     <string name="no_theme_to_select">當前沒有主題可選擇。</string>
@@ -194,7 +182,6 @@
     <string name="general">常規</string>
     <string name="composing_text">預編輯碼</string>
     <string name="commit_text_preview">首選詞預覽</string>
-    <string name="raw_input">原始輸入碼</string>
     <string name="inline_preedit_mode">嵌入式預編輯模式</string>
     <string name="depends_on_input_device">視輸入設備而定</string>
     <string name="always_show">始終顯示</string>

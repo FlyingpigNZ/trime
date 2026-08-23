@@ -28,11 +28,6 @@ data class DatabaseBean(
             val str = clipData.getItemAt(0).text?.toString() ?: return null
             return DatabaseBean(text = str)
         }
-
-        fun fromInputConnection(inputConnection: InputConnection): DatabaseBean? {
-            val str = inputConnection.getExtractedText(ExtractedTextRequest(), 0)?.text?.toString() ?: return null
-            return DatabaseBean(text = str)
-        }
     }
 
     enum class BeanType {

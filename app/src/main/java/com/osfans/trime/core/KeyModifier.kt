@@ -21,34 +21,14 @@ enum class KeyModifier(
     Mod1(1u shl 3),
     Alt(Mod1),
     Mod2(1u shl 4), // NumLock
-    Mod3(1u shl 5),
-    Mod4(1u shl 6),
-    Mod5(1u shl 7),
-    Button1(1u shl 8),
-    Button2(1u shl 9),
-    Button3(1u shl 10),
-    Button4(1u shl 11),
-    Button5(1u shl 12),
-    Handled(1u shl 24),
-    Forward(1u shl 25),
-    Ignored(Forward),
-    Super(1u shl 26),
-    Hyper(1u shl 27),
     Meta(1u shl 28),
     Release(1u shl 30),
-    Modifier(0x5f001fffu),
     ;
 
     constructor(other: KeyModifier) : this(other.modifier)
-
-    infix fun or(other: KeyModifier): UInt = modifier or other.modifier
-
-    infix fun or(other: UInt): UInt = modifier or other
 }
 
 operator fun UInt.plus(other: KeyModifier) = or(other.modifier)
-
-operator fun UInt.minus(other: KeyModifier) = and(other.modifier.inv())
 
 @JvmInline
 value class KeyModifiers(

@@ -42,7 +42,6 @@ import kotlin.math.max
 abstract class BaseUnrolledCandidateWindow :
     BoardWindow.NoBarBoardWindow(),
     InputBroadcastReceiver {
-    protected val service: TrimeInputMethodService by di.instance()
     protected val rime: RimeSession by di.instance()
     protected val theme: Theme by di.instance()
     private val inputView: InputView by di.instance()

@@ -37,13 +37,6 @@ object ClipboardHelper :
 
     private val mutex = Mutex()
 
-    var itemCount: Int = 0
-        private set
-
-    private suspend fun updateItemCount() {
-        itemCount = clbDao.itemCount()
-    }
-
     private val onUpdateListeners = WeakHashSet<OnClipboardUpdateListener>()
 
     fun addOnUpdateListener(listener: OnClipboardUpdateListener) {
@@ -112,7 +105,6 @@ object ClipboardHelper :
         enabledPref.registerOnChangeListener(enabledListener)
         limitListener.onChange(limitPref.key, limitPref.getValue())
         limitPref.registerOnChangeListener(limitListener)
-        launch { updateItemCount() }
     }
 
     suspend fun get(id: Int) = clbDao.get(id)
@@ -137,7 +129,6 @@ object ClipboardHelper :
 
     suspend fun delete(id: Int) {
         clbDao.delete(id)
-        updateItemCount()
     }
 
     suspend fun deleteAll(skipUnpinned: Boolean = true) {
@@ -146,7 +137,6 @@ object ClipboardHelper :
         } else {
             clbDao.deleteAll()
         }
-        updateItemCount()
     }
 
     private var lastClipTimestamp = -1L
@@ -197,12 +187,10 @@ object ClipboardHelper :
                         clbDb.withTransaction {
                             val rowId = clbDao.insert(bean)
                             removeOutdated()
-                            updateItemCount()
-                            clbDao.get(rowId) ?: bean
+                                                clbDao.get(rowId) ?: bean
                         }
                     updateLastBean(insertedBean)
-                    updateItemCount()
-                } catch (exception: Exception) {
+                            } catch (exception: Exception) {
                     Timber.w("Failed to update clipboard database: $exception")
                     updateLastBean(bean)
                 }

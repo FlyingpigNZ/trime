@@ -24,11 +24,6 @@ abstract class PreferenceDelegateOwner(
         defaultValue: Long,
     ) = PreferenceDelegate(sharedPreferences, key, defaultValue).apply { register() }
 
-    protected fun float(
-        key: String,
-        defaultValue: Float,
-    ) = PreferenceDelegate(sharedPreferences, key, defaultValue)
-
     protected fun bool(
         key: String,
         defaultValue: Boolean,
@@ -38,25 +33,6 @@ abstract class PreferenceDelegateOwner(
         key: String,
         defaultValue: String,
     ): PreferenceDelegate<String> = PreferenceDelegate(sharedPreferences, key, defaultValue).apply { register() }
-
-    protected fun <T : Any> serializable(
-        key: String,
-        defaultValue: T,
-        serializer: PreferenceDelegate.Serializer<T>,
-    ) = PreferenceDelegate.SerializableDelegate(sharedPreferences, key, defaultValue, serializer)
-
-    protected inline fun <reified T : Enum<T>> enum(
-        key: String,
-        defaultValue: T,
-    ) = serializable(
-        key,
-        defaultValue,
-        object : PreferenceDelegate.Serializer<T> {
-            override fun serialize(t: T) = t.name
-
-            override fun deserialize(raw: String) = enumValueOf<T>(raw.uppercase())
-        },
-    )
 
     protected fun string(
         @StringRes
@@ -124,7 +100,6 @@ abstract class PreferenceDelegateOwner(
         return pref
     }
 
-    // TODO: replace all [enum] with this
     protected inline fun <reified T> enum(
         @StringRes title: Int,
         key: String,

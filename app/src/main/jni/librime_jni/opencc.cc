@@ -2,28 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include <opencc/Common.hpp>
 #include <opencc/DictConverter.hpp>
 #include <opencc/Exception.hpp>
-#include <opencc/SimpleConverter.hpp>
-#include <string>
 
 #include "jni-utils.h"
 
 // opencc
-
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_osfans_trime_data_opencc_OpenCCDictManager_openCCLineConv(
-    JNIEnv* env, jclass clazz, jstring input, jstring config_file_name) {
-  try {
-    opencc::SimpleConverter converter(CString(env, config_file_name));
-    const std::string converted = converter.Convert(*CString(env, input));
-    return NewUtf8String(env, converted.data(), converted.size());
-  } catch (const opencc::Exception& e) {
-    throwJavaException(env, e.what());
-    return NewUtf8String(env, "", 0);
-  }
-}
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_osfans_trime_data_opencc_OpenCCDictManager_openCCDictConv(

@@ -71,22 +71,15 @@ open class PreeditUi(
 
     fun update(composition: CompositionProto) {
         val string = composition.toSpannedString()
-        val cursorPos = composition.cursorPos
         val hasPreedit = composition.length > 0
         visible = hasPreedit
         if (!visible) {
             updateTextView("", false)
             return
         }
-        val stringWithCursor =
-            if (cursorPos == 0 || cursorPos == string.length) {
-                string
-            } else {
-                buildSpannedString {
-                    if (cursorPos > 0) append(string, 0, cursorPos)
-                    append(string, cursorPos, string.length)
-                }
-            }
-        updateTextView(stringWithCursor, true)
+        // The old code split the string at cursorPos to render a cursor, but
+        // both branches produced exactly [string] — no cursor was ever drawn,
+        // so the branch was a no-op.
+        updateTextView(string, true)
     }
 }

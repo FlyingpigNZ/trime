@@ -33,8 +33,6 @@ object CollectionHelper : CoroutineScope by CoroutineScope(SupervisorJob() + Dis
         cltDao = cltDb.databaseDao()
     }
 
-    suspend fun insert(bean: DatabaseBean) = cltDao.insert(bean)
-
     suspend fun get(id: Int) = cltDao.get(id)
 
     suspend fun haveUnpinned() = cltDao.haveUnpinned()

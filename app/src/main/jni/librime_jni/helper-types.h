@@ -134,12 +134,8 @@ class StatusProto {
  public:
   std::string schemaId;
   std::string schemaName;
-  bool isDisabled = false;
   bool isComposing = false;
   bool isAsciiMode = false;
-  bool isFullShape = false;
-  bool isSimplified = false;
-  bool isTraditional = false;
   bool isAsciiPunct = false;
 
   StatusProto() = default;
@@ -147,11 +143,7 @@ class StatusProto {
   explicit StatusProto(const RimeStatus* status)
       : schemaId(status->schema_id),
         schemaName(status->schema_name ? status->schema_name : ""),
-        isDisabled(status->is_disabled),
         isComposing(status->is_composing),
         isAsciiMode(status->is_ascii_mode),
-        isFullShape(status->is_full_shape),
-        isSimplified(status->is_simplified),
-        isTraditional(status->is_traditional),
         isAsciiPunct(status->is_ascii_punct) {}
 };

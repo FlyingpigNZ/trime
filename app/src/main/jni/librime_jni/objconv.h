@@ -115,10 +115,8 @@ inline jobject rimeContextToJObject(JNIEnv* env, const ContextProto& context) {
 inline jobject rimeStatusToJObject(JNIEnv* env, const StatusProto& status) {
   return env->NewObject(GlobalRef->StatusProto, GlobalRef->StatusProtoInit,
                         *JString(env, status.schemaId),
-                        *JString(env, status.schemaName), status.isDisabled,
-                        status.isComposing, status.isAsciiMode,
-                        status.isFullShape, status.isSimplified,
-                        status.isTraditional, status.isAsciiPunct);
+                        *JString(env, status.schemaName), status.isComposing,
+                        status.isAsciiMode, status.isAsciiPunct);
 }
 
 inline jobject rimeResponseToJObject(JNIEnv* env, jobject commit,

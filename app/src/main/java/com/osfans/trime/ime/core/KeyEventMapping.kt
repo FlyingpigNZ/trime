@@ -11,7 +11,6 @@ import com.osfans.trime.core.KeyModifier
 import com.osfans.trime.core.KeyModifiers
 import com.osfans.trime.core.KeyValue
 import com.osfans.trime.core.RimeKeyMapping
-import com.osfans.trime.core.minus
 import com.osfans.trime.core.plus
 import splitties.bitflags.hasFlag
 

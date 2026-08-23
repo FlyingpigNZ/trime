@@ -80,34 +80,3 @@ fun PreferenceGroup.addPreference(
 ) {
     addPreference(context.getString(title), summary?.let(context::getString), icon, onClick)
 }
-
-class LongClickPreference(context: Context) : Preference(context) {
-    private var onLongClick: (() -> Unit)? = null
-
-    fun setOnPreferenceLongClickListener(callback: (() -> Unit)? = null) {
-        onLongClick = callback
-    }
-
-    override fun onBindViewHolder(holder: PreferenceViewHolder) {
-        super.onBindViewHolder(holder)
-        holder.itemView.setOnLongClickListener {
-            onLongClick?.invoke()
-            true
-        }
-    }
-}
-
-fun PreferenceGroup.addPreference(
-    @StringRes title: Int,
-    @StringRes summary: Int? = null,
-    @DrawableRes icon: Int? = null,
-    onClick: (() -> Unit)? = null,
-    onLongClick: (() -> Unit)? = null,
-) {
-    addPreference(
-        LongClickPreference(context).apply {
-            setup(context.getString(title), summary?.let { context.getString(it) }, icon, onClick)
-            setOnPreferenceLongClickListener(onLongClick)
-        },
-    )
-}

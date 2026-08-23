@@ -77,8 +77,4 @@ class InputBroadcaster : InputBroadcastReceiver {
     override fun onWindowDetached(window: BoardWindow) {
         receivers.forEach { it.onWindowDetached(window) }
     }
-
-    override fun onEnterKeyLabelUpdate(label: String) {
-        receivers.forEach { it.onEnterKeyLabelUpdate(label) }
-    }
 }

@@ -38,7 +38,6 @@ import kotlin.math.max
 class CompactCandidateDelegate : InputBroadcastReceiver {
     private val di = InputDependencyManager.getInstance().di
     private val context: Context by di.instance()
-    val service: TrimeInputMethodService by di.instance()
     val rime: RimeSession by di.instance()
     val theme: Theme by di.instance()
     private val inputView: InputView by di.instance()
@@ -148,15 +147,10 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     }
 
     val view by lazy {
-        object : RecyclerView(context) {
-            override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-                super.onSizeChanged(w, h, oldw, oldh)
-                if (fillStyle == CompactCandidateMode.AUTO_FILL) {
-                    val maxSpanCount = maxSpanCountPref.getValue()
-                    layoutMinWidth = w / maxSpanCount - separatorDrawable.intrinsicWidth
-                }
-            }
-        }
+        // The previous implementation created an anonymous RecyclerView first
+        // whose value was discarded — including its onSizeChanged AUTO_FILL
+        // layoutMinWidth logic, which therefore never ran. Keep only the real
+        // view.
         context.recyclerView(R.id.candidate_view) {
             itemAnimator = null
             adapter = this@CompactCandidateDelegate.adapter

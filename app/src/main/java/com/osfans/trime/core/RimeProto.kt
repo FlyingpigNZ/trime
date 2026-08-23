@@ -45,12 +45,8 @@ data class ContextProto(
 data class StatusProto(
     val schemaId: String = "",
     val schemaName: String = "",
-    val isDisabled: Boolean = true,
     val isComposing: Boolean = false,
     val isAsciiMode: Boolean = true,
-    val isFullShape: Boolean = false,
-    val isSimplified: Boolean = false,
-    val isTraditional: Boolean = false,
     val isAsciiPunct: Boolean = true,
 )
 

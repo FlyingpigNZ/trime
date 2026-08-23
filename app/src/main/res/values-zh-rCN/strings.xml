@@ -18,8 +18,6 @@
     <string name="license">许可证</string>
     <string name="privacy_policy">隐私策略</string>
     <string name="build_info_format">构建者：%1$s\n构建 Git 哈希：%2$s\n构建时间：%3$s</string>
-    <string name="selected_theme">主题</string>
-    <string name="selected_theme_summary">选取主题</string>
     <string name="selected_ime">输入法包</string>
     <string name="selected_ime_summary">选择自包含输入法包</string>
     <string name="normal_mode_color">配色</string>
@@ -62,9 +60,6 @@
     <string name="system_default">系统默认</string>
     <string name="key_swipe_travel">触发按键滑动手势的距离</string>
     <string name="trime_app_slogan">击响中文之韵</string>
-    <string name="external_storage_permission_not_available">存储权限不可用</string>
-    <string name="external_storage_permission_granted">已授予存储权限</string>
-    <string name="external_storage_permission_denied">已拒绝授权存储权限，部署或读取方案和配置功能或不可用</string>
     <string name="custom_sound_effect_name">自定义按键音效</string>
     <string name="setup__next">下一步</string>
     <string name="done">完成</string>
@@ -88,7 +83,6 @@
     <string name="key_swipe_velocity">触发按键滑动手势的速度（距离/速度满足其一即可）</string>
     <string name="build_info">构建信息</string>
     <string name="telegram">Telegram</string>
-    <string name="quick_bar">快捷栏</string>
     <string name="copy_done">已复制</string>
     <string name="hook_shift_space">点击空格时，忽略Shift的锁定状态</string>
     <string name="test_input">测试输入</string>
@@ -120,7 +114,6 @@
     <string name="maintenance">维护</string>
     <string name="install_schema_layout_package">安装方案键盘布局包</string>
     <string name="install_schema_layout_package_summary">安装包含 Rime 方案、布局和可选资源的 .zip 文件</string>
-    <string name="install_schema_layout_package_success">方案键盘布局包安装成功</string>
     <string name="install_schema_layout_package_failure">方案键盘布局包安装失败</string>
     <string name="ime_package_not_compiled">输入方案包尚未编译完成</string>
     <string name="ime_package_compile">编译输入方案包</string>
@@ -135,7 +128,6 @@
     <string name="export_migrated_workspace">导出迁移数据</string>
     <string name="export_migrated_workspace_summary">导出没有对应输入法包的旧数据</string>
     <string name="ime_package_deleted">输入方案包已删除</string>
-    <string name="cannot_delete_default_ime_package">默认输入方案包不可删除</string>
     <string name="cannot_delete_active_ime_package">请先切换到其他输入方案包再删除当前方案</string>
     <string name="ime_package_already_active">该输入法包已是当前使用方案</string>
     <string name="validate_definition_file">校验定义文件</string>
@@ -167,9 +159,6 @@
     <string name="custom_sound_effect_enabled">使用自定义按键音效</string>
     <string name="enable_landscape_mode">启用横屏模式</string>
     <string name="split_space_percent">自动分割键盘比例</string>
-    <string name="setup__step_three">第 3 步</string>
-    <string name="setup__request_permission_hint">当前同文需要存储权限以访问配置、使得用户容易更改。</string>
-    <string name="setup__request_permission">请求存储权限</string>
     <string name="grant_permission">授予权限</string>
     <string name="notification_permission_title">没有通知权限</string>
     <string name="notification_permission_message">没有发送通知的权限，我们无法在一些耗时操作完成时通知您。</string>
@@ -178,7 +167,6 @@
     <string name="select_current_schema">选择当前方案</string>
     <string name="enable_schemata">启用方案</string>
     <string name="no_schema_to_select">当前没有方案可选择。请前往启用方案。</string>
-    <string name="no_schema_to_enable">没有方案可启用。请确保您已在用户文件夹中放入了前置文件和方案文件。</string>
     <string name="schemata">方案</string>
     <string name="navbar_background">导航栏背景</string>
     <string name="no_theme_to_select">当前没有主题可选择。</string>
@@ -193,7 +181,6 @@
     <string name="general">常规</string>
     <string name="composing_text">编辑中文本</string>
     <string name="commit_text_preview">首选词预览</string>
-    <string name="raw_input">原始输入码</string>
     <string name="inline_preedit_mode">嵌入式预编辑模式</string>
     <string name="depends_on_input_device">根据输入设备而定</string>
     <string name="always_show">始终显示</string>

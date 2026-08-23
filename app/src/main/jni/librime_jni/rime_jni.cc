@@ -62,15 +62,6 @@ class Rime {
     return rime->start_maintenance(fullCheck);
   }
 
-  bool deploySchema(std::string_view schemaFile) {
-    return rime->deploy_schema(schemaFile.data());
-  }
-
-  bool deployConfigFile(std::string_view configFile,
-                        std::string_view versionKey) {
-    return rime->deploy_config_file(configFile.data(), versionKey.data());
-  }
-
   // Runs a full workspace deploy synchronously against the given directories.
   // Unlike startup(), this does not start the service or a maintenance thread,
   // so it is safe to use in a separate compile process without racing the live
@@ -173,8 +164,6 @@ class Rime {
     auto cStr = rime->get_input(session());
     return cStr ? cStr : "";
   }
-
-  size_t caretPosition() { return rime->get_caret_pos(session()); }
 
   void setCaretPosition(size_t caretPos) {
     rime->set_caret_pos(session(), caretPos);
@@ -321,22 +310,6 @@ Java_com_osfans_trime_core_Rime_deployRimeWorkspace(JNIEnv* env,
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_deployRimeSchemaFile(JNIEnv* env,
-                                                     jclass /* thiz */,
-                                                     jstring schema_file) {
-  return Rime::Instance().deploySchema(*CString(env, schema_file));
-}
-
-extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_deployRimeConfigFile(JNIEnv* env,
-                                                     jclass /* thiz */,
-                                                     jstring file_name,
-                                                     jstring version_key) {
-  return Rime::Instance().deployConfigFile(*CString(env, file_name),
-                                           *CString(env, version_key));
-}
-
-extern "C" JNIEXPORT jboolean JNICALL
 Java_com_osfans_trime_core_Rime_syncRimeUserData(JNIEnv* env,
                                                  jclass /* thiz */) {
   return Rime::Instance().sync();
@@ -424,12 +397,6 @@ Java_com_osfans_trime_core_Rime_getRimeRawInput(JNIEnv* env,
                                                 jclass /* thiz */) {
   const std::string input = Rime::Instance().rawInput();
   return NewUtf8String(env, input.data(), input.size());
-}
-
-extern "C" JNIEXPORT jint JNICALL
-Java_com_osfans_trime_core_Rime_getRimeCaretPos(JNIEnv* env,
-                                                jclass /* thiz */) {
-  return static_cast<jint>(Rime::Instance().caretPosition());
 }
 
 extern "C" JNIEXPORT void JNICALL

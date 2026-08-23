@@ -12,7 +12,6 @@ import org.kodein.di.instance
 import splitties.bitflags.hasFlag
 
 class EnterKeyDisplayDelegate {
-    private val broadcaster: InputBroadcaster by InputDependencyManager.getInstance().di.instance()
     private val theme: Theme by InputDependencyManager.getInstance().di.instance()
 
     companion object {
@@ -83,6 +82,5 @@ class EnterKeyDisplayDelegate {
         actionLabel = labelFromEditorInfo(info)
         if (keyLabel == actionLabel) return
         keyLabel = actionLabel
-        broadcaster.onEnterKeyLabelUpdate(keyLabel)
     }
 }

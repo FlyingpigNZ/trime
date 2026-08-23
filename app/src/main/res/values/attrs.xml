@@ -13,20 +13,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <attr name="max" format="integer" />
         <attr name="seekBarIncrement" format="integer" />
         <attr name="android:defaultValue" format="integer" />
-        <attr name="systemDefaultValue" format="integer" />
         <attr name="systemDefaultValueText" format="string" />
         <attr name="unit" format="string" />
         <attr name="useSimpleSummaryProvider" />
         <attr name="useMinAsDefault" format="boolean" />
-    </declare-styleable>
-
-    <declare-styleable name="FolderPickerPreferenceAttrs">
-        <attr name="useSimpleSummaryProvider" />
-    </declare-styleable>
-
-    <declare-styleable name="KeyboardViewPreviewState">
-        <attr name="state_left_edge" format="boolean" />
-        <attr name="state_right_edge" format="boolean" />
-        <attr name="state_long_pressable" format="boolean" />
     </declare-styleable>
 </resources>

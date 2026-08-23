@@ -478,15 +478,6 @@ class Rime(
         ): Boolean
 
         @JvmStatic
-        external fun deployRimeSchemaFile(schemaFile: String): Boolean
-
-        @JvmStatic
-        external fun deployRimeConfigFile(
-            fileName: String,
-            versionKey: String,
-        ): Boolean
-
-        @JvmStatic
         external fun syncRimeUserData(): Boolean
 
         // input
@@ -537,9 +528,6 @@ class Rime(
 
         @JvmStatic
         external fun getRimeRawInput(): String
-
-        @JvmStatic
-        external fun getRimeCaretPos(): Int
 
         @JvmStatic
         external fun setRimeCaretPos(caretPos: Int)

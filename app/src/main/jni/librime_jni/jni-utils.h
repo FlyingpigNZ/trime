@@ -235,9 +235,6 @@ class GlobalRefSingleton {
   jclass SchemaListItem;
   jmethodID SchemaListItemInit;
 
-  jclass KeyEvent;
-  jmethodID KeyEventInit;
-
   explicit GlobalRefSingleton(JavaVM* jvm_) : jvm(jvm_) {
     JNIEnv* env;
     jvm->AttachCurrentThread(&env, nullptr);
@@ -289,7 +286,7 @@ class GlobalRefSingleton {
         env->NewGlobalRef(env->FindClass("com/osfans/trime/core/StatusProto")));
     StatusProtoInit =
         env->GetMethodID(StatusProto, "<init>",
-                         "(Ljava/lang/String;Ljava/lang/String;ZZZZZZZ)V");
+                         "(Ljava/lang/String;Ljava/lang/String;ZZZ)V");
 
     RimeResponse = reinterpret_cast<jclass>(env->NewGlobalRef(
         env->FindClass("com/osfans/trime/core/RimeResponse")));
@@ -315,11 +312,6 @@ class GlobalRefSingleton {
         env->NewGlobalRef(env->FindClass("com/osfans/trime/core/SchemaItem")));
     SchemaListItemInit = env->GetMethodID(
         SchemaListItem, "<init>", "(Ljava/lang/String;Ljava/lang/String;)V");
-
-    KeyEvent = reinterpret_cast<jclass>(env->NewGlobalRef(
-        env->FindClass("com/osfans/trime/core/RimeKeyEvent")));
-    KeyEventInit =
-        env->GetMethodID(KeyEvent, "<init>", "(IILjava/lang/String;)V");
   }
 
   [[nodiscard]] JEnv AttachEnv() const { return JEnv(jvm); }

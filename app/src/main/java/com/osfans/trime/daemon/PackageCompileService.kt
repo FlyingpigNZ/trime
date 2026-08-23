@@ -50,10 +50,7 @@ class PackageCompileService : Service() {
                 ImePackageNotifications.buildCompilingNotification(this),
             )
         }
-        val sourceDir = intent?.getStringExtra(EXTRA_SOURCE_DIR)
-        val targetDir = intent?.getStringExtra(EXTRA_TARGET_DIR)
         val workspaceDir = intent?.getStringExtra(EXTRA_WORKSPACE_DIR)
-        val zipPath = intent?.getStringExtra(EXTRA_ZIP_PATH)
         val sharedDir = intent?.getStringExtra(EXTRA_SHARED_DIR)
         val version = intent?.getStringExtra(EXTRA_VERSION) ?: BuildConfig.BUILD_VERSION_NAME
         // H7: publish liveness so the main process can fail fast when this
@@ -96,7 +93,8 @@ class PackageCompileService : Service() {
         Thread {
             var workspace: File? = null
             try {
-                workspace = resolveWorkspace(sourceDir, targetDir, workspaceDir, zipPath)
+                workspace = workspaceDir?.let(::File)
+                    ?: error("missing workspace dir extra")
                 if (sharedDir == null) error("missing shared dir")
                 val result = compile(workspace, sharedDir, version)
                 Timber.i("PackageCompileService result: $result")
@@ -119,29 +117,6 @@ class PackageCompileService : Service() {
             }
         }.start()
         return START_NOT_STICKY
-    }
-
-    private fun resolveWorkspace(
-        sourceDir: String?,
-        targetDir: String?,
-        workspaceDir: String?,
-        zipPath: String?,
-    ): File = when {
-        zipPath != null -> {
-            val imported = ImePackageManager.importPackage(File(zipPath))
-            val packageId = ImePackageManager.packageIdOf(imported)
-            PackageStore.workspaceDir(packageId)
-        }
-        workspaceDir != null -> File(workspaceDir)
-        targetDir != null && sourceDir != null -> {
-            val source = File(sourceDir)
-            val target = File(targetDir)
-            if (!source.isDirectory) error("source dir missing: $source")
-            target.mkdirs()
-            source.copyRecursively(target, overwrite = true)
-            target
-        }
-        else -> error("missing required extras")
     }
 
     private fun compile(workspace: File, sharedDir: String, version: String): Boolean {
@@ -209,10 +184,7 @@ class PackageCompileService : Service() {
         /** Heartbeat refresh period; must be well below the staleness threshold. */
         private const val HEARTBEAT_INTERVAL_MS = 2 * 1000L
 
-        const val EXTRA_SOURCE_DIR = "source_dir"
-        const val EXTRA_TARGET_DIR = "target_dir"
         const val EXTRA_WORKSPACE_DIR = "workspace_dir"
-        const val EXTRA_ZIP_PATH = "zip_path"
         const val EXTRA_SHARED_DIR = "shared_dir"
         const val EXTRA_VERSION = "version"
     }
