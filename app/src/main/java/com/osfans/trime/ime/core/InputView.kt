@@ -274,6 +274,15 @@ class InputView(
         inputBar.view.setPadding(sidePadding, 0, sidePadding, 0)
     }
 
+    /**
+     * Rebuild the keyboard and the orientation-dependent paddings after a
+     * configuration change (e.g. rotation).
+     */
+    fun onOrientationChanged() {
+        keyboardWindow.onConfigurationChanged()
+        updateKeyboardSize()
+    }
+
     override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
         bottomPaddingSpace.updateLayoutParams<LayoutParams> {
             bottomMargin = getNavBarBottomInset(insets)

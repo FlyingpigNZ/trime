@@ -93,6 +93,19 @@ class KeyboardWindow :
         switcher.detachCurrentKeyboard()
     }
 
+    /**
+     * Rebuild the current keyboard after a configuration change (e.g.
+     * rotation). Both the [Keyboard] model and the [KeyboardView] caches are
+     * orientation-dependent and must be recreated with fresh metrics; the
+     * target is re-resolved so landscape variants are picked up both ways.
+     */
+    fun onConfigurationChanged() {
+        detachCurrentView()
+        cachedKeyboardViews.clear()
+        switcher.invalidateKeyboardCache()
+        attachKeyboard(switcher.currentKeyboardId.ifEmpty { ".default" })
+    }
+
     private fun attachKeyboard(target: String) {
         val keyboard = switcher.selectKeyboard(target)
         val keyboardId = switcher.currentKeyboardId

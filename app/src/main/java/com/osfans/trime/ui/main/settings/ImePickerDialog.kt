@@ -68,11 +68,13 @@ object ImePickerDialog {
                     holder.compileBtn.visibility = if (showCompile) View.VISIBLE else View.GONE
                     if (showCompile) {
                         val compileStarted = AtomicBoolean(false)
+                        holder.compileBtn.isEnabled = !ImePackageManager.isBusy()
                         holder.compileBtn.setOnClickListener {
                             scope.launch {
                                 if (ImePackageManager.isBusy() || !compileStarted.compareAndSet(false, true)) {
                                     return@launch
                                 }
+                                holder.compileBtn.isEnabled = false
                                 try {
                                     context.toast(R.string.ime_package_compiling_start)
                                     withContext(Dispatchers.IO) {
@@ -86,11 +88,13 @@ object ImePickerDialog {
                                     context.toast(R.string.install_schema_layout_package_failure)
                                 } finally {
                                     compileStarted.set(false)
+                                    holder.compileBtn.isEnabled = true
                                 }
                             }
                         }
                     } else {
                         holder.compileBtn.setOnClickListener(null)
+                        holder.compileBtn.isEnabled = true
                     }
 
                     val showDelete = !ImePackageManager.isDefaultPackage(item.fileName)

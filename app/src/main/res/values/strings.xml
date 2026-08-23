@@ -242,4 +242,6 @@
     <string name="word_segment">Word segment</string>
     <string name="star_success">Star success</string>
     <string name="ignore_system_gesture_insets">Ignore system gesture insets</string>
+    <string name="pagination_prev_page">Previous page</string>
+    <string name="pagination_next_page">Next page</string>
 </resources>

@@ -50,6 +50,16 @@ class KeyboardSwitcher(
         Keyboard(context, theme, selectKeyboardConfig(id), rime).also { it.lastAsciiMode = it.asciiMode }
     }
 
+    /**
+     * Drop the cached [Keyboard] models. Their layout metrics (allowed width,
+     * split ratio, keyboard height, paddings) are computed at construction
+     * from the current orientation, so they must be rebuilt after a
+     * configuration change.
+     */
+    fun invalidateKeyboardCache() {
+        keyboards.clear()
+    }
+
     /** Resolve a symbolic or literal keyboard id to an actual keyboard id. */
     fun resolveKeyboard(target: String): String {
         val currentIdx = presetKeyboardIds.indexOfFirst { currentKeyboardId == it }
@@ -79,9 +89,22 @@ class KeyboardSwitcher(
         if (service.isLandscapeMode()) {
             val landscape = theme.presetKeyboards[final]?.landscapeKeyboard ?: ""
             if (landscape.isNotEmpty() && presetKeyboardIds.contains(landscape)) final = landscape
+        } else {
+            // 转回竖屏后，横屏布局变体应还原为基础布局
+            final = baseOfLandscapeVariant(final)
         }
         return final
     }
+
+    /**
+     * Reverse mapping of the landscape substitution above: an id that is some
+     * preset's `landscapeKeyboard` variant belongs to landscape mode only, so
+     * resolving it in portrait mode returns the base preset instead.
+     */
+    private fun baseOfLandscapeVariant(id: String): String =
+        presetKeyboardIds.firstOrNull { preset ->
+            preset != id && theme.presetKeyboards[preset]?.landscapeKeyboard == id
+        } ?: id
 
     private fun resolveDefaultKeyboard(): String {
         // Explicit tier-3/IME-package binding wins.

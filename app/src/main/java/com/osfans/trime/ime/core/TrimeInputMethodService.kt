@@ -271,6 +271,12 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         if (diff and keyboardUiModeMask != diff) {
             super.onConfigurationChanged(newConfig)
         }
+        if (diff and ActivityInfo.CONFIG_ORIENTATION != 0) {
+            // The IME window survives rotation, so the keyboard models (whose
+            // layout metrics are frozen at construction) and views must be
+            // rebuilt for the new orientation.
+            inputView?.onOrientationChanged()
+        }
         lastKnownConfig.setTo(newConfig)
     }
 

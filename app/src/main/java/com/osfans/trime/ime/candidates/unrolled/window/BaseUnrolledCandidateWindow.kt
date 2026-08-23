@@ -34,6 +34,7 @@ import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.BoardWindowManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.kodein.di.instance
 import splitties.dimensions.dp
@@ -103,17 +104,22 @@ abstract class BaseUnrolledCandidateWindow :
         bar.unrollButtonStateMachine.push(UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesAttached)
         offsetJob =
             lifecycleCoroutineScope.launch {
-                compactCandidate.unrolledCandidateOffset.collect {
-                    if (it <= 0) {
-                        windowManager.attachWindow(KeyboardWindow)
-                    } else {
-                        candidateLayout.resetPosition()
-                        adapter.refreshWith(
-                            offset = it,
-                            highlightedIndex = compactCandidate.adapter.highlightedIdx,
-                        )
+                // onLayoutCompleted re-emits the same child count on every
+                // layout pass; skip identical values so a mere relayout does
+                // not reset the scroll position and reload the paging source.
+                compactCandidate.unrolledCandidateOffset
+                    .distinctUntilChanged()
+                    .collect {
+                        if (it <= 0) {
+                            windowManager.attachWindow(KeyboardWindow)
+                        } else {
+                            candidateLayout.resetPosition()
+                            adapter.refreshWith(
+                                offset = it,
+                                highlightedIndex = compactCandidate.adapter.highlightedIdx,
+                            )
+                        }
                     }
-                }
             }
         candidatesSubmitJob =
             lifecycleCoroutineScope.launch {

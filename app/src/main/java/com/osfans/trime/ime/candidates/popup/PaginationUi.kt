@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.widget.ImageView
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import com.osfans.trime.R
 import com.osfans.trime.core.Candidates
 import com.osfans.trime.data.theme.ColorManager
@@ -33,14 +34,16 @@ class PaginationUi(
 ) : Ui {
     private fun createIcon(
         @DrawableRes icon: Int,
+        @StringRes contentDescriptionRes: Int,
     ) = imageView {
         imageTintList = ColorStateList.valueOf(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
         imageDrawable = drawable(icon)
         scaleType = ImageView.ScaleType.CENTER_CROP
+        contentDescription = ctx.getString(contentDescriptionRes)
     }
 
-    val prevIcon = createIcon(R.drawable.ic_baseline_arrow_left_24)
-    val nextIcon = createIcon(R.drawable.ic_baseline_arrow_right_24)
+    val prevIcon = createIcon(R.drawable.ic_baseline_arrow_left_24, R.string.pagination_prev_page)
+    val nextIcon = createIcon(R.drawable.ic_baseline_arrow_right_24, R.string.pagination_next_page)
 
     private val disabledAlpha = ctx.styledFloat(android.R.attr.disabledAlpha)
 
@@ -65,7 +68,11 @@ class PaginationUi(
         }
 
     fun update(paged: Candidates.Paged) {
+        // Disable the arrow (blocks clicks and announces the disabled state to
+        // accessibility services) in addition to dimming it visually.
+        prevIcon.isEnabled = paged.hasPrevPage
         prevIcon.alpha = if (paged.hasPrevPage) 1f else disabledAlpha
+        nextIcon.isEnabled = paged.hasNextPage
         nextIcon.alpha = if (paged.hasNextPage) 1f else disabledAlpha
     }
 }
