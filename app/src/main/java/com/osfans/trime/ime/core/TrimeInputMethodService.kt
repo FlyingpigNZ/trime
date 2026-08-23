@@ -186,9 +186,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             it.registerOnChangeListener(recreateInputViewListener)
         }
         prefs.candidates.registerOnChangeListener(recreateCandidatesViewListener)
-        // ensure theme and color managers are initialized after rime is ready
+        // ensure theme and color managers are initialized after rime is ready.
+        // runOnReadyOrFailed: a failed initial deploy must still run the
+        // package/theme fallback path instead of suspending forever.
         lifecycleScope.launch {
-            rime.runOnReady {
+            rime.runOnReadyOrFailed {
                 ImePackageManager.ensureDefaultPackageReady()
                 ThemeManager.init(resources.configuration)
                 ThemeManager.addOnChangedListener(onThemeChangeListener)

@@ -44,6 +44,14 @@ interface RimeSession {
     suspend fun <T> runOnReady(block: suspend RimeApi.() -> T): T
 
     /**
+     * Like [runOnReady], but also runs [block] when the engine settled into a
+     * failed state (deploy failure). Bootstrap work that must happen either
+     * way — package/theme fallback, self-healing restarts — uses this so a
+     * failed engine does not leave the IME permanently uninitialized.
+     */
+    suspend fun <T> runOnReadyOrFailed(block: suspend RimeApi.() -> T): T
+
+    /**
      * Run an operation if rime is at ready state.
      * Otherwise, do nothing.
      * The [block] will be executed in executed in thread pool.

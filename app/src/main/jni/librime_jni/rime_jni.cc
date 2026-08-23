@@ -36,9 +36,13 @@ class Rime {
     return instance;
   }
 
-  void startup(bool fullCheck,
+  // Returns true when a maintenance run was scheduled; false when no
+  // maintenance will run at all (e.g. the workspace is already up to date and
+  // `detect_modifications` found nothing). The Kotlin side gates READY on the
+  // deploy message, so callers must synthesize one when this returns false.
+  bool startup(bool fullCheck,
                const RimeNotificationHandler& notificationHandler) {
-    if (!rime) return;
+    if (!rime) return false;
     const char* userDir = getenv("RIME_USER_DATA_DIR");
     const char* sharedDir = getenv("RIME_SHARED_DATA_DIR");
     const char* versionName = getenv("RIME_DISTRIBUTION_VERSION");
@@ -55,7 +59,7 @@ class Rime {
     rime->setup(&trime_traits);
     rime->initialize(&trime_traits);
     rime->set_notification_handler(notificationHandler, GlobalRef->jvm);
-    rime->start_maintenance(fullCheck);
+    return rime->start_maintenance(fullCheck);
   }
 
   bool deploySchema(std::string_view schemaFile) {
@@ -287,7 +291,16 @@ extern "C" JNIEXPORT void JNICALL Java_com_osfans_trime_core_Rime_startupRime(
                               type, *vararg);
   };
 
-  Rime::Instance().startup(full_check, notificationHandler);
+  if (!Rime::Instance().startup(full_check, notificationHandler)) {
+    // No maintenance was scheduled: either the workspace is already up to
+    // date (steady state) or a maintenance thread is already running. In both
+    // cases librime will not send a deploy message, yet the engine is usable
+    // and the Kotlin READY gate must be unblocked — synthesize a success
+    // notification through the same channel the maintenance thread uses.
+    // A genuine deploy failure (installation_update) surfaces later via the
+    // normal ("deploy", "failure") message when maintenance does run.
+    notificationHandler(nullptr, 0, "deploy", "success");
+  }
 }
 
 extern "C" JNIEXPORT void JNICALL

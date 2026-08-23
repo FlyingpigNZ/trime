@@ -6,6 +6,22 @@
 package com.osfans.trime.core
 
 /**
+ * Outcome of the last engine deploy (startup maintenance, package
+ * activation). UI layers can use this to surface deploy failures even though
+ * the engine lifecycle itself is managed by [RimeLifecycle].
+ */
+enum class DeployState {
+    /** No deploy has been reported yet. */
+    Idle,
+    /** A deploy is in progress (deploy "start" message received). */
+    Deploying,
+    /** The last deploy finished successfully. */
+    Success,
+    /** The last deploy failed; the engine may be in [RimeLifecycle.State.FAILED]. */
+    Failure,
+}
+
+/**
  * Immutable snapshot of the engine state that the UI observes.
  *
  * Published as a [kotlinx.coroutines.flow.StateFlow] from [RimeApi.uiState] so
@@ -20,6 +36,8 @@ data class RimeUiState(
     val paging: Boolean = false,
     /** UI-relevant runtime options (e.g. `_hide_key_symbol`), keyed by name. */
     val options: Map<String, Boolean> = emptyMap(),
+    /** Outcome of the most recent deploy, for surfacing failures in the UI. */
+    val deployState: DeployState = DeployState.Idle,
 ) {
     val schemaId: String get() = status.schemaId
     val schemaName: String get() = status.schemaName

@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.suspendCancellableCoroutine
+import timber.log.Timber
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
@@ -44,8 +45,14 @@ class RimeLifecycleRegistry : RimeLifecycle {
                 checkAtState(RimeLifecycle.State.STARTING)
                 internalState = RimeLifecycle.State.READY
             }
+            RimeLifecycle.State.FAILED -> {
+                // Deploy failed while the engine was starting; the engine is
+                // not usable and a restart (finalize + startup) is required.
+                checkAtState(RimeLifecycle.State.STARTING)
+                internalState = RimeLifecycle.State.FAILED
+            }
             RimeLifecycle.State.STOPPING -> {
-                checkAtState(RimeLifecycle.State.READY)
+                checkAtState(RimeLifecycle.State.READY, RimeLifecycle.State.FAILED)
                 internalState = RimeLifecycle.State.STOPPING
             }
             RimeLifecycle.State.STOPPED -> {
@@ -53,11 +60,13 @@ class RimeLifecycleRegistry : RimeLifecycle {
                 internalState = RimeLifecycle.State.STOPPED
             }
         }
+        Timber.d("Rime lifecycle -> $state")
         observers.forEach { it.onChanged(state) }
     }
 
-    private fun checkAtState(state: RimeLifecycle.State) = takeIf { (internalState == state) }
-        ?: throw IllegalStateException("Currently not at $state! Actual state is $internalState")
+    private fun checkAtState(vararg states: RimeLifecycle.State) =
+        takeIf { states.any { state -> internalState == state } }
+            ?: throw IllegalStateException("Currently not at ${states.toList()}! Actual state is $internalState")
 }
 
 interface RimeLifecycle {
@@ -72,6 +81,8 @@ interface RimeLifecycle {
         READY,
         STOPPING,
         STOPPED,
+        /** Engine failed to deploy; restart (finalize + startup) to retry. */
+        FAILED,
     }
 }
 
@@ -109,6 +120,54 @@ suspend fun <T> RimeLifecycle.whenAtState(
 suspend inline fun <T> RimeLifecycle.whenReady(
     noinline block: suspend CoroutineScope.() -> T,
 ) = whenAtState(RimeLifecycle.State.READY, block)
+
+/**
+ * Run [block] once the engine settles into a terminal state — READY or FAILED.
+ * Bootstrap work that must happen even when the initial deploy failed (e.g.
+ * package/theme fallback) uses this instead of [whenReady], which would
+ * suspend forever on a failed engine.
+ */
+suspend fun <T> RimeLifecycle.whenReadyOrFailed(block: suspend CoroutineScope.() -> T): T {
+    awaitReadyOrFailed()
+    return block(lifecycleScope)
+}
+
+/**
+ * Suspend until the engine reaches READY (returns true) or FAILED (returns
+ * false). Used by restart flows that must know whether the engine actually
+ * came up. Safe to call from any thread; the observer is removed on
+ * completion and on cancellation.
+ */
+suspend fun RimeLifecycle.awaitReadyOrFailed(): Boolean = when (currentState) {
+    RimeLifecycle.State.READY -> true
+    RimeLifecycle.State.FAILED -> false
+    else -> suspendCancellableCoroutine { cont ->
+        var finished = false
+        fun finish(value: Boolean) {
+            if (!finished) {
+                finished = true
+                cont.resume(value)
+            }
+        }
+        val observer =
+            RimeLifecycleObserver { state ->
+                when (state) {
+                    RimeLifecycle.State.READY -> finish(true)
+                    RimeLifecycle.State.FAILED -> finish(false)
+                    else -> {}
+                }
+            }
+        addObserver(observer)
+        cont.invokeOnCancellation { removeObserver(observer) }
+        // Re-check after registering to close the missed-transition race.
+        when (currentState) {
+            RimeLifecycle.State.READY -> finish(true)
+            RimeLifecycle.State.FAILED -> finish(false)
+            else -> {}
+        }
+        if (finished) removeObserver(observer)
+    }
+}
 
 private class StateDelegate(
     val lifecycle: RimeLifecycle,

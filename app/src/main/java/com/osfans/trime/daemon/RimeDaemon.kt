@@ -12,8 +12,10 @@ import com.osfans.trime.core.Rime
 import com.osfans.trime.core.RimeApi
 import com.osfans.trime.core.RimeEnvironment
 import com.osfans.trime.core.RimeLifecycle
+import com.osfans.trime.core.awaitReadyOrFailed
 import com.osfans.trime.core.lifecycleScope
 import com.osfans.trime.core.whenReady
+import com.osfans.trime.core.whenReadyOrFailed
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.opencc.OpenCCDictManager
 import com.osfans.trime.data.prefs.AppPrefs
@@ -21,8 +23,10 @@ import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.ime.core.InlinePreeditMode
 import com.osfans.trime.util.appContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -81,11 +85,20 @@ object RimeDaemon {
 
     private val lock = ReentrantLock()
 
+    /**
+     * Set while the engine is STARTING: a restart was requested but cannot run
+     * until the current deploy completes ([onRimeStateChanged] consumes it).
+     * Guards against package activation being silently dropped during the
+     * initial deploy (previously `finalize()` skipped because not READY).
+     */
+    private var pendingRestart = false
+
     /** Android UI: deploy/restart progress notifications. */
     private val deployNotifier = DeployNotifier(appContext, TrimeApplication.getInstance().coroutineScope)
 
     init {
         deployNotifier.start(realRime.messageFlow)
+        realRime.lifecycle.addObserver(::onRimeStateChanged)
     }
 
     /** Show the ongoing deploy notification (used by IME package activation). */
@@ -121,6 +134,10 @@ object RimeDaemon {
             realRime.lifecycle.whenReady { block(rimeImpl) }
         }
 
+        override suspend fun <T> runOnReadyOrFailed(block: suspend RimeApi.() -> T): T = ensureEstablished {
+            realRime.lifecycle.whenReadyOrFailed { block(rimeImpl) }
+        }
+
         override fun runIfReady(block: suspend RimeApi.() -> Unit) {
             ensureEstablished {
                 if (realRime.isReady) {
@@ -139,8 +156,15 @@ object RimeDaemon {
         if (name in sessions) {
             return@withLock sessions.getValue(name)
         }
-        if (realRime.lifecycle.currentState == RimeLifecycle.State.STOPPED) {
-            realRime.startup()
+        when (realRime.lifecycle.currentState) {
+            RimeLifecycle.State.STOPPED -> realRime.startup()
+            RimeLifecycle.State.FAILED -> {
+                // The previous deploy failed; tear the engine down and retry
+                // on the next session instead of leaving it wedged.
+                realRime.finalize()
+                realRime.startup()
+            }
+            else -> {}
         }
         val session = establish(name)
         sessions[name] = session
@@ -163,17 +187,77 @@ object RimeDaemon {
     fun getFirstSessionOrNull() = sessions.firstNotNullOfOrNull { it.value }
 
     /**
-     * Restart Rime instance to deploy while keep the session
+     * Restart Rime so it re-deploys the current workspace (e.g. after package
+     * activation). Suspends until the engine is READY again; returns false
+     * when the deploy failed ([RimeLifecycle.State.FAILED]).
+     *
+     * While the engine is STARTING the restart is deferred and applied once
+     * the current deploy completes — the activation must not be dropped. The
+     * engine teardown itself runs off the calling thread (finalize's
+     * `runBlocking` must never block the main thread), so this function is
+     * suspend and safe to call from the UI.
      */
-    fun restartRime(fullCheck: Boolean = false) = lock.withLock {
+    suspend fun restartRime(fullCheck: Boolean = false): Boolean {
         val restartId = if (fullCheck) null else deployNotifier.notifyRestartStarted()
-        realRime.finalize()
-        realRime.startup()
+        val result = restartInternal()
         if (restartId != null) {
-            TrimeApplication.getInstance().coroutineScope.launch {
-                realRime.lifecycle.whenReady {
-                    deployNotifier.notifyRestartFinished(restartId)
+            deployNotifier.notifyRestartFinished(restartId)
+        }
+        return result
+    }
+
+    private suspend fun restartInternal(): Boolean {
+        val action =
+            lock.withLock {
+                when (realRime.lifecycle.currentState) {
+                    RimeLifecycle.State.READY -> RestartAction.Restart
+                    RimeLifecycle.State.STARTING -> {
+                        pendingRestart = true
+                        RestartAction.Wait
+                    }
+                    RimeLifecycle.State.FAILED -> RestartAction.Retry
+                    RimeLifecycle.State.STOPPED -> RestartAction.Start
+                    RimeLifecycle.State.STOPPING -> RestartAction.None
                 }
+            }
+        return when (action) {
+            RestartAction.Restart,
+            RestartAction.Retry,
+            -> {
+                withContext(Dispatchers.IO) {
+                    realRime.finalize()
+                    realRime.startup()
+                }
+                realRime.lifecycle.awaitReadyOrFailed()
+            }
+            RestartAction.Start -> {
+                withContext(Dispatchers.IO) { realRime.startup() }
+                realRime.lifecycle.awaitReadyOrFailed()
+            }
+            RestartAction.Wait -> realRime.lifecycle.awaitReadyOrFailed()
+            RestartAction.None -> false
+        }
+    }
+
+    private enum class RestartAction { Restart, Retry, Start, Wait, None }
+
+    /**
+     * Consume a deferred restart ([pendingRestart]) once the engine settles.
+     * READY/FAILED observers may fire on the librime notification thread or a
+     * lifecycle-scope thread; the restart (finalize's `runBlocking` on the
+     * dispatcher mutex) must never run there, so it hops to the app scope on
+     * IO.
+     */
+    private fun onRimeStateChanged(state: RimeLifecycle.State) {
+        if (state != RimeLifecycle.State.READY && state != RimeLifecycle.State.FAILED) return
+        lock.withLock {
+            if (!pendingRestart) return
+            pendingRestart = false
+        }
+        TrimeApplication.getInstance().coroutineScope.launch(Dispatchers.IO) {
+            lock.withLock {
+                realRime.finalize()
+                realRime.startup()
             }
         }
     }

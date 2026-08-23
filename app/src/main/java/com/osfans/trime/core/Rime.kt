@@ -64,8 +64,20 @@ class Rime(
         RimeDispatcher(
             object : RimeDispatcher.RimeController {
                 override fun nativeStartup() {
-                    startRime(false)
-                    lifecycleRegistry.emitState(RimeLifecycle.State.READY)
+                    try {
+                        startRime(false)
+                    } catch (t: Throwable) {
+                        // onBeforeStart()/startupRime() failed before any
+                        // deploy message could arrive. Leave STARTING
+                        // explicitly: the engine is not usable and the daemon
+                        // must be able to observe/retry the failure instead of
+                        // hanging forever.
+                        Timber.e(t, "Rime startup failed")
+                        lifecycleRegistry.emitState(RimeLifecycle.State.FAILED)
+                    }
+                    // No unconditional READY here: readiness is gated on the
+                    // deploy message (see handleRimeMessage), so a failed or
+                    // half-initialized engine never masquerades as ready.
                 }
 
                 override fun nativeFinalize() {
@@ -307,8 +319,35 @@ class Rime(
                 }
             }
             is RimeMessage.DeployMessage -> {
-                if (it.data == RimeMessage.DeployMessage.State.Start) {
-                    onDeployStart()
+                when (it.data) {
+                    RimeMessage.DeployMessage.State.Start -> {
+                        _uiState.update { state -> state.copy(deployState = DeployState.Deploying) }
+                        onDeployStart()
+                    }
+                    RimeMessage.DeployMessage.State.Success -> {
+                        _uiState.update { state -> state.copy(deployState = DeployState.Success) }
+                        if (lifecycle.currentState == RimeLifecycle.State.STARTING) {
+                            // Hop off the librime notification thread:
+                            // emitState resumes whenReady observers, some of
+                            // which restart the engine, and none of that may
+                            // run inline on the notification thread.
+                            lifecycleScope.launch {
+                                if (lifecycle.currentState == RimeLifecycle.State.STARTING) {
+                                    lifecycleRegistry.emitState(RimeLifecycle.State.READY)
+                                }
+                            }
+                        }
+                    }
+                    RimeMessage.DeployMessage.State.Failure -> {
+                        _uiState.update { state -> state.copy(deployState = DeployState.Failure) }
+                        if (lifecycle.currentState == RimeLifecycle.State.STARTING) {
+                            lifecycleScope.launch {
+                                if (lifecycle.currentState == RimeLifecycle.State.STARTING) {
+                                    lifecycleRegistry.emitState(RimeLifecycle.State.FAILED)
+                                }
+                            }
+                        }
+                    }
                 }
             }
             is RimeMessage.CompositionMessage -> {
@@ -374,13 +413,17 @@ class Rime(
             Timber.w("Skip starting rime: not at stopped state!")
             return
         }
+        _uiState.update { it.copy(deployState = DeployState.Idle) }
         registerRimeMessageHandler(::handleRimeMessage)
         lifecycleRegistry.emitState(RimeLifecycle.State.STARTING)
         dispatcher.start()
     }
 
     fun finalize() {
-        if (lifecycle.currentState != RimeLifecycle.State.READY) {
+        val state = lifecycle.currentState
+        // A failed engine must also be finalizable so the daemon can tear it
+        // down and retry from STOPPED.
+        if (state != RimeLifecycle.State.READY && state != RimeLifecycle.State.FAILED) {
             Timber.w("Skip stopping rime: not at ready state!")
             return
         }
