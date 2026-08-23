@@ -366,9 +366,17 @@ object ImePackageManager {
                         Timber.w(t, "Active theme restore failed; falling back to Default")
                         PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
                         RimeDaemon.restartRime()
-                        restoreActiveTheme()
+                        runCatching { restoreActiveTheme() }
+                            .onFailure { e ->
+                                Timber.e(e, "Default theme unusable; applying builtin fallback theme")
+                                applyTheme(ThemeManager.fallbackTheme)
+                            }
                     } else {
-                        throw t
+                        // Last resort: never crash the IME at startup. Apply a
+                        // builtin minimal theme so the UI stays usable and the
+                        // user can repair the package from settings.
+                        Timber.e(t, "Default theme unusable; applying builtin fallback theme")
+                        applyTheme(ThemeManager.fallbackTheme)
                     }
                 }
             }

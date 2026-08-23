@@ -9,6 +9,9 @@ import android.content.res.Configuration
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.ime.symbol.LiquidData
 import com.osfans.trime.util.WeakHashSet
+import com.osfans.trime.util.yaml.Node
+import com.osfans.trime.util.yaml.Yaml
+import com.osfans.trime.util.yaml.mapping
 
 object ThemeManager {
     fun interface OnThemeChangeListener {
@@ -41,6 +44,31 @@ object ThemeManager {
     private fun fireChange() {
         onChangeListeners.forEach { it.onThemeChange(_activeTheme) }
     }
+
+    /**
+     * Minimal built-in theme with no file dependencies. Applied as a last
+     * resort when no package theme can be loaded, so the IME always starts
+     * instead of crashing; the user can then fix the package in settings.
+     */
+    val fallbackTheme: Theme by lazy {
+        Theme.decode(
+            Yaml.Default.parseToYamlNode(FALLBACK_THEME).mapping
+                ?: error("Builtin fallback theme is not a YAML mapping"),
+        )
+    }
+
+    private const val FALLBACK_THEME =
+        """
+        name: fallback
+        style:
+          keyboard_height: 240
+          candidate_view_height: 48
+        preset_color_schemes:
+          default:
+            back_color: '0xff222222'
+            text_color: '0xffe6e3d8'
+            candidate_text_color: '0xffe6e3d8'
+        """
 
     val prefs = AppPrefs.defaultInstance().registerProvider(::ThemePrefs)
 
