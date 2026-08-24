@@ -33,9 +33,17 @@ class RimeLifecycleRegistry : RimeLifecycle {
 
     private var internalState = RimeLifecycle.State.STOPPED
 
+    /**
+     * Guards [internalState] reads/writes. A dedicated object rather than
+     * `synchronized(internalState)`: the enum instance is mutable state, so
+     * the monitor would change when the state changes (and static-analysis
+     * flags it as ML_SYNC_ON_UPDATED_FIELD).
+     */
+    private val transitionLock = Any()
+
     override val lifecycleScope: CoroutineScope = RimeLifecycleScope(this)
 
-    fun emitState(state: RimeLifecycle.State) = synchronized(internalState) {
+    fun emitState(state: RimeLifecycle.State) = synchronized(transitionLock) {
         when (state) {
             RimeLifecycle.State.STARTING -> {
                 checkAtState(RimeLifecycle.State.STOPPED)
@@ -77,7 +85,7 @@ class RimeLifecycleRegistry : RimeLifecycle {
         to: RimeLifecycle.State,
     ): Boolean {
         val changed =
-            synchronized(internalState) {
+            synchronized(transitionLock) {
                 if (internalState in from) {
                     internalState = to
                     true

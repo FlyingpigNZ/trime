@@ -4,8 +4,7 @@
 
 #include <rime_api.h>
 
-#include <sys/stat.h>
-#include <ctime>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -72,24 +71,22 @@ class Rime {
   // state — the engine is usable and a synthesized success is correct) and
   // for a failing installation_update (unwritable user dir, full disk — no
   // deploy message is ever sent, so a synthesized success would mask the
-  // failure). installation_update rewrites installation.yaml at the start of
-  // every maintenance run, so a missing or stale file means it did not
-  // succeed *this* run (existence alone would also pass after an upgrade
-  // where the write failed but an old file lingered).
+  // failure). Distinguish them by content, not mtime: InstallationUpdate only
+  // rewrites installation.yaml when the recorded distribution/rime version
+  // differs, so on a steady-state start the file exists and carries the
+  // current distribution_version, while a failed installation_update leaves
+  // the file missing or stale.
   bool installationInfoUsable() const {
-    const char* userDir = getenv("RIME_USER_DATA_DIR");
-    if (userDir == nullptr || *userDir == '\0') return false;
-    struct stat st;
-    if (stat((std::string(userDir) + "/installation.yaml").c_str(), &st) != 0) {
-      return false;
-    }
-    return time(nullptr) - st.st_mtime < kInstallationInfoFreshnessSecs;
+    if (rime == nullptr) return false;
+    const char* distroVersion = getenv("RIME_DISTRIBUTION_VERSION");
+    if (distroVersion == nullptr) return false;
+    RimeConfig cfg;
+    if (!rime->config_open("installation", &cfg)) return false;
+    const char* written = rime->config_get_cstring(&cfg, "distribution_version");
+    const bool usable = written != nullptr && strcmp(written, distroVersion) == 0;
+    rime->config_close(&cfg);
+    return usable;
   }
-
-  // Freshness window for installation.yaml: installation_update runs at the
-  // start of each start_maintenance and rewrites the file, so a file older
-  // than this cannot be the product of the current run.
-  static constexpr time_t kInstallationInfoFreshnessSecs = 60;
 
   // Runs a full workspace deploy synchronously against the given directories.
   // Unlike startup(), this does not start the service or a maintenance thread,

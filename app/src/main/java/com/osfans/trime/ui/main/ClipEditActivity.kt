@@ -33,6 +33,9 @@ class ClipEditActivity : Activity() {
     /** Whether the user edited the text since the last [setBean]. */
     private var dirty = false
 
+    /** True while the system is restoring the view state on recreation. */
+    private var restoring = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.attributes.gravity = Gravity.TOP
@@ -44,14 +47,17 @@ class ClipEditActivity : Activity() {
             }
         setContentView(binding.root)
         inputMethodManager.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+        restoring = savedInstanceState != null
         // User edits mark the text dirty; setBean suspends the flag so the
-        // programmatic setText does not count as an edit.
+        // programmatic setText does not count as an edit, and restoring
+        // suppresses it while the system replays the saved EditText text on
+        // recreation (that is not a user edit either).
         editText.addTextChangedListener(
             object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                    if (!loadingBean) dirty = true
+                    if (!loadingBean && !restoring) dirty = true
                 }
 
                 override fun afterTextChanged(s: Editable?) = Unit
@@ -67,6 +73,13 @@ class ClipEditActivity : Activity() {
             clipType = savedInstanceState.getString(CLIP_TYPE)
             dirty = savedInstanceState.getBoolean(KEY_DIRTY)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // View-state restoration finished before onResume; user edits from
+        // here on are real edits again.
+        restoring = false
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
