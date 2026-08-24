@@ -80,8 +80,11 @@ class Rime {
     if (rime == nullptr) return false;
     const char* distroVersion = getenv("RIME_DISTRIBUTION_VERSION");
     if (distroVersion == nullptr) return false;
+    // user_config_open reads the *user* data directory (user.yaml,
+    // installation.yaml); config_open would look in the shared data
+    // directory where installation.yaml never exists.
     RimeConfig cfg;
-    if (!rime->config_open("installation", &cfg)) return false;
+    if (!rime->user_config_open("installation", &cfg)) return false;
     const char* written = rime->config_get_cstring(&cfg, "distribution_version");
     const bool usable = written != nullptr && strcmp(written, distroVersion) == 0;
     rime->config_close(&cfg);
