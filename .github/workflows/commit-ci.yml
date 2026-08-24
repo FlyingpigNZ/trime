@@ -46,8 +46,11 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Install Android NDK
+        # Keep the cmake version in sync with Versions.DEFAULT_CMAKE instead
+        # of maintaining it in two places.
         run: |
-          sdkmanager --install "cmake;3.31.6"
+          CMAKE_VERSION=$(grep -oP 'DEFAULT_CMAKE = "\K[^"]+' build-logic/convention/src/main/kotlin/Versions.kt)
+          sdkmanager --install "cmake;$CMAKE_VERSION"
 
       - name: Install Python dependencies
         run: |
@@ -74,6 +77,8 @@ jobs:
         if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           make style-lint
+          make python-verifiers
+          ./gradlew :app:lintDebug
 
       - name: Build debug Trime
         run: |

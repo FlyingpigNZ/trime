@@ -108,6 +108,9 @@ val Project.signKeyFile: File?
             val file = File.createTempFile("sign-", ".ks", buildDir)
             try {
                 file.writeBytes(Base64.decode(it))
+                // The keystore holds signing material; schedule its removal so
+                // it does not linger in the build directory after the build.
+                file.deleteOnExit()
                 return file
             } catch (e: Exception) {
                 println(e.localizedMessage ?: e.stackTraceToString())

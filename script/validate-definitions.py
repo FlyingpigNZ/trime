@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
 import yaml
@@ -54,8 +56,25 @@ def validate_file(path: Path) -> list[str]:
     return validate_component_manifest(data, path)
 
 
+def validate_zip(zip_path: Path) -> list[str]:
+    """Validate a packaged component zip by extracting it to a temp dir."""
+    errors: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        extract_dir = Path(tmp)
+        with zipfile.ZipFile(zip_path) as archive:
+            archive.extractall(extract_dir)
+        manifest = extract_dir / "manifest.yaml"
+        if not manifest.is_file():
+            manifest = extract_dir / "component.yaml"
+        if not manifest.is_file():
+            return ["package has no manifest.yaml/component.yaml"]
+        errors += validate_file(manifest)
+    return errors
+
+
 def check_shipped() -> int:
     errors: list[str] = []
+    # Source-form manifests: the Default package and any unpacked samples.
     component_manifests = sorted(
         list((ROOT / "sample_theme_schemas").glob("*/manifest.yaml"))
         + [ROOT / "app/src/main/assets/shared/Default/manifest.yaml"]
@@ -64,6 +83,12 @@ def check_shipped() -> int:
         found = validate_file(path)
         if found:
             errors.append(f"{path.relative_to(ROOT)}:\n  " + "\n  ".join(found))
+    # Packaged samples: validate the actual zips shipped in the repo, not
+    # just their unpacked source, so a stale or corrupt zip is caught.
+    for zip_path in sorted((ROOT / "sample_theme_schemas").glob("*.zip")):
+        found = validate_zip(zip_path)
+        if found:
+            errors.append(f"{zip_path.relative_to(ROOT)}:\n  " + "\n  ".join(found))
     if errors:
         print("\n".join(errors))
         return 1

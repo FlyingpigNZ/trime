@@ -16,7 +16,7 @@ endif
 
 
 .PHONY: all clean build debug spotlessCheck spotlessApply clang-format-lint clang-format style-lint \
-style-apply patch-apply release install translate ndk android
+style-apply patch-apply release install translate ndk android python-verifiers
 
 all: release
 
@@ -43,6 +43,11 @@ clang-format:
 	./script/clang-format.sh -i
 
 style-lint: spotlessCheck clang-format-lint
+
+python-verifiers:
+	cd script && python3 -m unittest test_behavior_verifier test_component_resolver \
+		test_package_schema test_color_verifier test_validate_definitions
+	python3 script/validate-definitions.py --check-shipped
 
 style-apply: spotlessApply clang-format
 
