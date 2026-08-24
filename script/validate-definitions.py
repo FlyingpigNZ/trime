@@ -85,7 +85,10 @@ def check_shipped() -> int:
             errors.append(f"{path.relative_to(ROOT)}:\n  " + "\n  ".join(found))
     # Packaged samples: validate the actual zips shipped in the repo, not
     # just their unpacked source, so a stale or corrupt zip is caught.
-    for zip_path in sorted((ROOT / "sample_theme_schemas").glob("*.zip")):
+    sample_zips = sorted((ROOT / "sample_theme_schemas").glob("*.zip"))
+    if not sample_zips:
+        errors.append("sample_theme_schemas: no *.zip found to validate (renamed/deleted?)")
+    for zip_path in sample_zips:
         found = validate_zip(zip_path)
         if found:
             errors.append(f"{zip_path.relative_to(ROOT)}:\n  " + "\n  ".join(found))

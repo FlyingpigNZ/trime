@@ -59,7 +59,9 @@ abstract class Database : RoomDatabase() {
                     db.execSQL(
                         """
                         INSERT INTO ${DatabaseBean.TABLE_NAME} (id, text, html, type, time, pinned)
-                        SELECT id, text, html, COALESCE(type, 0), COALESCE(time, 0), pinned FROM _t_data
+                        SELECT id, text, html,
+                               CASE WHEN type BETWEEN 0 AND 1 THEN type ELSE 0 END,
+                               COALESCE(time, 0), pinned FROM _t_data
                         """.trimIndent(),
                     )
                     db.execSQL("DROP TABLE _t_data")

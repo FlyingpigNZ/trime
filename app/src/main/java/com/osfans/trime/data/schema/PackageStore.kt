@@ -73,7 +73,9 @@ object PackageStore {
     fun setActivePackage(packageId: String) {
         require(isSafePackageId(packageId)) { "Unsafe package id: $packageId" }
         activePointerFile.parentFile?.mkdirs()
-        val tmp = File(activePointerFile.parentFile, "${activePointerFile.name}.tmp")
+        // Unique temp name: a fixed .tmp would let two concurrent writers
+        // tear each other's file.
+        val tmp = File(activePointerFile.parentFile, "${activePointerFile.name}.${System.nanoTime()}.tmp")
         FileOutputStream(tmp).use { out ->
             out.write(packageId.toByteArray(Charsets.UTF_8))
             out.fd.sync()

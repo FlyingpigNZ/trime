@@ -64,6 +64,20 @@ object SchemaListUpdater {
         }
         schemaList.add(0, mapOf("schema" to schemaId))
 
+        // Entries that are neither a `schema:` mapping nor a plain string
+        // (e.g. a nested structure) would be silently dropped and re-written
+        // as `- schema: …` by the text rewriter. Preserve them verbatim with
+        // the SnakeYAML dump instead of losing data.
+        val hasUnknownShapes =
+            schemaList.any { entry ->
+                (entry as? Map<*, *>)?.get("schema") !is String && entry !is String
+            }
+        if (hasUnknownShapes) {
+            customFile.parentFile?.mkdirs()
+            customFile.writeText(Yaml().dump(root))
+            return
+        }
+
         val ids =
             schemaList.mapNotNull { entry ->
                 (entry as? Map<*, *>)?.get("schema") as? String

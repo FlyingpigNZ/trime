@@ -76,7 +76,7 @@ class ImeEditor(
     fun clearTextSelection() {
         val ic = service.inputConnection ?: return
         val etr = ExtractedTextRequest().apply { token = 0 }
-        val et = service.inputConnection.getExtractedText(etr, 0)
+        val et = ic.getExtractedText(etr, 0)
         et?.let {
             if (it.selectionStart != it.selectionEnd) {
                 ic.setSelection(it.selectionEnd, it.selectionEnd)

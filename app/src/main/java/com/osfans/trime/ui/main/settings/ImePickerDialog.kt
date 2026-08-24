@@ -84,6 +84,15 @@ object ImePickerDialog {
                                     withContext(Dispatchers.IO) {
                                         ImePackageManager.compilePackageFile(item.fileName)
                                     }
+                                    // The row renders an immutable ImePackage
+                                    // snapshot; refresh it so the row stops
+                                    // showing "(not compiled)" after success.
+                                    clear()
+                                    addAll(
+                                        withContext(Dispatchers.IO) {
+                                            ImePackageManager.listPackages()
+                                        },
+                                    )
                                     notifyDataSetChanged()
                                     context.toast(R.string.ime_package_compiled_switch_hint)
                                 } catch (t: Throwable) {

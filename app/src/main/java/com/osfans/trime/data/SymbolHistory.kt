@@ -21,6 +21,14 @@ class SymbolHistory(
     private val file: File
         get() = appContext.filesDir.resolve(FILE_NAME)
 
+    /**
+     * All map access is serialized: [insert] runs on the main thread while
+     * [load]/[save] run on Dispatchers.IO, and LinkedHashMap is not
+     * thread-safe (a concurrent put + iteration throws
+     * ConcurrentModificationException).
+     */
+    private fun <T> withHistoryLock(block: () -> T): T = synchronized(this) { block() }
+
     /** Load the persisted history from disk (off the main thread). */
     suspend fun load() = withContext(Dispatchers.IO) {
         runCatching { file.readLines() }.getOrElse { t ->
@@ -28,16 +36,18 @@ class SymbolHistory(
             emptyList()
         }.forEach {
             if (it.isNotBlank()) {
-                put(it, it)
+                withHistoryLock { put(it, it) }
             }
         }
     }
 
     /** Persist the current history atomically (off the main thread). */
     suspend fun save() = withContext(Dispatchers.IO) {
-        val content = values.joinToString("\n")
+        val content = withHistoryLock { values.joinToString("\n") }
         runCatching {
-            val tmp = File(file.parentFile, "${file.name}.tmp")
+            // Unique temp name so two rapid save() launches cannot race the
+            // same temp file.
+            val tmp = File(file.parentFile, "${file.name}.${System.nanoTime()}.tmp")
             tmp.writeText(content)
             if (!tmp.renameTo(file)) {
                 // renameTo can fail across some filesystems; fall back to a
@@ -50,7 +60,7 @@ class SymbolHistory(
 
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > capacity
 
-    fun insert(s: String) = put(s, s)
+    fun insert(s: String) = withHistoryLock { put(s, s) }
 
-    fun toOrderedList() = values.toList().reversed()
+    fun toOrderedList() = withHistoryLock { values.toList().reversed() }
 }

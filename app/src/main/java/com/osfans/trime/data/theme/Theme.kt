@@ -59,15 +59,9 @@ data class Theme(
             window = Window.decode(node["window"]?.mapping),
             liquidKeyboard = LiquidKeyboard.decode(node["liquid_keyboard"]?.mapping),
             toolBar = ToolBar.decode(node["tool_bar"]?.mapping),
-            presetKeys = node["preset_keys"]?.mapping?.entries?.associate { (keyNode, valueNode) ->
-                val name = keyNode.string
-                    ?: throw IllegalArgumentException("preset_keys: key must be a string, got $keyNode")
-                val preset = valueNode.mapping
-                    ?: throw IllegalArgumentException("preset_keys.$name: must be a mapping, got $valueNode")
-                name to PresetKey.decode(preset)
-            } ?: emptyMap(),
+            presetKeys = decodePresetKeys(node["preset_keys"]),
             presetKeyboards =
-            resolveKeyboardIncludes(node["preset_keyboards"]?.mapping).mapValues {
+            resolveKeyboardIncludes(node["preset_keyboards"]).mapValues {
                 TextKeyboard.decode(it.value)
             },
             colorSchemes = decodeColorSchemes(node),
@@ -159,11 +153,29 @@ data class Theme(
 
         private fun decodePaletteMapping(mapping: Node.Mapping): Map<String, String> = mapping.entries.associate { (k, v) -> k.string!! to v.string!! }
 
-        private fun resolveKeyboardIncludes(mapping: Node.Mapping?): Map<String, Node.Mapping> {
-            if (mapping == null) return emptyMap()
+        private fun decodePresetKeys(node: Node?): Map<String, PresetKey> {
+            if (node == null) return emptyMap()
+            val mapping = node.mapping
+                ?: throw IllegalArgumentException("preset_keys: must be a mapping, got $node")
+            return mapping.entries.associate { (keyNode, valueNode) ->
+                val name = keyNode.string
+                    ?: throw IllegalArgumentException("preset_keys: key must be a string, got $keyNode")
+                val preset = valueNode.mapping
+                    ?: throw IllegalArgumentException("preset_keys.$name: must be a mapping, got $valueNode")
+                name to PresetKey.decode(preset)
+            }
+        }
+
+        private fun resolveKeyboardIncludes(node: Node?): Map<String, Node.Mapping> {
+            if (node == null) return emptyMap()
+            val mapping = node.mapping
+                ?: throw IllegalArgumentException("preset_keyboards: must be a mapping, got $node")
             val raw = mapping.pairs.mapNotNull { (k, v) ->
                 val name = k.string ?: return@mapNotNull null
-                name to (v as? Node.Mapping)
+                val value =
+                    v as? Node.Mapping
+                        ?: throw IllegalArgumentException("preset_keyboards.$name: must be a mapping, got $v")
+                name to value
             }.toMap()
 
             fun resolve(name: String, stack: List<String>): Node.Mapping? {

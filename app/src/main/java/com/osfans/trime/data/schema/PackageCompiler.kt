@@ -159,20 +159,23 @@ internal object PackageCompiler {
 
     /**
      * Detect that the `:compile` process is no longer making progress before
-     * the compile timeout expires. Three signals, in order of precision:
-     * 1. the pid file exists → the process is dead iff /proc/<pid> is gone;
-     * 2. otherwise a stale heartbeat means the process died without writing
-     *    (or before writing) its pid file, or its pid got reused;
-     * 3. neither file appeared within [COMPILE_PROCESS_GRACE_MS] → the
-     *    service never came up (startup crash).
+     * the compile timeout expires. Liveness is the conjunction of the pid
+     * file's `/proc/<pid>` check AND a fresh heartbeat: the pid alone can
+     * false-positive when the dead process's pid gets reused by another
+     * same-uid process, while the heartbeat is only refreshed by the compile
+     * process's own watchdog thread.
      */
     private fun compileProcessDied(workspace: File, startedAt: Long): Boolean {
         val pidFile = File(workspace, PackageStore.COMPILE_PID_FILE)
         val pid = runCatching { pidFile.readText().trim().toIntOrNull() }.getOrNull()
-        if (pid != null) {
-            return !File("/proc/$pid").isDirectory
-        }
         val heartbeat = File(workspace, PackageStore.COMPILE_HEARTBEAT_FILE)
+        if (pid != null) {
+            val pidAlive = File("/proc/$pid").isDirectory
+            val heartbeatFresh =
+                !heartbeat.isFile ||
+                    System.currentTimeMillis() - heartbeat.lastModified() <= COMPILE_HEARTBEAT_STALE_MS
+            return !(pidAlive && heartbeatFresh)
+        }
         if (heartbeat.isFile) {
             return System.currentTimeMillis() - heartbeat.lastModified() > COMPILE_HEARTBEAT_STALE_MS
         }

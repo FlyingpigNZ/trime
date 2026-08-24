@@ -29,6 +29,11 @@ internal object PackageArchive {
         // This must happen before any write so a bad package cannot leave a
         // half-imported directory behind.
         val schemaIds = PackageMetadata.schemaIdsFromZip(source, meta.schemaId)
+        // Entry-path validation must also happen before the first write:
+        // otherwise a zip with a valid manifest but a malicious entry would
+        // already have overwritten the existing package.zip by the time the
+        // overlay extraction throws.
+        validateZipEntryPaths(source)
 
         val packageDir = PackageStore.packageDir(meta.schemaId)
         val workspace = PackageStore.workspaceDir(meta.schemaId)
@@ -113,6 +118,22 @@ internal object PackageArchive {
             throw t
         }
         return out
+    }
+
+    /**
+     * Reject absolute paths and parent traversal in every zip entry before
+     * any write to the package library/workspace.
+     */
+    private fun validateZipEntryPaths(zip: File) {
+        ZipFile(zip).use { z ->
+            z.entries().asSequence().forEach { entry ->
+                if (entry.isDirectory) return@forEach
+                val name = entry.name
+                if (name.startsWith("/") || name.split('/').any { it == ".." }) {
+                    throw IllegalArgumentException("Unsafe path in IME package: $name")
+                }
+            }
+        }
     }
 
     /**

@@ -20,6 +20,7 @@ regenerated from app assets on first run, so it is excluded everywhere.
         <exclude domain="external" path="rime/" />
         <exclude domain="external" path="packages/" />
         <exclude domain="external" path="shared/" />
+    <exclude domain="file" path="symbol_history" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="database" path="clipboard.db" />

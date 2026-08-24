@@ -23,6 +23,16 @@ fix the data definition or the schema first.
    - Fix the schema, the component files, or the generated assets.
    - Only after the data is correct should the code consume it.
 
+4. **Never modify upstream submodules.**
+   - `app/src/main/jni/librime` and the other JNI submodules are upstream
+     code we consume, not code we own.
+   - Do not edit files inside a submodule to work around a problem; solve it
+     in our own layer (`app/src/main/jni/librime_jni/` or the app code).
+   - This also means: no depending on librime internals — use the public
+     `rime_api.h` surface only.
+   - If a fix genuinely belongs upstream, report/upstream it separately;
+     never carry it in our tree.
+
 ## Working style
 
 - Validate definitions early and fail loudly with clear messages.

@@ -41,22 +41,35 @@ class KeyboardSwitcher(
 
     private val keyboards = mutableMapOf<String, Keyboard>()
 
+    /**
+     * Remembered ascii-mode per keyboard id, carried across
+     * [invalidateKeyboardCache]: the orientation rebuild detaches the current
+     * keyboard (saving `lastAsciiMode` onto the old [Keyboard]) before the
+     * cache is dropped, so without this the rebuilt keyboard would start from
+     * the theme default and syncAsciiMode would reset the user's ascii state.
+     */
+    private val savedAsciiModes = mutableMapOf<String, Boolean>()
+
     val currentKeyboard: Keyboard? get() = keyboards[currentKeyboardId]
     val currentUiState: RimeUiState get() = rime.uiState.value
 
     private fun selectKeyboardConfig(name: String): TextKeyboard? = theme.presetKeyboards[name] ?: theme.presetKeyboards["default"]
 
     private fun getOrCreateKeyboard(id: String): Keyboard = keyboards.getOrPut(id) {
-        Keyboard(context, theme, selectKeyboardConfig(id), rime).also { it.lastAsciiMode = it.asciiMode }
+        Keyboard(context, theme, selectKeyboardConfig(id), rime).also {
+            it.lastAsciiMode = savedAsciiModes[id] ?: it.asciiMode
+        }
     }
 
     /**
      * Drop the cached [Keyboard] models. Their layout metrics (allowed width,
      * split ratio, keyboard height, paddings) are computed at construction
      * from the current orientation, so they must be rebuilt after a
-     * configuration change.
+     * configuration change. The remembered ascii-modes are carried over.
      */
     fun invalidateKeyboardCache() {
+        savedAsciiModes.clear()
+        keyboards.forEach { (id, keyboard) -> savedAsciiModes[id] = keyboard.lastAsciiMode }
         keyboards.clear()
     }
 

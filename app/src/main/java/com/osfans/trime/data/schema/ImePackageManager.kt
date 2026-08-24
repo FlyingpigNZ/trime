@@ -74,7 +74,7 @@ object ImePackageManager {
     /** Whether the workspace contains a theme the app can actually load. */
     fun hasUsableTheme(workspace: File): Boolean = PackageThemeLoader.hasUsableTheme(workspace)
 
-    fun isActivePackage(packageFile: File): Boolean = packageFile.parentFile?.name == PackageStore.activePackageId()
+    fun isActivePackage(packageFile: File): Boolean = (packageFile.parentFile?.name ?: packageFile.nameWithoutExtension) == PackageStore.activePackageId()
 
     fun deletePackage(fileName: String): Boolean {
         if (isDefaultPackage(fileName)) return false

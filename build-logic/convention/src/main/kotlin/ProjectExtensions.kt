@@ -105,12 +105,16 @@ val Project.signKeyFile: File?
         signKeyBase64?.let {
             val buildDir = layout.buildDirectory.asFile.get()
             buildDir.mkdirs()
-            val file = File.createTempFile("sign-", ".ks", buildDir)
+            // Fixed name (not a temp file per configuration) so repeated
+            // configurations overwrite instead of accumulating sign-*.ks files.
+            val file = File(buildDir, "signing-keystore.ks")
             try {
                 file.writeBytes(Base64.decode(it))
-                // The keystore holds signing material; schedule its removal so
-                // it does not linger in the build directory after the build.
+                // The keystore holds signing material. deleteOnExit only fires
+                // when the JVM (the long-lived Gradle daemon) exits, so also
+                // remove it deterministically once this build finishes.
                 file.deleteOnExit()
+                gradle.buildFinished { file.delete() }
                 return file
             } catch (e: Exception) {
                 println(e.localizedMessage ?: e.stackTraceToString())

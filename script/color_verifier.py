@@ -82,9 +82,9 @@ def zero_alpha_typo(value: str) -> str | None:
 
     8-digit colors are parsed as 0xAARRGGBB (alpha first, Android order), so
     such a value renders fully transparent — it is almost always a
-    reversed-alpha typo (e.g. ``0x00141617`` written instead of
-    ``0x17141600``-style). ``0x00000000`` is exempt: it is the explicit
-    "no shadow / no tint" value.
+    reversed-alpha typo (e.g. ``0x00141617`` written instead of the
+    RRGGBBAA-style ``0x14161700``). ``0x00000000`` is exempt: it is the
+    explicit "no shadow / no tint" value.
     """
     for prefix in HEX_PREFIXES:
         if value.startswith(prefix):

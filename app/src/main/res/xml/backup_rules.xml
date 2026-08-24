@@ -19,4 +19,5 @@ preferences continue to back up normally.
     <exclude domain="external" path="rime/" />
     <exclude domain="external" path="packages/" />
     <exclude domain="external" path="shared/" />
+    <exclude domain="file" path="symbol_history" />
 </full-backup-content>

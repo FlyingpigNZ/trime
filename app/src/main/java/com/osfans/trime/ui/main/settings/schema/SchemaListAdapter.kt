@@ -114,9 +114,11 @@ open class SchemaListAdapter(
         if (!multiselect || selected.isEmpty()) {
             return
         }
-        // Snapshot before removing: exitMultiSelect() clears [selected], and
-        // the batch-undo action must restore the actually removed items.
-        val removed = selected.toList()
+        // Snapshot (index, item) before removing: exitMultiSelect() clears
+        // [selected], and the batch-undo action must restore the actually
+        // removed items at their original positions (order = enabled-schema
+        // priority), not appended at the end.
+        val removed = selected.map { item -> items.indexOf(item) to item }
         // Suppress per-item notifications during the batch removal: the
         // single-removal undo snackbar would fire once per item and be
         // immediately replaced by the batch one. Only the batch notification

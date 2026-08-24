@@ -39,7 +39,21 @@ class ClipEditActivity : Activity() {
             }
         setContentView(binding.root)
         inputMethodManager.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
-        processIntent(intent)
+        if (savedInstanceState == null) {
+            // First creation: load the bean from the intent. On a recreation
+            // (rotation) the EditText text is restored by the view state and
+            // re-processing the intent would overwrite the unsaved edit.
+            processIntent(intent)
+        } else {
+            beanId = savedInstanceState.getInt(BEAN_ID, beanId)
+            clipType = savedInstanceState.getString(CLIP_TYPE)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(BEAN_ID, beanId)
+        outState.putString(CLIP_TYPE, clipType)
     }
 
     private fun finishEditing() {

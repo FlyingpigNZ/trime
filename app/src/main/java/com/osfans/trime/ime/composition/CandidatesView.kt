@@ -197,7 +197,14 @@ class CandidatesView(
                     } else {
                         horizontal
                     }
-                x = targetX.coerceIn(minX, maxX)
+                x =
+                    if (minX <= maxX) {
+                        targetX.coerceIn(minX, maxX)
+                    } else {
+                        // Narrow split-screen/multi-window: the popup is wider
+                        // than the content area; coerceIn(min, max) would throw.
+                        minX
+                    }
                 val bottomLimit = parentHeight - bottomInsets - spacingDp
                 y = (if (bottom + selfHeight > bottomLimit) top - selfHeight - spacingDp else bottom + spacingDp)
                     .coerceAtLeast(minY)
