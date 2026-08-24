@@ -183,8 +183,10 @@ internal object PackageCompiler {
 
     private const val COMPILE_TIMEOUT_MS = 10 * 60 * 1000L
     private const val COMPILE_POLL_INTERVAL_MS = 500L
+
     /** Grace period for the `:compile` process to spawn and publish its pid. */
     private const val COMPILE_PROCESS_GRACE_MS = 10 * 1000L
+
     /** Heartbeat is considered stale after this long without a refresh (5× the 2s interval). */
     private const val COMPILE_HEARTBEAT_STALE_MS = 10 * 1000L
 }

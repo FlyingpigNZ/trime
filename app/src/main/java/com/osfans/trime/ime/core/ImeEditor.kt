@@ -391,8 +391,6 @@ class ImeEditor(
         return false
     }
 
-
-
     companion object {
         /** Placeholder slot in the "expand active text" key action. */
         const val ACTIVE_TEXT_LAST_COMMITTED = 1

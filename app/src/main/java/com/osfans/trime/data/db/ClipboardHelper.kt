@@ -187,10 +187,10 @@ object ClipboardHelper :
                         clbDb.withTransaction {
                             val rowId = clbDao.insert(bean)
                             removeOutdated()
-                                                clbDao.get(rowId) ?: bean
+                            clbDao.get(rowId) ?: bean
                         }
                     updateLastBean(insertedBean)
-                            } catch (exception: Exception) {
+                } catch (exception: Exception) {
                     Timber.w("Failed to update clipboard database: $exception")
                     updateLastBean(bean)
                 }

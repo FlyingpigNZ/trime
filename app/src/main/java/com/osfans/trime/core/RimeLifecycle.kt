@@ -64,9 +64,8 @@ class RimeLifecycleRegistry : RimeLifecycle {
         observers.forEach { it.onChanged(state) }
     }
 
-    private fun checkAtState(vararg states: RimeLifecycle.State) =
-        takeIf { states.any { state -> internalState == state } }
-            ?: throw IllegalStateException("Currently not at ${states.toList()}! Actual state is $internalState")
+    private fun checkAtState(vararg states: RimeLifecycle.State) = takeIf { states.any { state -> internalState == state } }
+        ?: throw IllegalStateException("Currently not at ${states.toList()}! Actual state is $internalState")
 }
 
 interface RimeLifecycle {
@@ -81,6 +80,7 @@ interface RimeLifecycle {
         READY,
         STOPPING,
         STOPPED,
+
         /** Engine failed to deploy; restart (finalize + startup) to retry. */
         FAILED,
     }

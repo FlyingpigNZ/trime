@@ -160,10 +160,9 @@ class SwitchOptionWindow :
      */
     private var optionValues: Map<String, Boolean> = emptyMap()
 
-    private fun optionNamesOf(switches: List<RimeSchema.Switch>): Set<String> =
-        switches
-            .flatMap { if (it.name.isNotEmpty()) listOf(it.name) else it.options }
-            .toSet()
+    private fun optionNamesOf(switches: List<RimeSchema.Switch>): Set<String> = switches
+        .flatMap { if (it.name.isNotEmpty()) listOf(it.name) else it.options }
+        .toSet()
 
     private fun updateSchemaOptionEntries() {
         service.lifecycleScope.launch {

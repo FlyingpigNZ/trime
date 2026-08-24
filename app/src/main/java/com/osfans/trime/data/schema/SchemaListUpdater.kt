@@ -105,20 +105,17 @@ object SchemaListUpdater {
         }
     }
 
-    private fun freshFile(ids: List<String>): String =
-        (listOf("$PATCH_KEY:") + schemaListLines(DEFAULT_CHILD_INDENT, ids))
-            .joinToString("\n") + "\n"
+    private fun freshFile(ids: List<String>): String = (listOf("$PATCH_KEY:") + schemaListLines(DEFAULT_CHILD_INDENT, ids)).joinToString("\n") + "\n"
 
     private fun schemaListLines(
         indent: Int,
         ids: List<String>,
-    ): List<String> =
-        buildList {
-            add(" ".repeat(indent) + "$SCHEMA_LIST_KEY:")
-            ids.forEach { id ->
-                add(" ".repeat(indent + LIST_ITEM_INDENT) + "- schema: $id")
-            }
+    ): List<String> = buildList {
+        add(" ".repeat(indent) + "$SCHEMA_LIST_KEY:")
+        ids.forEach { id ->
+            add(" ".repeat(indent + LIST_ITEM_INDENT) + "- schema: $id")
         }
+    }
 
     /**
      * Replace only the `patch.schema_list` block of [text], keeping every
@@ -154,8 +151,7 @@ object SchemaListUpdater {
         return mutable
     }
 
-    private fun splitLines(text: String): List<String> =
-        text.split('\n').let { if (it.isNotEmpty() && it.last().isEmpty()) it.dropLast(1) else it }
+    private fun splitLines(text: String): List<String> = text.split('\n').let { if (it.isNotEmpty() && it.last().isEmpty()) it.dropLast(1) else it }
 
     private fun joinLines(
         lines: List<String>,

@@ -13,10 +13,13 @@ package com.osfans.trime.core
 enum class DeployState {
     /** No deploy has been reported yet. */
     Idle,
+
     /** A deploy is in progress (deploy "start" message received). */
     Deploying,
+
     /** The last deploy finished successfully. */
     Success,
+
     /** The last deploy failed; the engine may be in [RimeLifecycle.State.FAILED]. */
     Failure,
 }

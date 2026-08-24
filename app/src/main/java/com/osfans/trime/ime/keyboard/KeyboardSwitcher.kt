@@ -101,10 +101,9 @@ class KeyboardSwitcher(
      * preset's `landscapeKeyboard` variant belongs to landscape mode only, so
      * resolving it in portrait mode returns the base preset instead.
      */
-    private fun baseOfLandscapeVariant(id: String): String =
-        presetKeyboardIds.firstOrNull { preset ->
-            preset != id && theme.presetKeyboards[preset]?.landscapeKeyboard == id
-        } ?: id
+    private fun baseOfLandscapeVariant(id: String): String = presetKeyboardIds.firstOrNull { preset ->
+        preset != id && theme.presetKeyboards[preset]?.landscapeKeyboard == id
+    } ?: id
 
     private fun resolveDefaultKeyboard(): String {
         // Explicit tier-3/IME-package binding wins.

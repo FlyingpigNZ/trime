@@ -193,11 +193,10 @@ internal object PackageMetadata {
      * Paths inside a workspace that are owned by the compile flow and must
      * never be imported from a package zip or exported as package data.
      */
-    fun isCompileArtifact(relativePath: String): Boolean =
-        relativePath == "build" ||
-            relativePath.startsWith("build/") ||
-            relativePath == "compiled.marker" ||
-            relativePath == "compiled.error"
+    fun isCompileArtifact(relativePath: String): Boolean = relativePath == "build" ||
+        relativePath.startsWith("build/") ||
+        relativePath == "compiled.marker" ||
+        relativePath == "compiled.error"
 
     fun requireSafePackageId(packageId: String) {
         if (!PackageStore.isSafePackageId(packageId)) {

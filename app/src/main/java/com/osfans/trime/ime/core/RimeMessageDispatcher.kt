@@ -7,9 +7,9 @@ package com.osfans.trime.ime.core
 
 import android.os.SystemClock
 import android.view.KeyEvent
+import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.core.RimeKeyMapping
 import com.osfans.trime.core.RimeMessage
-import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.data.schema.ImePackageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
