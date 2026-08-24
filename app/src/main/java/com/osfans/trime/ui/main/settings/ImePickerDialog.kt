@@ -100,8 +100,13 @@ object ImePickerDialog {
                     val showDelete = !ImePackageManager.isDefaultPackage(item.fileName)
                     holder.deleteBtn.visibility = if (showDelete) View.VISIBLE else View.GONE
                     if (showDelete) {
+                        holder.deleteBtn.isEnabled = !ImePackageManager.isBusy()
                         holder.deleteBtn.setOnClickListener {
                             scope.launch {
+                                if (ImePackageManager.isBusy()) {
+                                    context.toast(R.string.ime_package_import_in_progress)
+                                    return@launch
+                                }
                                 val isActive =
                                     withContext(Dispatchers.IO) {
                                         ImePackageManager.isActivePackage(
@@ -127,9 +132,17 @@ object ImePickerDialog {
                         }
                     } else {
                         holder.deleteBtn.setOnClickListener(null)
+                        holder.deleteBtn.isEnabled = true
                     }
 
-                    holder.exportBtn.setOnClickListener { onExport(item) }
+                    holder.exportBtn.isEnabled = !ImePackageManager.isBusy()
+                    holder.exportBtn.setOnClickListener {
+                        if (ImePackageManager.isBusy()) {
+                            context.toast(R.string.ime_package_import_in_progress)
+                            return@setOnClickListener
+                        }
+                        onExport(item)
+                    }
                     return row
                 }
             }
@@ -145,6 +158,10 @@ object ImePickerDialog {
                         scope.launch {
                             Timber.i("IME picker: clicked ${selected.fileName}")
                             try {
+                                if (ImePackageManager.isBusy()) {
+                                    context.toast(R.string.ime_package_import_in_progress)
+                                    return@launch
+                                }
                                 val isActive =
                                     withContext(Dispatchers.IO) {
                                         ImePackageManager.isActivePackage(
@@ -206,12 +223,11 @@ object ImePickerDialog {
             row.orientation = LinearLayout.HORIZONTAL
             row.gravity = Gravity.CENTER_VERTICAL
             row.setPadding(ctx.dp(16), ctx.dp(8), ctx.dp(8), ctx.dp(8))
-            text =
-                TextView(ctx).apply {
-                    textSize = 16f
-                    layoutParams =
-                        LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                }
+            text = TextView(ctx).apply {
+                textSize = 16f
+                layoutParams =
+                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
             compileBtn = iconButton(ctx, R.drawable.ic_baseline_refresh_reversed_24, R.string.ime_package_compile)
             deleteBtn = iconButton(ctx, R.drawable.ic_baseline_delete_24, R.string.delete)
             exportBtn = iconButton(ctx, R.drawable.ic_baseline_share_24, R.string.export)
@@ -225,17 +241,16 @@ object ImePickerDialog {
             ctx: Context,
             iconRes: Int,
             contentDescriptionRes: Int,
-        ): ImageButton =
-            ImageButton(ctx).apply {
-                setImageResource(iconRes)
-                setColorFilter(ContextCompat.getColor(ctx, android.R.color.darker_gray))
-                contentDescription = ctx.getString(contentDescriptionRes)
-                background = null
-                // Keep buttons from stealing list-item clicks; they remain
-                // clickable through touch events.
-                isFocusable = false
-                isFocusableInTouchMode = false
-                layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
-            }
+        ): ImageButton = ImageButton(ctx).apply {
+            setImageResource(iconRes)
+            setColorFilter(ContextCompat.getColor(ctx, android.R.color.darker_gray))
+            contentDescription = ctx.getString(contentDescriptionRes)
+            background = null
+            // Keep buttons from stealing list-item clicks; they remain
+            // clickable through touch events.
+            isFocusable = false
+            isFocusableInTouchMode = false
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+        }
     }
 }

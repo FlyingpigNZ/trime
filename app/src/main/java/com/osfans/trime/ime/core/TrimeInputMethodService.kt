@@ -74,8 +74,21 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     // Bridges to InputMethodService protected members for [ImeEditor].
     internal val inputConnection get() = currentInputConnection
     internal val inputEditorInfo get() = currentInputEditorInfo
-    internal fun switchToPreviousInputMethodCompat() = switchToPreviousInputMethod()
-    internal fun switchToNextInputMethodCompat() = switchToNextInputMethod(false)
+
+    // switchToPrevious/NextInputMethod exist only since API 28; older
+    // platforms get a no-op instead of a NoSuchMethodError.
+    internal fun switchToPreviousInputMethodCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            switchToPreviousInputMethod()
+        }
+    }
+
+    internal fun switchToNextInputMethodCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            switchToNextInputMethod(false)
+        }
+    }
+
     internal fun sendEnterKeyDownUp() = sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
     internal val rimeSession: RimeSession
         get() = rime
@@ -312,6 +325,20 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     override fun onUpdateCursorAnchorInfo(info: CursorAnchorInfo) {
         val bounds = info.getCharacterBounds(0)
+        // The caret side depends on the composing text's own direction, not
+        // the IME window's layout direction (which follows the device
+        // locale); for RTL text the caret sits at the right edge of the
+        // first character. Per-character RTL flags exist since API 30; fall
+        // back to the window direction on older platforms or when no
+        // character is available.
+        val isRtl =
+            if (bounds != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                runCatching {
+                    (info.getCharacterBoundsFlags(0) and CursorAnchorInfo.FLAG_IS_RTL) != 0
+                }.getOrDefault(candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL)
+            } else {
+                candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL
+            }
         // update anchorPosition
         if (bounds == null) {
             // composing is disabled in target app or trime settings
@@ -323,7 +350,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         } else {
             // for different writing system (e.g. right to left languages),
             // we have to calculate the correct RectF
-            val horizontal = if (candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL) bounds.right else bounds.left
+            val horizontal = if (isRtl) bounds.right else bounds.left
             anchorPosition.top = bounds.top
             anchorPosition.left = horizontal
             anchorPosition.bottom = bounds.bottom
@@ -339,7 +366,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         info.matrix.mapRect(anchorPosition)
         val (dX, dY) = decorLocation
         anchorPosition.offset(-dX, -dY)
-        candidatesView?.updateCursorAnchor(anchorPosition, contentSize)
+        candidatesView?.updateCursorAnchor(anchorPosition, contentSize, isRtl)
     }
 
     override fun onUpdateSelection(
@@ -574,7 +601,6 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         super.onUpdateEditorToolType(toolType)
         inputDeviceManager.evaluateOnUpdateEditorToolType(toolType, this)
     }
-
 
     fun switchToPrevIme() {
         try {

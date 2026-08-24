@@ -63,6 +63,14 @@ class CandidatesView(
     private val anchorPosition = RectF()
     private val parentSize = floatArrayOf(0f, 0f)
 
+    /**
+     * Whether the composing text at the caret is RTL. Determined from the
+     * [CursorAnchorInfo] in the service (the text's own direction), not the
+     * IME window's layout direction, so FOLLOW positioning mirrors correctly
+     * even when the device locale and the text direction differ.
+     */
+    private var followRtl = false
+
     private var shouldUpdatePosition = false
 
     /**
@@ -184,7 +192,7 @@ class CandidatesView(
                 // aligns with the caret (which is reported at bounds.right).
                 // Always clamp into the visible area on both axes.
                 val targetX =
-                    if (layoutDirection == LAYOUT_DIRECTION_RTL) {
+                    if (followRtl) {
                         horizontal - selfWidth
                     } else {
                         horizontal
@@ -205,7 +213,9 @@ class CandidatesView(
     fun updateCursorAnchor(
         anchorPosition: RectF,
         @Size(2) parent: FloatArray,
+        isRtl: Boolean = false,
     ) {
+        followRtl = isRtl
         this.anchorPosition.set(anchorPosition)
         val (parentWidth, parentHeight) = parent
         parentSize[0] = parentWidth
