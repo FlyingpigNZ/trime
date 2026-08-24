@@ -61,7 +61,11 @@ class TrimeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         if (!BuildConfig.DEBUG) {
-            Thread.setDefaultUncaughtExceptionHandler { _, e ->
+            val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+            Thread.setDefaultUncaughtExceptionHandler { thread, e ->
+                // Let the platform handler record the crash (logcat/dropbox)
+                // before we show the in-app crash screen and exit.
+                defaultHandler?.uncaughtException(thread, e)
                 val crashTime = System.currentTimeMillis()
                 val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
                 val lastCrashTimePrefKey = "last_crash_time"

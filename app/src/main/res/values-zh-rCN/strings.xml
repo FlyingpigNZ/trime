@@ -5,7 +5,7 @@
   ~ SPDX-License-Identifier: GPL-3.0-or-later
   -->
 
-<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools">
     <!-- 输入法平台名称  -->
     <string name="app_name_release">同文输入法</string>
     <string name="app_name_debug">同文输入法（调试）</string>
@@ -44,10 +44,8 @@
     <string name="other_ime">其他输入法</string>
     <string name="ui_mode">用户界面模式</string>
     <string name="advanced">高级</string>
-    <string name="user_data_dir">用户文件夹</string>
     <string name="periodic_background_sync">后台定时同步</string>
     <string name="periodic_background_sync_status">上次同步时间（状态）：%1$s（%2$s）</string>
-    <string name="effects">效果</string>
     <string name="show_app_icon">在启动器中显示图标</string>
     <string name="only_available_on_some_roms">此选项仅对部分 ROM 有效</string>
     <string name="default_">默认</string>
@@ -92,7 +90,7 @@
     <string name="type_text">输入文本</string>
     <string name="type_number">输入数字</string>
     <string name="type_password">输入密码</string>
-    <string name="hook_shift_num">点击0-9时，忽略Shift的锁定状态</string>
+    <string name="hook_shift_num">点击0–9时，忽略Shift的锁定状态</string>
     <string name="hook_shift_symbol">点击符号键时，忽略Shift的锁定状态</string>
     <string name="hook_shift_arrow">点击方向键时，保持Shift的锁定状态</string>
     <string name="developer">开发者</string>
@@ -110,12 +108,12 @@
     <string name="about">关于</string>
     <string name="theme">键盘样式</string>
     <string name="profile">配置</string>
-    <string name="storage">存储</string>
     <string name="maintenance">维护</string>
     <string name="install_schema_layout_package">安装方案键盘布局包</string>
     <string name="install_schema_layout_package_summary">安装包含 Rime 方案、布局和可选资源的 .zip 文件</string>
     <string name="install_schema_layout_package_failure">方案键盘布局包安装失败</string>
     <string name="ime_package_not_compiled">输入方案包尚未编译完成</string>
+    <string name="ime_package_broken">（已损坏：%1$s）</string>
     <string name="ime_package_compile">编译输入方案包</string>
     <string name="ime_package_compiled_switch_hint">方案包编译完成，可以切换了</string>
     <string name="ime_package_compiling_start">开始编译输入法方案包…</string>
@@ -222,7 +220,6 @@
     <string name="import_n_entries">已导入 %1$d 个词条</string>
     <string name="restored_from_x">已从 %1$s 中还原</string>
     <string name="backup">备份</string>
-    <string name="restore">还原</string>
     <string name="clipboard_listening">记录剪贴板历史</string>
     <string name="clipboard_return_after_paste">粘贴后返回</string>
     <string name="source_code">源代码</string>

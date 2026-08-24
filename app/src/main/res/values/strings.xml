@@ -5,10 +5,10 @@
   ~ SPDX-License-Identifier: GPL-3.0-or-later
   -->
 
-<resources xmlns:xliff="urn:oasis:names:en:xliff:document:1.2">
+<resources xmlns:xliff="urn:oasis:names:en:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools">
     <!-- Input Method Platform Tittle  -->
-    <string name="app_name_release">Trime</string>
-    <string name="app_name_debug">Trime (Debug)</string>
+    <string name="app_name_release" tools:ignore="UnusedResources">Trime</string>
+    <string name="app_name_debug" tools:ignore="UnusedResources">Trime (Debug)</string>
     <!-- Preference settings -->
     <string name="qq_group_1">Trime QQ group 1</string>
     <string name="qq_group_2">Trime QQ group 2</string>
@@ -47,10 +47,8 @@
     <string name="other_ime">Other IMEs</string>
     <string name="ui_mode">UI mode</string>
     <string name="advanced">Advanced</string>
-    <string name="user_data_dir">User directory</string>
     <string name="periodic_background_sync">Periodic background sync</string>
     <string name="periodic_background_sync_status">Last: %1$s (%2$s)</string>
-    <string name="effects">Effects</string>
     <string name="show_app_icon">Show app icon in launcher</string>
     <string name="only_available_on_some_roms">This option is only available on some ROMs</string>
     <string name="default_">Default</string>
@@ -96,7 +94,7 @@
     <string name="type_text">Type text</string>
     <string name="type_number">Type number</string>
     <string name="type_password">Type password</string>
-    <string name="hook_shift_num">Ignore Shift locked for 0-9</string>
+    <string name="hook_shift_num">Ignore Shift locked for 0–9</string>
     <string name="hook_shift_symbol">Ignore Shift locked for Symbol keys</string>
     <string name="hook_shift_arrow">Keep Shift locked for Arrow keys</string>
     <string name="exception_logcat_created">Logcat process is already created</string>
@@ -114,12 +112,12 @@
     <string name="virtual_keyboard">Virtual Keyboard</string>
     <string name="theme">Keyboard Style</string>
     <string name="about">About</string>
-    <string name="storage">Storage</string>
     <string name="maintenance">Maintenance</string>
     <string name="install_schema_layout_package">Install schema layout package</string>
     <string name="install_schema_layout_package_summary">Install a .zip containing a Rime schema, layouts, and optional resources</string>
     <string name="install_schema_layout_package_failure">Failed to install schema layout package</string>
     <string name="ime_package_not_compiled">IME package is not compiled yet</string>
+    <string name="ime_package_broken">(broken: %1$s)</string>
     <string name="ime_package_compile">Compile IME package</string>
     <string name="ime_package_compiled_switch_hint">Package compiled. You can switch to it now.</string>
     <string name="ime_package_compiling_start">Starting IME package compilation…</string>
@@ -148,7 +146,7 @@
     <string name="clip_edit_text_hint">Edit text here</string>
     <string name="ask_to_delete_all">Delete All?</string>
     <string name="ok">OK</string>
-    <string name="cancel">CANCEL</string>
+    <string name="cancel">Cancel</string>
     <string name="licenses_of_third_party_libraries">Licenses of third-party libraries</string>
     <string name="clipboard">Clipboard</string>
     <string name="collection">Collection</string>
@@ -223,7 +221,6 @@
     <string name="backed_up_x_to_sync_dir">Backed up %1$s to sync dir</string>
     <string name="restored_from_x">Restored from %1$s</string>
     <string name="backup">Backup</string>
-    <string name="restore">Restore</string>
     <string name="clipboard_listening">Clipboard listening</string>
     <string name="clipboard_return_after_paste">Return after pasting</string>
     <string name="source_code">Source code</string>

@@ -5,7 +5,7 @@
   ~ SPDX-License-Identifier: GPL-3.0-or-later
   -->
 
-<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools">
     <!-- 輸入法平臺名稱  -->
     <string name="app_name_release">同文輸入法</string>
     <string name="app_name_debug">同文輸入法（除錯模式）</string>
@@ -47,10 +47,8 @@
     <string name="other_ime">其他輸入法</string>
     <string name="ui_mode">使用者界面模式</string>
     <string name="advanced">高級</string>
-    <string name="user_data_dir">使用者資料夾</string>
     <string name="periodic_background_sync">後台定時同步</string>
     <string name="periodic_background_sync_status">上次同步時間（狀態）：%1$s（%2$s）</string>
-    <string name="effects">效果</string>
     <string name="only_available_on_some_roms">此選項僅對部分 ROM 有效</string>
     <string name="show_app_icon">在啟動器中顯示圖示</string>
     <string name="default_">預設</string>
@@ -96,7 +94,7 @@
     <string name="type_text">輸入文字</string>
     <string name="type_number">輸入數字</string>
     <string name="type_password">輸入密碼</string>
-    <string name="hook_shift_num">點擊0-9時，忽略Shift的鎖定狀態</string>
+    <string name="hook_shift_num">點擊0–9時，忽略Shift的鎖定狀態</string>
     <string name="hook_shift_symbol">點擊符號鍵時，忽略Shift的鎖定狀態</string>
     <string name="hook_shift_arrow">點選方向鍵時，保持Shift的鎖定狀態</string>
     <string name="export">匯出</string>
@@ -114,12 +112,12 @@
     <string name="theme">鍵盤樣式</string>
     <string name="profile">配置</string>
     <string name="virtual_keyboard">虛擬鍵盤</string>
-    <string name="storage">儲存</string>
     <string name="maintenance">維護</string>
     <string name="install_schema_layout_package">安裝方案鍵盤佈局包</string>
     <string name="install_schema_layout_package_summary">安裝包含 Rime 方案、佈局和可選資源的 .zip 檔案</string>
     <string name="install_schema_layout_package_failure">方案鍵盤佈局包安裝失敗</string>
     <string name="ime_package_not_compiled">輸入方案包尚未編譯完成</string>
+    <string name="ime_package_broken">（已損壞：%1$s）</string>
     <string name="ime_package_compile">編譯輸入方案包</string>
     <string name="ime_package_compiled_switch_hint">方案包編譯完成，可以切換了</string>
     <string name="ime_package_compiling_start">開始編譯輸入法方案包…</string>
@@ -223,7 +221,6 @@
     <string name="import_n_entries">已匯入 %1$d 個詞條</string>
     <string name="restored_from_x">已從 %1$s 還原</string>
     <string name="backup">備份</string>
-    <string name="restore">還原</string>
     <string name="clipboard_listening">監聽剪貼簿</string>
     <string name="clipboard_return_after_paste">貼上後返回</string>
     <string name="source_code">原始碼</string>

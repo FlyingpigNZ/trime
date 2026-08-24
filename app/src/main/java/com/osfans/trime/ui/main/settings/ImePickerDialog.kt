@@ -54,13 +54,17 @@ object ImePickerDialog {
                     val row = (convertView as? LinearLayout) ?: LinearLayout(context)
                     val holder = row.tag as? RowHolder ?: RowHolder(row).also { row.tag = it }
                     val activeSuffix = if (item.fileName == active) "  ✓" else ""
-                    val brokenSuffix = item.error?.let { "  (broken: $it)" } ?: ""
+                    val brokenSuffix =
+                        item.error?.let { "  ${context.getString(R.string.ime_package_broken, it)}" } ?: ""
                     val notCompiledSuffix =
                         if (!item.compiled && item.error == null) {
                             "  (${context.getString(R.string.ime_package_not_compiled)})"
                         } else {
                             ""
                         }
+                    // Row label is a dynamic concatenation of the package name
+                    // and status suffixes; placeholders do not apply here.
+                    @Suppress("SetTextI18n")
                     holder.text.text = item.name + activeSuffix + notCompiledSuffix + brokenSuffix
                     row.alpha = if (item.compiled) 1f else 0.5f
 

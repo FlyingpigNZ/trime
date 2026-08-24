@@ -86,7 +86,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
             android:name="com.osfans.trime.MainLauncherAlias"
             android:exported="true"
             android:label="@string/trime_app_name"
-            android:launchMode="singleTask"
             android:targetActivity=".ui.main.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

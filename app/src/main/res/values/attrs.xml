@@ -6,8 +6,9 @@ SPDX-FileCopyrightText: 2015 - 2024 Rime community
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-<resources>
-    <attr name="useSimpleSummaryProvider" format="boolean" />
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Deliberately overrides the private androidx.preference attr of the same name. -->
+    <attr name="useSimpleSummaryProvider" format="boolean" tools:override="true" />
     <declare-styleable name="DialogSeekBarPreferenceAttrs">
         <attr name="min" format="integer" />
         <attr name="max" format="integer" />
