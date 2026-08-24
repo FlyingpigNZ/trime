@@ -106,18 +106,33 @@ object PackageStore {
      * Record this process's pid (and start time) as the compile session of
      * [workspace]. The main process reads it back to enforce "one compile
      * session at a time, and only after the previous one fully exited".
+     *
+     * Written atomically (temp + rename): the main process polls this file
+     * every 500ms, and a non-atomic write can be read mid-write as a
+     * truncated pid/start time, which the liveness check would misread as a
+     * dead session.
      */
     fun writeCompileSessionRef(workspace: File) {
         val pid = Process.myPid()
         val startTime = processStartTime(pid)
         val content = if (startTime != null) "$pid $startTime" else pid.toString()
-        File(workspace, COMPILE_PID_FILE).writeText(content)
+        val pidFile = File(workspace, COMPILE_PID_FILE)
+        val tmp = File(workspace, "$COMPILE_PID_FILE.tmp")
+        tmp.writeText(content)
+        if (!tmp.renameTo(pidFile)) {
+            pidFile.writeText(content)
+            tmp.delete()
+        }
     }
 
     fun readCompileSessionRef(workspace: File): CompileSessionRef? {
         val text =
             runCatching { File(workspace, COMPILE_PID_FILE).readText().trim() }
                 .getOrNull() ?: return null
+        // A malformed pid file (mid-write in an old build, or a stray file)
+        // must read as "no session yet" rather than a session whose pid does
+        // not exist: declaring death from garbage is a false "compile died".
+        if (!text.matches(Regex("\\d+( \\d+)?"))) return null
         val parts = text.split(' ')
         val pid = parts.getOrNull(0)?.toIntOrNull() ?: return null
         val startTime = parts.getOrNull(1)?.toLongOrNull()

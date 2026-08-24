@@ -27,9 +27,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Runs workspace compiles in the separate `:compile` process and waits for
- * `compiled.marker`, with fail-fast death detection. Also owns the compiled
- * marker bookkeeping ([markCurrentWorkspaceCompiled]) and theme reload
- * ([restoreActiveTheme]) shared by the compile and activation flows.
+ * `compiled.marker` / `compiled.error` / the compile timeout. Also owns the
+ * compiled marker bookkeeping ([markCurrentWorkspaceCompiled]) and theme
+ * reload ([restoreActiveTheme]) shared by the compile and activation flows.
  *
  * Split out of [ImePackageManager].
  */
@@ -143,14 +143,17 @@ internal object PackageCompiler {
                         putExtra(PackageCompileService.EXTRA_VERSION, BuildConfig.BUILD_VERSION_NAME)
                     }
                 ContextCompat.startForegroundService(appContext, intent)
-                val startedAt = System.currentTimeMillis()
-                val deadline = startedAt + COMPILE_TIMEOUT_MS
+                val deadline = System.currentTimeMillis() + COMPILE_TIMEOUT_MS
+                // Outcome is decided by the compile service's own ground-truth
+                // files (compiled.marker / compiled.error) plus the timeout.
+                // The separate liveness/death detection was removed: on this
+                // device the pid file reads were unreliable and repeatedly
+                // reported a live compile as dead ("process died") while the
+                // :compile process was actually still running and succeeded.
+                // Record the session identity so the next compile can wait for
+                // this session to fully exit before starting.
                 while (!marker.isFile && !error.isFile && System.currentTimeMillis() < deadline) {
-                    val session = PackageStore.readCompileSessionRef(workspace)
-                    if (session != null) lastCompileSession = session
-                    if (compileSessionDied(session, workspace, startedAt)) {
-                        throw IllegalStateException("IME package compile process died: $packageId")
-                    }
+                    PackageStore.readCompileSessionRef(workspace)?.let { lastCompileSession = it }
                     delay(COMPILE_POLL_INTERVAL_MS)
                 }
                 if (error.isFile) {
@@ -174,33 +177,6 @@ internal object PackageCompiler {
                 compiling.set(false)
             }
         }
-    }
-
-    /**
-     * Detect that the compile session is no longer making progress before the
-     * compile timeout expires. The session's pid file `/proc/<pid>/stat`
-     * start-time check is the authoritative signal: it declares death only
-     * when the recorded process is actually gone (and, via the start time, is
-     * not fooled by pid reuse). The heartbeat is only a fallback for the
-     * window before the pid file exists (or when the pid write failed), so a
-     * live session whose heartbeat thread stalls under load is not mistaken
-     * for a dead one.
-     */
-    private fun compileSessionDied(
-        session: PackageStore.CompileSessionRef?,
-        workspace: File,
-        startedAt: Long,
-    ): Boolean {
-        if (session != null) {
-            return !PackageStore.isCompileSessionAlive(session)
-        }
-        val heartbeat = File(workspace, PackageStore.COMPILE_HEARTBEAT_FILE)
-        if (heartbeat.isFile) {
-            return System.currentTimeMillis() - heartbeat.lastModified() > COMPILE_HEARTBEAT_STALE_MS
-        }
-        // Neither liveness signal exists yet: the compile process may still be
-        // spawning. Only give up once the grace period has passed.
-        return System.currentTimeMillis() - startedAt > COMPILE_PROCESS_GRACE_MS
     }
 
     /**
@@ -230,15 +206,9 @@ internal object PackageCompiler {
     private const val COMPILE_TIMEOUT_MS = 10 * 60 * 1000L
     private const val COMPILE_POLL_INTERVAL_MS = 500L
 
-    /** Grace period for the `:compile` process to spawn and publish its pid. */
-    private const val COMPILE_PROCESS_GRACE_MS = 10 * 1000L
-
     /** How long to wait for the previous compile session to exit before force-killing it. */
     private const val COMPILE_SESSION_EXIT_WAIT_MS = 10 * 1000L
 
     /** Poll interval while waiting for the previous compile session to exit. */
     private const val COMPILE_SESSION_EXIT_POLL_MS = 100L
-
-    /** Heartbeat is considered stale after this long without a refresh (5× the 2s interval). */
-    private const val COMPILE_HEARTBEAT_STALE_MS = 10 * 1000L
 }
