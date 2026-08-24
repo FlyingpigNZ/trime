@@ -108,12 +108,61 @@ def main(argv: list[str] | None = None) -> int:
         print("Missing package files:", ", ".join(missing), file=sys.stderr)
         return 1
 
+    schema_list_errors = validate_schema_list(files, src, rime_source)
+    if schema_list_errors:
+        print("Invalid schema_list references:", file=sys.stderr)
+        for error in schema_list_errors:
+            print("  -", error, file=sys.stderr)
+        return 1
+
     out = src.with_suffix(".zip")
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for name in files:
             z.write(locate_file(src, name, rime_source), arcname=name)
     print(f"Wrote {out}")
     return 0
+
+
+def validate_schema_list(
+    files: list[str],
+    src: Path,
+    rime_source: Path | None,
+) -> list[str]:
+    """Every `schema_list` entry in the packaged default.yaml must ship a
+    `.schema.yaml` file: librime's workspace_update fails the whole deploy when
+    a listed schema is missing, so such a package is unusable."""
+    default_yaml = next(
+        (name for name in files if name.endswith("default.yaml")),
+        None,
+    )
+    if default_yaml is None:
+        return []
+    path = locate_file(src, default_yaml, rime_source)
+    if path is None:
+        return []
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return [f"{default_yaml}: invalid YAML: {exc}"]
+    if not isinstance(data, dict):
+        return [f"{default_yaml}: must be a YAML mapping"]
+    schema_list = data.get("schema_list") or []
+    shipped = {
+        Path(name).name.removesuffix(".schema.yaml")
+        for name in files
+        if name.endswith(".schema.yaml")
+    }
+    errors: list[str] = []
+    for item in schema_list:
+        if not isinstance(item, dict):
+            continue
+        schema_id = item.get("schema")
+        if isinstance(schema_id, str) and schema_id not in shipped:
+            errors.append(
+                f"{default_yaml} lists schema '{schema_id}' which is not shipped "
+                f"in the package (shipped: {', '.join(sorted(shipped)) or 'none'})",
+            )
+    return errors
 
 
 if __name__ == "__main__":

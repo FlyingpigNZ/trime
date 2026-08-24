@@ -119,5 +119,48 @@ layout_files: [my.layout.yaml]
             )
 
 
+    def test_schema_list_referencing_unshipped_schema_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "my-ime"
+            write(
+                pkg / "manifest.yaml",
+                """name: My IME
+components:
+  - keyboard:
+      file: keyboard.yaml
+rime_files:
+  - rime/default.yaml
+  - rime/my.schema.yaml
+""",
+            )
+            write(
+                pkg / "rime" / "default.yaml",
+                """schema_list:
+  - schema: my
+  - schema: bopomofo
+""",
+            )
+            write(pkg / "rime" / "my.schema.yaml", "schema:\n  schema_id: my\n")
+            write(pkg / "keyboard.yaml", "preset_keyboards:\n  default:\n    name: default\n")
+
+            # A schema_list entry without a shipped .schema.yaml would make
+            # librime's workspace_update fail the whole deploy.
+            self.assertEqual(
+                package_schema.main([str(pkg)]),
+                1,
+            )
+
+            # Fixing the list to only shipped schemas packages cleanly.
+            write(
+                pkg / "rime" / "default.yaml",
+                "schema_list:\n  - schema: my\n",
+            )
+            self.assertEqual(
+                package_schema.main([str(pkg)]),
+                0,
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
