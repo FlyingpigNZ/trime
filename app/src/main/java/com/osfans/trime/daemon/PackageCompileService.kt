@@ -32,10 +32,12 @@ class PackageCompileService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Single-flight: a second compile request while one is running would
         // run two librime deploys concurrently in this process against the
-        // same global Deployer state. Drop the duplicate.
+        // same global Deployer state. Drop the duplicate. Do NOT call
+        // stopSelf(startId) here: the duplicate carries the most recent
+        // startId, so stopSelf would also stop the service (and its
+        // foreground status) while the legitimate compile is still running.
         if (!compiling.compareAndSet(false, true)) {
             Timber.w("PackageCompileService: compile already in progress; dropping duplicate request")
-            stopSelf(startId)
             return START_NOT_STICKY
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -139,7 +141,16 @@ class PackageCompileService : Service() {
             } else {
                 "ok"
             }
-        File(workspace, "compiled.marker").writeText(markerContent)
+        // Write the marker atomically (temp + rename): a mid-write kill must
+        // not leave a partial marker that the main process reads as a finished
+        // compile.
+        val marker = File(workspace, "compiled.marker")
+        val markerTmp = File(workspace, "compiled.marker.tmp")
+        markerTmp.writeText(markerContent)
+        if (!markerTmp.renameTo(marker)) {
+            marker.writeText(markerContent)
+            markerTmp.delete()
+        }
         File(workspace, "compiled.error").delete()
         // The compiled workspace is self-contained; the source zip is no longer
         // needed for switching and can be removed to save space.

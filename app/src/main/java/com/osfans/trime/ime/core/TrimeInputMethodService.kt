@@ -38,6 +38,7 @@ import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.data.prefs.PreferenceDelegateProvider
 import com.osfans.trime.data.schema.ImePackageManager
+import com.osfans.trime.data.schema.PackageCompiler
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeManager
@@ -48,6 +49,7 @@ import com.osfans.trime.util.any
 import com.osfans.trime.util.forceShowSelf
 import com.osfans.trime.util.monitorCursorAnchor
 import com.osfans.trime.util.styledFloat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -74,20 +76,6 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     // Bridges to InputMethodService protected members for [ImeEditor].
     internal val inputConnection get() = currentInputConnection
     internal val inputEditorInfo get() = currentInputEditorInfo
-
-    // switchToPrevious/NextInputMethod exist only since API 28; older
-    // platforms get a no-op instead of a NoSuchMethodError.
-    internal fun switchToPreviousInputMethodCompat() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            switchToPreviousInputMethod()
-        }
-    }
-
-    internal fun switchToNextInputMethodCompat() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            switchToNextInputMethod(false)
-        }
-    }
 
     internal fun sendEnterKeyDownUp() = sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
     internal val rimeSession: RimeSession
@@ -207,7 +195,17 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         // package/theme fallback path instead of suspending forever.
         lifecycleScope.launch {
             rime.runOnReadyOrFailed {
-                ImePackageManager.ensureDefaultPackageReady()
+                // A corrupt/undeployable Default workspace must not crash the
+                // IME at startup: log, apply the builtin fallback theme, and
+                // let the rest of the bootstrap continue.
+                runCatching {
+                    ImePackageManager.ensureDefaultPackageReady()
+                }.onFailure { t ->
+                    if (t is CancellationException) throw t
+                    Timber.e(t, "Default package bootstrap failed; applying fallback theme")
+                    runCatching { PackageCompiler.applyTheme(ThemeManager.fallbackTheme) }
+                        .onFailure { e -> Timber.e(e, "Fallback theme unavailable") }
+                }
                 ThemeManager.init(resources.configuration)
                 ThemeManager.addOnChangedListener(onThemeChangeListener)
                 ColorManager.addOnChangedListener(onColorChangeListener)
@@ -334,7 +332,14 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         val isRtl =
             if (bounds != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 runCatching {
-                    (info.getCharacterBoundsFlags(0) and CursorAnchorInfo.FLAG_IS_RTL) != 0
+                    // FLAG_IS_RTL is per-character; a neutral leading
+                    // character (digit/punctuation) carries no flag, so fall
+                    // back to the window direction in that case too.
+                    if ((info.getCharacterBoundsFlags(0) and CursorAnchorInfo.FLAG_IS_RTL) != 0) {
+                        true
+                    } else {
+                        candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL
+                    }
                 }.getOrDefault(candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL)
             } else {
                 candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL
@@ -453,7 +458,16 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             val placeholder = FrameLayout(this)
             lifecycleScope.launch {
                 withContext(Dispatchers.IO) {
-                    ImePackageManager.ensureDefaultPackageReady()
+                    // A failed Default bootstrap must not crash the IME nor
+                    // leave the placeholder forever; fall back and continue.
+                    runCatching {
+                        ImePackageManager.ensureDefaultPackageReady()
+                    }.onFailure { t ->
+                        if (t is CancellationException) throw t
+                        Timber.e(t, "Default package bootstrap failed; applying fallback theme")
+                        runCatching { PackageCompiler.applyTheme(ThemeManager.fallbackTheme) }
+                            .onFailure { e -> Timber.e(e, "Fallback theme unavailable") }
+                    }
                 }
                 ThemeManager.ensureInitialized(resources.configuration)
                 replaceInputViews(ThemeManager.activeTheme)

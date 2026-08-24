@@ -5,6 +5,7 @@
 
 package com.osfans.trime
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Intent
 import android.content.IntentFilter
@@ -61,11 +62,13 @@ class TrimeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         if (!BuildConfig.DEBUG) {
-            val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
-            Thread.setDefaultUncaughtExceptionHandler { thread, e ->
-                // Let the platform handler record the crash (logcat/dropbox)
-                // before we show the in-app crash screen and exit.
-                defaultHandler?.uncaughtException(thread, e)
+            // Do NOT delegate to the platform uncaught-exception handler: on
+            // Android that is KillApplicationHandler, which terminates the
+            // process, making the crash screen and crash-loop guard below dead
+            // code. Log explicitly instead so logcat still records the crash.
+            @SuppressLint("DefaultUncaughtExceptionDelegation")
+            Thread.setDefaultUncaughtExceptionHandler { _, e ->
+                Timber.e(e, "Uncaught exception")
                 val crashTime = System.currentTimeMillis()
                 val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
                 val lastCrashTimePrefKey = "last_crash_time"

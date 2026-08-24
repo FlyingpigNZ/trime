@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.R
 import com.osfans.trime.core.RimeApi
 import com.osfans.trime.core.RimeKeyEvent
+import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.prefs.AppPrefs
@@ -237,7 +238,10 @@ class CommonKeyboardActionListener {
                 when (arg) {
                     "DEPLOY" -> {
                         Timber.i("try to start maintenance via command ...")
-                        rime.launchOnReady { api -> api.deploy() }
+                        // Full re-deploy through the daemon so the lifecycle
+                        // state machine observes the outcome (manual deploy
+                        // used to bypass it and could leave READY on failure).
+                        rime.launchOnReady { RimeDaemon.restartRime(fullCheck = true) }
                     }
                     "SYNC_USER_DATA" -> {
                         Timber.i("try to sync rime user data via command ...")
@@ -245,8 +249,8 @@ class CommonKeyboardActionListener {
                     }
                     "UPDATE_CONFIG" -> {
                         Timber.i("try to update rime config via command ...")
-                        rime.launchOnReady { api ->
-                            api.updateConfig()
+                        rime.launchOnReady {
+                            RimeDaemon.restartRime()
                             service.lifecycleScope.launch {
                                 Toast.makeText(service, R.string.done, Toast.LENGTH_SHORT).show()
                             }

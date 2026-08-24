@@ -63,9 +63,9 @@ class Rime(
     private val dispatcher =
         RimeDispatcher(
             object : RimeDispatcher.RimeController {
-                override fun nativeStartup() {
+                override fun nativeStartup(fullCheck: Boolean) {
                     try {
-                        startRime(false)
+                        startRime(fullCheck)
                     } catch (t: Throwable) {
                         // onBeforeStart()/startupRime() failed before any
                         // deploy message could arrive. Leave STARTING
@@ -103,16 +103,6 @@ class Rime(
 
     override suspend fun isEmpty(): Boolean = withRimeContext {
         getCurrentRimeSchema() == ".default" // 無方案
-    }
-
-    override suspend fun deploy() = withRimeContext {
-        exitRime()
-        startRime(true)
-    }
-
-    override suspend fun updateConfig() = withRimeContext {
-        exitRime()
-        startRime(false)
     }
 
     override suspend fun syncUserData(): Boolean = withRimeContext {
@@ -408,15 +398,15 @@ class Rime(
         }
     }
 
-    fun startup() {
+    fun startup(fullCheck: Boolean = false) {
         if (lifecycle.currentState != RimeLifecycle.State.STOPPED) {
             Timber.w("Skip starting rime: not at stopped state!")
             return
         }
         _uiState.update { it.copy(deployState = DeployState.Idle) }
-        registerRimeMessageHandler(::handleRimeMessage)
+        registerRimeMessageHandler(rimeMessageHandler)
         lifecycleRegistry.emitState(RimeLifecycle.State.STARTING)
-        dispatcher.start()
+        dispatcher.start(fullCheck)
     }
 
     fun finalize() {
@@ -435,8 +425,16 @@ class Rime(
             }
         }
         lifecycleRegistry.emitState(RimeLifecycle.State.STOPPED)
-        unregisterRimeMessageHandler(::handleRimeMessage)
+        unregisterRimeMessageHandler(rimeMessageHandler)
     }
+
+    /**
+     * Stable bound reference to [handleRimeMessage]. A fresh `::handleRimeMessage`
+     * callable-reference is a new object every time, so registering/unregistering
+     * it by identity would never match: the handler would accumulate one copy
+     * per [startup] and never be removed.
+     */
+    private val rimeMessageHandler: (RimeMessage<*>) -> Unit = ::handleRimeMessage
 
     companion object {
         /**

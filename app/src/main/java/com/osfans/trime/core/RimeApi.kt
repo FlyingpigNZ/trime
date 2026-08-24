@@ -28,10 +28,6 @@ interface RimeApi {
 
     suspend fun isEmpty(): Boolean
 
-    suspend fun deploy()
-
-    suspend fun updateConfig()
-
     suspend fun syncUserData(): Boolean
 
     suspend fun processKey(

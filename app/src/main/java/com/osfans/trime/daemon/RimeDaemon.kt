@@ -22,10 +22,14 @@ import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.ime.core.InlinePreeditMode
 import com.osfans.trime.util.appContext
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -90,8 +94,14 @@ object RimeDaemon {
      * until the current deploy completes ([onRimeStateChanged] consumes it).
      * Guards against package activation being silently dropped during the
      * initial deploy (previously `finalize()` skipped because not READY).
+     *
+     * When a caller is waiting for a deferred restart, [pendingRestartResult]
+     * propagates the outcome of the actual redeploy; without it, a STARTING
+     * restart would resolve on the *current* deploy's READY before the
+     * deferred restart has even begun.
      */
     private var pendingRestart = false
+    private var pendingRestartResult: CompletableDeferred<Boolean>? = null
 
     /** Android UI: deploy/restart progress notifications. */
     private val deployNotifier = DeployNotifier(appContext, TrimeApplication.getInstance().coroutineScope)
@@ -190,14 +200,14 @@ object RimeDaemon {
      */
     suspend fun restartRime(fullCheck: Boolean = false): Boolean {
         val restartId = if (fullCheck) null else deployNotifier.notifyRestartStarted()
-        val result = restartInternal()
+        val result = restartInternal(fullCheck)
         if (restartId != null) {
             deployNotifier.notifyRestartFinished(restartId)
         }
         return result
     }
 
-    private suspend fun restartInternal(): Boolean {
+    private suspend fun restartInternal(fullCheck: Boolean): Boolean {
         val action =
             lock.withLock {
                 when (realRime.lifecycle.currentState) {
@@ -208,29 +218,60 @@ object RimeDaemon {
                     }
                     RimeLifecycle.State.FAILED -> RestartAction.Retry
                     RimeLifecycle.State.STOPPED -> RestartAction.Start
-                    RimeLifecycle.State.STOPPING -> RestartAction.None
+                    RimeLifecycle.State.STOPPING -> RestartAction.WaitForStopped
                 }
             }
         return when (action) {
             RestartAction.Restart,
             RestartAction.Retry,
             -> {
-                withContext(Dispatchers.IO) {
-                    realRime.finalize()
-                    realRime.startup()
+                // Serialize the state transition under a coroutine mutex (a
+                // ReentrantLock critical section cannot contain the
+                // withContext suspension point): a concurrent
+                // restartRime/createSession must not observe STOPPED twice and
+                // double-startup. Waiting for READY happens outside the lock.
+                transitionMutex.withLock {
+                    withContext(Dispatchers.IO) {
+                        realRime.finalize()
+                        realRime.startup(fullCheck)
+                    }
                 }
                 realRime.lifecycle.awaitReadyOrFailed()
             }
             RestartAction.Start -> {
-                withContext(Dispatchers.IO) { realRime.startup() }
+                transitionMutex.withLock {
+                    withContext(Dispatchers.IO) { realRime.startup(fullCheck) }
+                }
                 realRime.lifecycle.awaitReadyOrFailed()
             }
-            RestartAction.Wait -> realRime.lifecycle.awaitReadyOrFailed()
+            RestartAction.Wait -> {
+                // The restart is deferred until the in-flight deploy settles;
+                // await the outcome of the actual redeploy (shared between
+                // concurrent waiters) instead of the current deploy's READY.
+                val result =
+                    lock.withLock {
+                        if (!pendingRestart) {
+                            pendingRestart = true
+                            pendingRestartResult = CompletableDeferred()
+                        }
+                        pendingRestartResult!!
+                    }
+                result.await()
+            }
+            RestartAction.WaitForStopped -> {
+                // A restart landing in the STOPPING window must not be
+                // silently dropped: wait for the teardown to finish (the
+                // engine settles on STOPPED), then retry.
+                while (realRime.lifecycle.currentState == RimeLifecycle.State.STOPPING) {
+                    delay(50)
+                }
+                restartInternal(fullCheck)
+            }
             RestartAction.None -> false
         }
     }
 
-    private enum class RestartAction { Restart, Retry, Start, Wait, None }
+    private enum class RestartAction { Restart, Retry, Start, Wait, WaitForStopped, None }
 
     /**
      * Consume a deferred restart ([pendingRestart]) once the engine settles.
@@ -240,16 +281,47 @@ object RimeDaemon {
      * IO.
      */
     private fun onRimeStateChanged(state: RimeLifecycle.State) {
-        if (state != RimeLifecycle.State.READY && state != RimeLifecycle.State.FAILED) return
-        lock.withLock {
-            if (!pendingRestart) return
-            pendingRestart = false
-        }
-        TrimeApplication.getInstance().coroutineScope.launch(Dispatchers.IO) {
-            lock.withLock {
-                realRime.finalize()
-                realRime.startup()
+        if (state == RimeLifecycle.State.FAILED) {
+            // A live session whose deploy failed gets one automatic retry;
+            // repeated failures are left to the user (the deploy-failure
+            // notification) to avoid a retry loop on persistent environment
+            // problems. Reset once the engine reaches READY again.
+            if (sessions.isNotEmpty() && failedAutoRetried.compareAndSet(false, true)) {
+                TrimeApplication.getInstance().coroutineScope.launch(Dispatchers.IO) {
+                    delay(FAILED_RETRY_DELAY_MS)
+                    runCatching { restartRime() }
+                }
             }
+        } else if (state == RimeLifecycle.State.READY) {
+            failedAutoRetried.set(false)
+        }
+        if (state != RimeLifecycle.State.READY && state != RimeLifecycle.State.FAILED) return
+        val deferred =
+            lock.withLock {
+                if (!pendingRestart) return
+                pendingRestart = false
+                pendingRestartResult.also { pendingRestartResult = null }
+            }
+        TrimeApplication.getInstance().coroutineScope.launch(Dispatchers.IO) {
+            val ok =
+                runCatching {
+                    transitionMutex.withLock {
+                        withContext(Dispatchers.IO) {
+                            realRime.finalize()
+                            realRime.startup()
+                        }
+                    }
+                    realRime.lifecycle.awaitReadyOrFailed()
+                }.getOrDefault(false)
+            deferred?.complete(ok)
         }
     }
+
+    /** Serializes engine start/stop transitions across all restart paths. */
+    private val transitionMutex = Mutex()
+
+    private val failedAutoRetried = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Delay before the single automatic retry after a failed deploy. */
+    private const val FAILED_RETRY_DELAY_MS = 3_000L
 }

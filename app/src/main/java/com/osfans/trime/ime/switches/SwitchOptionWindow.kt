@@ -16,6 +16,7 @@ import com.osfans.trime.core.RimeConfig
 import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.core.RimeSchema
 import com.osfans.trime.core.SchemaItem
+import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.theme.Theme
@@ -106,8 +107,8 @@ class SwitchOptionWindow :
                                 }
                             }
                         }
-                        SwitchOptionEntry.Static.Type.UpdateConfig -> rime.launchOnReady { r ->
-                            r.updateConfig()
+                        SwitchOptionEntry.Static.Type.UpdateConfig -> rime.launchOnReady {
+                            RimeDaemon.restartRime()
                             service.lifecycleScope.launch {
                                 Toast.makeText(service, R.string.done, Toast.LENGTH_SHORT).show()
                             }

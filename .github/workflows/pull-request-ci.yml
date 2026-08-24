@@ -54,10 +54,20 @@ jobs:
 
       - name: Install Android NDK
         # Keep the cmake version in sync with Versions.DEFAULT_CMAKE instead
-        # of maintaining it in two places.
+        # of maintaining it in two places. macOS/Windows cannot use grep -P,
+        # so extract the version with python (bash) / Select-String (PowerShell).
+        if: ${{ runner.os != 'Windows' }}
+        shell: bash
         run: |
-          CMAKE_VERSION=$(grep -oP 'DEFAULT_CMAKE = "\K[^"]+' build-logic/convention/src/main/kotlin/Versions.kt)
+          CMAKE_VERSION=$(python3 -c 'import re,pathlib;m=re.search(r"DEFAULT_CMAKE = \"([^\"]+)\"",pathlib.Path("build-logic/convention/src/main/kotlin/Versions.kt").read_text());print(m.group(1))')
           sdkmanager --install "cmake;$CMAKE_VERSION"
+
+      - name: Install Android NDK (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          $m = Select-String -Path build-logic/convention/src/main/kotlin/Versions.kt -Pattern 'DEFAULT_CMAKE = "([^"]+)"'
+          $ver = $m.Matches[0].Groups[1].Value
+          sdkmanager --install "cmake;$ver"
 
       - name: Install Python dependencies
         run: |

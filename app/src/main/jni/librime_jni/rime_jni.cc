@@ -4,6 +4,7 @@
 
 #include <rime_api.h>
 
+#include <fstream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -60,6 +61,23 @@ class Rime {
     rime->initialize(&trime_traits);
     rime->set_notification_handler(notificationHandler, GlobalRef->jvm);
     return rime->start_maintenance(fullCheck);
+  }
+
+  // Whether the librime API was loaded at all; when false the engine cannot
+  // ever become usable, so startup must report failure rather than success.
+  bool apiAvailable() const { return rime != nullptr; }
+
+  // RimeStartMaintenance returns false both for "no modifications" (steady
+  // state — the engine is usable and a synthesized success is correct) and
+  // for a failing installation_update (unwritable user dir, full disk — no
+  // deploy message is ever sent, so a synthesized success would mask the
+  // failure). Distinguish them by the artifact installation_update writes:
+  // on a steady-state start the file exists from an earlier successful run.
+  bool installationInfoUsable() const {
+    const char* userDir = getenv("RIME_USER_DATA_DIR");
+    if (userDir == nullptr || *userDir == '\0') return false;
+    std::ifstream f(std::string(userDir) + "/installation.yaml");
+    return f.good() && f.peek() != std::ifstream::traits_type::eof();
   }
 
   // Runs a full workspace deploy synchronously against the given directories.
@@ -286,9 +304,17 @@ extern "C" JNIEXPORT void JNICALL Java_com_osfans_trime_core_Rime_startupRime(
     // cases librime will not send a deploy message, yet the engine is usable
     // and the Kotlin READY gate must be unblocked — synthesize a success
     // notification through the same channel the maintenance thread uses.
-    // A genuine deploy failure (installation_update) surfaces later via the
-    // normal ("deploy", "failure") message when maintenance does run.
-    notificationHandler(nullptr, 0, "deploy", "success");
+    //
+    // Do NOT synthesize success when the engine cannot possibly be usable: an
+    // unloaded librime API, or a failing installation_update (unwritable user
+    // dir, full disk) on a fresh workspace, where no installation.yaml was
+    // ever written and no ("deploy","failure") message will ever arrive. Both
+    // must land in FAILED instead of silently flipping to READY.
+    if (Rime::Instance().apiAvailable() && Rime::Instance().installationInfoUsable()) {
+      notificationHandler(nullptr, 0, "deploy", "success");
+    } else {
+      notificationHandler(nullptr, 0, "deploy", "failure");
+    }
   }
 }
 

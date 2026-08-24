@@ -30,6 +30,8 @@ static inline void throwJavaException(JNIEnv* env, const char* msg) {
 // UTF-16 surrogate code unit, so a high+low pair becomes a proper UTF-16 pair
 // for the same supplementary code point.
 static inline std::vector<jchar> Utf8ToUtf16(const char* in, size_t len) {
+  constexpr unsigned kContinuationMask = 0xC0;
+  constexpr unsigned kContinuationTag = 0x80;
   std::vector<jchar> out;
   out.reserve(len);
   size_t i = 0;
@@ -38,28 +40,46 @@ static inline std::vector<jchar> Utf8ToUtf16(const char* in, size_t len) {
     if (c < 0x80) {
       out.push_back(static_cast<jchar>(c));
       ++i;
-    } else if ((c >> 5) == 0x6 && i + 1 < len) {
+    } else if ((c >> 5) == 0x6 && i + 1 < len &&
+               (static_cast<unsigned char>(in[i + 1]) & kContinuationMask) ==
+                   kContinuationTag) {
       out.push_back(static_cast<jchar>(
           ((c & 0x1Fu) << 6) | (static_cast<unsigned char>(in[i + 1]) & 0x3Fu)));
       i += 2;
-    } else if ((c >> 4) == 0xE && i + 2 < len) {
+    } else if ((c >> 4) == 0xE && i + 2 < len &&
+               (static_cast<unsigned char>(in[i + 1]) & kContinuationMask) ==
+                   kContinuationTag &&
+               (static_cast<unsigned char>(in[i + 2]) & kContinuationMask) ==
+                   kContinuationTag) {
       out.push_back(static_cast<jchar>(
           ((c & 0x0Fu) << 12) |
           ((static_cast<unsigned char>(in[i + 1]) & 0x3Fu) << 6) |
           (static_cast<unsigned char>(in[i + 2]) & 0x3Fu)));
       i += 3;
-    } else if (i + 3 < len) {
+    } else if (c >= 0xF0 && c <= 0xF7 && i + 3 < len) {
+      // Only a real 4-byte lead (0xF0-0xF7) enters this branch: continuation
+      // bytes (0x80-0xBF) and invalid leads (0xF8-0xFF) must not be decoded
+      // as a 4-byte code point, which would corrupt the rest of the string
+      // on malformed input.
       const auto cp = static_cast<uint32_t>(
           ((c & 0x07u) << 18) |
           ((static_cast<unsigned char>(in[i + 1]) & 0x3Fu) << 12) |
           ((static_cast<unsigned char>(in[i + 2]) & 0x3Fu) << 6) |
           (static_cast<unsigned char>(in[i + 3]) & 0x3Fu));
-      if (cp >= 0x10000) {
+      const bool valid =
+          cp <= 0x10FFFF && !(cp >= 0xD800 && cp <= 0xDFFF) &&
+          (static_cast<unsigned char>(in[i + 1]) & kContinuationMask) ==
+              kContinuationTag &&
+          (static_cast<unsigned char>(in[i + 2]) & kContinuationMask) ==
+              kContinuationTag &&
+          (static_cast<unsigned char>(in[i + 3]) & kContinuationMask) ==
+              kContinuationTag;
+      if (valid) {
         const auto v = cp - 0x10000;
         out.push_back(static_cast<jchar>(0xD800 + (v >> 10)));
         out.push_back(static_cast<jchar>(0xDC00 + (v & 0x3FF)));
       } else {
-        out.push_back(static_cast<jchar>(cp));
+        out.push_back(static_cast<jchar>(c));
       }
       i += 4;
     } else {
@@ -73,6 +93,9 @@ static inline std::vector<jchar> Utf8ToUtf16(const char* in, size_t len) {
 
 // Encode UTF-16 code units as standard UTF-8 (surrogate pairs combined).
 static inline std::string Utf16ToUtf8(const std::vector<jchar>& in) {
+  // Unicode replacement character (U+FFFD) for unpaired surrogates, which
+  // Java strings may legally contain and which have no standard UTF-8 form.
+  constexpr uint32_t kReplacement = 0xFFFD;
   std::string out;
   out.reserve(in.size());
   for (size_t i = 0; i < in.size(); ++i) {
@@ -89,7 +112,12 @@ static inline std::string Utf16ToUtf8(const std::vector<jchar>& in) {
         continue;
       }
     }
-    if (u < 0x80) {
+    if (u == kReplacement || (u >= 0xD800 && u <= 0xDFFF)) {
+      // Lone surrogate: emit U+FFFD instead of invalid CESU-8.
+      out.push_back(static_cast<char>(0xEF));
+      out.push_back(static_cast<char>(0xBF));
+      out.push_back(static_cast<char>(0xBD));
+    } else if (u < 0x80) {
       out.push_back(static_cast<char>(u));
     } else if (u < 0x800) {
       out.push_back(static_cast<char>(0xC0 | (u >> 6)));
@@ -112,7 +140,11 @@ static inline std::string ModifiedUtf8ToUtf8(const char* in, jsize len) {
 // librime output: its 4-byte sequences are not valid Modified UTF-8.
 static inline jstring NewUtf8String(JNIEnv* env, const char* in, size_t len) {
   const std::vector<jchar> utf16 = Utf8ToUtf16(in, len);
-  return env->NewString(utf16.data(), static_cast<jsize>(utf16.size()));
+  // NewString is only guaranteed to accept a valid pointer; an empty vector's
+  // data() may be null, so pass a non-null dummy for the empty case.
+  static constexpr jchar kEmpty = 0;
+  return env->NewString(utf16.empty() ? &kEmpty : utf16.data(),
+                        static_cast<jsize>(utf16.size()));
 }
 
 class CString {

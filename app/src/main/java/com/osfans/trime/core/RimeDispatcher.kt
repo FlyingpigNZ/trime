@@ -30,7 +30,7 @@ class RimeDispatcher(
     private val controller: RimeController,
 ) : CoroutineDispatcher() {
     interface RimeController {
-        fun nativeStartup()
+        fun nativeStartup(fullCheck: Boolean)
 
         fun nativeFinalize()
     }
@@ -83,14 +83,14 @@ class RimeDispatcher(
      * Start the dispatcher
      * This function returns immediately
      */
-    fun start() {
+    fun start(fullCheck: Boolean = false) {
         Timber.d("RimeDispatcher start()")
         internalScope.launch {
             mutex.withLock {
                 if (isRunning.compareAndSet(false, true)) {
                     try {
                         Timber.d("nativeStartup()")
-                        controller.nativeStartup()
+                        controller.nativeStartup(fullCheck)
                         while (isActive && isRunning.get()) {
                             val block = queue.take()
                             try {

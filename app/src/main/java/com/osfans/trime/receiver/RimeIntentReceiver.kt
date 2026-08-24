@@ -23,7 +23,7 @@ class RimeIntentReceiver : BroadcastReceiver() {
         when (intent.action) {
             ACTION_DEPLOY -> {
                 Timber.i("try to start maintenance ...")
-                rime.launchOnReady { it.deploy() }
+                rime.launchOnReady { RimeDaemon.restartRime(fullCheck = true) }
             }
             ACTION_SYNC_USER_DATA -> {
                 Timber.i("try to sync rime user data ...")
