@@ -5,6 +5,7 @@
 package com.osfans.trime.data.schema
 
 import android.content.Intent
+import android.os.Process
 import androidx.core.content.ContextCompat
 import com.osfans.trime.BuildConfig
 import com.osfans.trime.daemon.ImePackageNotifications
@@ -35,6 +36,16 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal object PackageCompiler {
     private val compiling = AtomicBoolean(false)
     private val compileMutex = Mutex()
+
+    /**
+     * The compile session of the most recent compile, recorded while polling
+     * for its marker. The session process kills itself after finishing, but
+     * the kill is asynchronous: before opening a new session we wait for this
+     * one to fully exit (force-killing it on timeout), so the new session
+     * always starts in a fresh process with clean librime state.
+     */
+    @Volatile
+    private var lastCompileSession: PackageStore.CompileSessionRef? = null
 
     /** True while a compile is running; UI should block new imports. */
     fun isCompiling(): Boolean = compiling.get()
@@ -107,6 +118,12 @@ internal object PackageCompiler {
                 throw IllegalStateException("IME package compile is already in progress")
             }
             try {
+                // One compile session at a time, and only after the previous
+                // session is FULLY destroyed: librime keeps global Deployer
+                // state per process, so a new session started before the old
+                // process exited would run its deploy against stale state and
+                // fail instantly.
+                awaitPreviousCompileSessionExit()
                 val marker = File(workspace, "compiled.marker")
                 val error = File(workspace, "compiled.error")
                 marker.delete()
@@ -129,7 +146,9 @@ internal object PackageCompiler {
                 val startedAt = System.currentTimeMillis()
                 val deadline = startedAt + COMPILE_TIMEOUT_MS
                 while (!marker.isFile && !error.isFile && System.currentTimeMillis() < deadline) {
-                    if (compileProcessDied(workspace, startedAt)) {
+                    val session = PackageStore.readCompileSessionRef(workspace)
+                    if (session != null) lastCompileSession = session
+                    if (compileSessionDied(session, workspace, startedAt)) {
                         throw IllegalStateException("IME package compile process died: $packageId")
                     }
                     delay(COMPILE_POLL_INTERVAL_MS)
@@ -158,24 +177,24 @@ internal object PackageCompiler {
     }
 
     /**
-     * Detect that the `:compile` process is no longer making progress before
-     * the compile timeout expires. Liveness is the conjunction of the pid
-     * file's `/proc/<pid>` check AND a fresh heartbeat: the pid alone can
-     * false-positive when the dead process's pid gets reused by another
-     * same-uid process, while the heartbeat is only refreshed by the compile
-     * process's own watchdog thread.
+     * Detect that the compile session is no longer making progress before the
+     * compile timeout expires. The session's pid file `/proc/<pid>/stat`
+     * start-time check is the authoritative signal: it declares death only
+     * when the recorded process is actually gone (and, via the start time, is
+     * not fooled by pid reuse). The heartbeat is only a fallback for the
+     * window before the pid file exists (or when the pid write failed), so a
+     * live session whose heartbeat thread stalls under load is not mistaken
+     * for a dead one.
      */
-    private fun compileProcessDied(workspace: File, startedAt: Long): Boolean {
-        val pidFile = File(workspace, PackageStore.COMPILE_PID_FILE)
-        val pid = runCatching { pidFile.readText().trim().toIntOrNull() }.getOrNull()
-        val heartbeat = File(workspace, PackageStore.COMPILE_HEARTBEAT_FILE)
-        if (pid != null) {
-            val pidAlive = File("/proc/$pid").isDirectory
-            val heartbeatFresh =
-                !heartbeat.isFile ||
-                    System.currentTimeMillis() - heartbeat.lastModified() <= COMPILE_HEARTBEAT_STALE_MS
-            return !(pidAlive && heartbeatFresh)
+    private fun compileSessionDied(
+        session: PackageStore.CompileSessionRef?,
+        workspace: File,
+        startedAt: Long,
+    ): Boolean {
+        if (session != null) {
+            return !PackageStore.isCompileSessionAlive(session)
         }
+        val heartbeat = File(workspace, PackageStore.COMPILE_HEARTBEAT_FILE)
         if (heartbeat.isFile) {
             return System.currentTimeMillis() - heartbeat.lastModified() > COMPILE_HEARTBEAT_STALE_MS
         }
@@ -184,11 +203,41 @@ internal object PackageCompiler {
         return System.currentTimeMillis() - startedAt > COMPILE_PROCESS_GRACE_MS
     }
 
+    /**
+     * Wait for the previous compile session to fully exit before opening a new
+     * one. The session process kills itself after finishing, but the kill is
+     * asynchronous; opening a new session before the old process died would
+     * land the new intent in the dying process, whose librime singleton is
+     * already initialized — the deploy then fails instantly. If the recorded
+     * session is still alive past a bounded wait, force-kill it (same uid) so
+     * the next session always starts in a fresh process.
+     */
+    private suspend fun awaitPreviousCompileSessionExit() {
+        val previous = lastCompileSession ?: return
+        lastCompileSession = null
+        if (!PackageStore.isCompileSessionAlive(previous)) return
+        val startedAt = System.currentTimeMillis()
+        while (System.currentTimeMillis() - startedAt <= COMPILE_SESSION_EXIT_WAIT_MS) {
+            if (!PackageStore.isCompileSessionAlive(previous)) return
+            delay(COMPILE_SESSION_EXIT_POLL_MS)
+        }
+        if (PackageStore.isCompileSessionAlive(previous)) {
+            Timber.w("Previous compile session ${previous.pid} did not exit; force-killing it")
+            Process.killProcess(previous.pid)
+        }
+    }
+
     private const val COMPILE_TIMEOUT_MS = 10 * 60 * 1000L
     private const val COMPILE_POLL_INTERVAL_MS = 500L
 
     /** Grace period for the `:compile` process to spawn and publish its pid. */
     private const val COMPILE_PROCESS_GRACE_MS = 10 * 1000L
+
+    /** How long to wait for the previous compile session to exit before force-killing it. */
+    private const val COMPILE_SESSION_EXIT_WAIT_MS = 10 * 1000L
+
+    /** Poll interval while waiting for the previous compile session to exit. */
+    private const val COMPILE_SESSION_EXIT_POLL_MS = 100L
 
     /** Heartbeat is considered stale after this long without a refresh (5× the 2s interval). */
     private const val COMPILE_HEARTBEAT_STALE_MS = 10 * 1000L

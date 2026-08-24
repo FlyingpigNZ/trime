@@ -10,7 +10,6 @@ import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -103,6 +102,45 @@ internal object PackageActivator {
     }
 
     /**
+     * Compile the workspace the engine will start against — the active
+     * package, or Default on a fresh install — via the isolated `:compile`
+     * process, before the engine's first start. Runs at application start,
+     * ahead of any engine session; the engine's first start is gated on
+     * [RimeDaemon.markStartupWorkspaceReady] until this completes, so the main
+     * process never runs a full workspace deploy itself.
+     */
+    suspend fun ensureStartupWorkspaceReady() {
+        ensureMutex.withLock {
+            withContext(Dispatchers.IO) {
+                try {
+                    // Sync shared assets first so the bundled Default.zip
+                    // exists for [installBundledDefaultPackage].
+                    DataManager.sync()
+                    installBundledDefaultPackage()
+                    val target =
+                        PackageStore.activePackageId() ?: PackageStore.DEFAULT_PACKAGE_ID
+                    if (!PackageStore.isCompiled(target)) {
+                        // restartActive=false: the engine is not started yet
+                        // (its first start waits on the gate), so
+                        // compilePackage must not restart it.
+                        PackageCompiler.compilePackage(
+                            target,
+                            restartActive = false,
+                            restoreThemeAfter = false,
+                        )
+                    }
+                } finally {
+                    // Release the engine's first-start gate whether the compile
+                    // succeeded or failed: the engine must be allowed to start
+                    // either way (a failed deploy surfaces via the FAILED state
+                    // and the theme-fallback path takes over).
+                    RimeDaemon.markStartupWorkspaceReady()
+                }
+            }
+        }
+    }
+
+    /**
      * Ensure a Default package exists and is active before theme/UI init.
      */
     suspend fun ensureDefaultPackageReady() {
@@ -125,24 +163,17 @@ internal object PackageActivator {
                     PackageStore.setActivePackage(PackageStore.DEFAULT_PACKAGE_ID)
                 }
                 if (!PackageStore.isCompiled(PackageStore.DEFAULT_PACKAGE_ID)) {
-                    // The engine itself may be deploying Default right now (startup
-                    // maintenance). Give it a short window to write compiled.marker
-                    // before starting a separate compile service, to avoid two
-                    // deploys racing on the same workspace.
-                    val defaultWorkspace = PackageStore.defaultWorkspaceDir()
-                    val marker = File(defaultWorkspace, "compiled.marker")
-                    val error = File(defaultWorkspace, "compiled.error")
-                    val waitDeadline = System.currentTimeMillis() + ENGINE_DEPLOY_WAIT_MS
-                    while (!marker.isFile && !error.isFile && System.currentTimeMillis() < waitDeadline) {
-                        delay(ENGINE_DEPLOY_POLL_INTERVAL_MS)
-                    }
-                }
-                if (!PackageStore.isCompiled(PackageStore.DEFAULT_PACKAGE_ID)) {
+                    // The engine no longer deploys Default in-process at
+                    // startup: the startup workspace is compiled by the
+                    // isolated :compile process (ensureStartupWorkspaceReady)
+                    // before the engine starts, so there is nothing to wait
+                    // for here. Compile now if it is still missing.
                     // If we fell back from another active package, the caller
                     // restarts Rime below; only compilePackage itself restarts
-                    // when Default was already active and simply needed compiling.
-                    // The caller always restores the theme once at the end, so
-                    // compilePackage should not restore/notify here too.
+                    // when Default was already active and simply needed
+                    // compiling. The caller always restores the theme once at
+                    // the end, so compilePackage should not restore/notify
+                    // here too.
                     PackageCompiler.compilePackage(
                         PackageStore.DEFAULT_PACKAGE_ID,
                         restartActive = active == PackageStore.DEFAULT_PACKAGE_ID,
@@ -181,7 +212,4 @@ internal object PackageActivator {
 
     /** Internal package zips are stored as `<packageDir>/package.zip`. */
     private fun packageIdFromPackageFile(packageFile: File): String = packageFile.parentFile?.name ?: packageFile.nameWithoutExtension
-
-    private const val ENGINE_DEPLOY_WAIT_MS = 30 * 1000L
-    private const val ENGINE_DEPLOY_POLL_INTERVAL_MS = 200L
 }

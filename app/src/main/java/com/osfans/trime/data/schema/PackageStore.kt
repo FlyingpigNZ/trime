@@ -4,6 +4,7 @@
 
 package com.osfans.trime.data.schema
 
+import android.os.Process
 import com.osfans.trime.util.appContext
 import java.io.File
 import java.io.FileOutputStream
@@ -92,4 +93,65 @@ object PackageStore {
         packageId.matches(Regex("[A-Za-z0-9._-]+"))
 
     fun isCompiled(packageId: String): Boolean = File(workspaceDir(packageId), "compiled.marker").isFile
+
+    /**
+     * Identity of a compile session: the pid of the `:compile` process plus
+     * its /proc start time (when known). The start time lets the main process
+     * tell "the same session is still running" from "the pid was recycled by
+     * an unrelated process", so it never force-kills a stranger.
+     */
+    data class CompileSessionRef(val pid: Int, val startTime: Long?)
+
+    /**
+     * Record this process's pid (and start time) as the compile session of
+     * [workspace]. The main process reads it back to enforce "one compile
+     * session at a time, and only after the previous one fully exited".
+     */
+    fun writeCompileSessionRef(workspace: File) {
+        val pid = Process.myPid()
+        val startTime = processStartTime(pid)
+        val content = if (startTime != null) "$pid $startTime" else pid.toString()
+        File(workspace, COMPILE_PID_FILE).writeText(content)
+    }
+
+    fun readCompileSessionRef(workspace: File): CompileSessionRef? {
+        val text =
+            runCatching { File(workspace, COMPILE_PID_FILE).readText().trim() }
+                .getOrNull() ?: return null
+        val parts = text.split(' ')
+        val pid = parts.getOrNull(0)?.toIntOrNull() ?: return null
+        val startTime = parts.getOrNull(1)?.toLongOrNull()
+        return CompileSessionRef(pid, startTime)
+    }
+
+    /**
+     * Whether the recorded compile session is still the same live process.
+     * `/proc/<pid>` existence alone can false-positive when a dead session's
+     * pid is recycled, so when a start time was recorded it must match
+     * `/proc/<pid>/stat` field 22; unreadable/missing start times fall back to
+     * mere pid existence (never report a live process as dead over a missing
+     * start time).
+     */
+    fun isCompileSessionAlive(ref: CompileSessionRef): Boolean {
+        if (!File("/proc/${ref.pid}/stat").isFile) return false
+        val recordedStart = ref.startTime ?: return true
+        val currentStart = processStartTime(ref.pid) ?: return true
+        return recordedStart == currentStart
+    }
+
+    /**
+     * Field 22 (`starttime`) of `/proc/<pid>/stat`, in clock ticks since boot.
+     * `/proc/<pid>/stat` is `pid (comm) state ppid ... starttime ...`; `comm`
+     * (field 2) may contain spaces, so tokens are parsed after the last `)`.
+     * `starttime` is the 22nd field overall, i.e. the 19th token (0-based)
+     * after `comm`'s closing parenthesis.
+     */
+    fun processStartTime(pid: Int): Long? =
+        runCatching {
+            val stat = File("/proc/$pid/stat").readText()
+            val afterComm = stat.substringAfterLast(')')
+            afterComm.trim().split(Regex("\\s+"))[PROC_STAT_START_TIME_INDEX].toLong()
+        }.getOrNull()
+
+    private const val PROC_STAT_START_TIME_INDEX = 19
 }

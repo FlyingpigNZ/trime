@@ -90,6 +90,21 @@ object RimeDaemon {
     private val lock = ReentrantLock()
 
     /**
+     * Gate for the engine's first start. Completed once the workspace the
+     * engine will start against (the active package, or Default on a fresh
+     * install) has been compiled by the isolated `:compile` process, so the
+     * main process never runs a full workspace deploy itself. A fresh-install
+     * Default deploy therefore happens in the `:compile` process, not in the
+     * main-process engine.
+     */
+    private val startupWorkspaceGate = CompletableDeferred<Unit>()
+
+    /** Release the first-start gate; safe to call more than once. */
+    fun markStartupWorkspaceReady() {
+        if (!startupWorkspaceGate.isCompleted) startupWorkspaceGate.complete(Unit)
+    }
+
+    /**
      * Set while the engine is STARTING: a restart was requested but cannot run
      * until the current deploy completes ([onRimeStateChanged] consumes it).
      * Guards against package activation being silently dropped during the
@@ -158,7 +173,21 @@ object RimeDaemon {
             return@withLock sessions.getValue(name)
         }
         when (realRime.lifecycle.currentState) {
-            RimeLifecycle.State.STOPPED -> realRime.startup()
+            RimeLifecycle.State.STOPPED -> {
+                if (startupWorkspaceGate.isCompleted) {
+                    realRime.startup()
+                } else {
+                    // First engine start: never deploy the startup workspace
+                    // in-process in the main process. The isolated :compile
+                    // process compiles it first (see
+                    // PackageActivator.ensureStartupWorkspaceReady); the
+                    // engine starts once that is done.
+                    realRime.lifecycle.lifecycleScope.launch {
+                        startupWorkspaceGate.await()
+                        lock.withLock { if (sessions.isNotEmpty()) realRime.startup() }
+                    }
+                }
+            }
             RimeLifecycle.State.FAILED -> {
                 // The previous deploy failed; tear the engine down and retry
                 // on the next session instead of leaving it wedged.

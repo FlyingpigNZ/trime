@@ -20,6 +20,7 @@ import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.db.ClipboardHelper
 import com.osfans.trime.data.db.CollectionHelper
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.receiver.RimeIntentReceiver
 import com.osfans.trime.ui.main.LogActivity
@@ -158,6 +159,14 @@ class TrimeApplication : Application() {
                 CollectionHelper.init(applicationContext)
                 registerBroadcastReceiver()
                 startWorkManager()
+                // Compile the startup workspace (Default on a fresh install)
+                // via the isolated :compile process before the engine's first
+                // start; the engine start is gated on it so the main process
+                // never runs a full workspace deploy itself.
+                coroutineScope.launch {
+                    runCatching { ImePackageManager.ensureStartupWorkspaceReady() }
+                        .onFailure { t -> Timber.e(t, "Startup workspace bootstrap failed") }
+                }
             }
         } catch (e: Exception) {
             e.fillInStackTrace()

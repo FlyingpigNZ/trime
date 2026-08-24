@@ -93,6 +93,8 @@ object ImePackageManager {
 
     fun installBundledDefaultPackage() = PackageActivator.installBundledDefaultPackage()
 
+    suspend fun ensureStartupWorkspaceReady() = PackageActivator.ensureStartupWorkspaceReady()
+
     suspend fun ensureDefaultPackageReady() = PackageActivator.ensureDefaultPackageReady()
 
     fun isCompiled(fileName: String): Boolean = PackageCompiler.isCompiled(fileName)

@@ -55,16 +55,18 @@ class PackageCompileService : Service() {
         val workspaceDir = intent?.getStringExtra(EXTRA_WORKSPACE_DIR)
         val sharedDir = intent?.getStringExtra(EXTRA_SHARED_DIR)
         val version = intent?.getStringExtra(EXTRA_VERSION) ?: BuildConfig.BUILD_VERSION_NAME
-        // H7: publish liveness so the main process can fail fast when this
-        // process dies mid-compile (crash/kill) instead of waiting out the
-        // full timeout. The pid file lets the main process check /proc/<pid>
-        // directly; the heartbeat (mtime refreshed by a watchdog thread) is
-        // the fallback and also survives pid reuse. Both live in the workspace
-        // next to compiled.marker/compiled.error.
-        val pidFile = workspaceDir?.let { File(it, PackageStore.COMPILE_PID_FILE) }
-        val heartbeatFile = workspaceDir?.let { File(it, PackageStore.COMPILE_HEARTBEAT_FILE) }
+        // H7: publish the compile-session identity so the main process can fail
+        // fast when this process dies mid-compile (crash/kill) instead of
+        // waiting out the full timeout, and can wait for this session to fully
+        // exit before opening the next one. The pid file records this process's
+        // pid plus its /proc/<pid>/stat start time; the heartbeat (mtime
+        // refreshed by a watchdog thread) is a fallback while the pid file is
+        // missing. Both live in the workspace next to compiled.marker/error.
+        val workspace = workspaceDir?.let(::File)
+        val pidFile = workspace?.let { File(it, PackageStore.COMPILE_PID_FILE) }
+        val heartbeatFile = workspace?.let { File(it, PackageStore.COMPILE_HEARTBEAT_FILE) }
         runCatching {
-            pidFile?.writeText(Process.myPid().toString())
+            workspace?.let(PackageStore::writeCompileSessionRef)
             heartbeatFile?.let { file ->
                 file.createNewFile()
                 file.setLastModified(System.currentTimeMillis())
