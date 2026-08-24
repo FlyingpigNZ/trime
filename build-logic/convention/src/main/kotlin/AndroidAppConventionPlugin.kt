@@ -41,17 +41,29 @@ class AndroidAppConventionPlugin : AndroidBaseConventionPlugin() {
         target.tasks.withType<CompileArtProfileTask> { enabled = false }
 
         target.extensions.configure<ApplicationAndroidComponentsExtension> {
-            // Add dependency relationships for data checksums task
+            // Add dependency relationships for the asset generators that write
+            // into app/src/main/assets (the source tree): lint's release
+            // analysis scans that directory directly, so the relationship must
+            // be declared explicitly or Gradle reports an implicit dependency
+            // (and the lint result could be stale).
             onVariants { v ->
                 val variantName = v.name.replaceFirstChar { it.uppercase() }
                 // Evaluation should be delayed as we need be able to see other tasks
                 target.afterEvaluate {
-                    tasks.findByName(DataChecksumsPlugin.TASK)?.also {
-                        tasks.findByName("merge${variantName}Assets")?.dependsOn(it)
-                        // AGP 9 renamed the release-lint analysis task from
-                        // lintVitalAnalyzeRelease; lintReportRelease depends
-                        // on lintAnalyzeRelease.
-                        tasks.findByName("lintAnalyzeRelease")?.dependsOn(it)
+                    val assetGenerators =
+                        listOfNotNull(
+                            tasks.findByName(DataChecksumsPlugin.TASK),
+                            tasks.findByName("buildDefaultPackage"),
+                            tasks.findByName(OpenCCDataPlugin.INSTALL_TASK),
+                        )
+                    if (assetGenerators.isEmpty()) return@afterEvaluate
+                    listOfNotNull(
+                        tasks.findByName("merge${variantName}Assets"),
+                        tasks.findByName("lintAnalyzeRelease"),
+                        tasks.findByName("lintVitalAnalyzeRelease"),
+                        tasks.findByName("generateReleaseLintVitalReportModel"),
+                    ).forEach { consumer ->
+                        assetGenerators.forEach { consumer.dependsOn(it) }
                     }
                 }
             }
