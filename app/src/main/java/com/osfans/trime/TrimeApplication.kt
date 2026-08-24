@@ -181,15 +181,14 @@ class TrimeApplication : Application() {
 
         fun getLastPid() = lastPid
 
-        /** Best-effort current process name (API 28+; /proc/self/cmdline fallback). */
-        private fun currentProcessName(): String? =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                Process.myProcessName()
-            } else {
-                runCatching {
-                    java.io.File("/proc/self/cmdline").readText().trim('\u0000').trim()
-                }.getOrNull()
-            }
+        /** Best-effort current process name (API 33+; /proc/self/cmdline fallback). */
+        private fun currentProcessName(): String? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Process.myProcessName()
+        } else {
+            runCatching {
+                java.io.File("/proc/self/cmdline").readText().trim('\u0000').trim()
+            }.getOrNull()
+        }
 
         private const val MAX_STACKTRACE_SIZE = 128000
 

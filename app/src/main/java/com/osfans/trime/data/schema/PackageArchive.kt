@@ -125,11 +125,13 @@ internal object PackageArchive {
         workspace: File,
     ) {
         ZipFile(zip).use { z ->
+            val workspaceCanonical = workspace.canonicalPath
             z.entries().asSequence().forEach { entry ->
                 if (entry.isDirectory) return@forEach
                 val name = entry.name
-                val normalizedName = File(name).toPath().normalize()
-                if (normalizedName.isAbsolute || normalizedName.startsWith("..")) {
+                // Reject absolute paths and parent traversal before touching
+                // the disk (java.nio.file.Path is API 26+; minSdk is 21).
+                if (name.startsWith("/") || name.split('/').any { it == ".." }) {
                     throw IllegalArgumentException("Unsafe path in IME package: $name")
                 }
                 val relative =
@@ -140,8 +142,7 @@ internal object PackageArchive {
                     return@forEach
                 }
                 val target = File(workspace, relative)
-                val normalizedTarget = target.toPath().toAbsolutePath().normalize()
-                if (!normalizedTarget.startsWith(workspace.toPath().toAbsolutePath().normalize())) {
+                if (!target.canonicalPath.startsWith(workspaceCanonical + File.separator)) {
                     throw IllegalArgumentException("Unsafe path in IME package: $name")
                 }
                 target.parentFile?.mkdirs()

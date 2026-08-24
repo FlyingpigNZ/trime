@@ -48,8 +48,10 @@ class AndroidAppConventionPlugin : AndroidBaseConventionPlugin() {
                 target.afterEvaluate {
                     tasks.findByName(DataChecksumsPlugin.TASK)?.also {
                         tasks.findByName("merge${variantName}Assets")?.dependsOn(it)
-                        tasks.findByName("lintVitalAnalyzeRelease")?.dependsOn(it)
-                        tasks.findByName("generateReleaseLintVitalReportModel")?.dependsOn(it)
+                        // AGP 9 renamed the release-lint analysis task from
+                        // lintVitalAnalyzeRelease; lintReportRelease depends
+                        // on lintAnalyzeRelease.
+                        tasks.findByName("lintAnalyzeRelease")?.dependsOn(it)
                     }
                 }
             }
