@@ -197,10 +197,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             rime.runOnReadyOrFailed {
                 // A corrupt/undeployable Default workspace must not crash the
                 // IME at startup: log, apply the builtin fallback theme, and
-                // let the rest of the bootstrap continue.
-                runCatching {
+                // let the rest of the bootstrap continue. Catch Exception
+                // (not Throwable) so genuine Errors still surface.
+                try {
                     ImePackageManager.ensureDefaultPackageReady()
-                }.onFailure { t ->
+                } catch (t: Exception) {
                     if (t is CancellationException) throw t
                     Timber.e(t, "Default package bootstrap failed; applying fallback theme")
                     runCatching { PackageCompiler.applyTheme(ThemeManager.fallbackTheme) }
@@ -460,9 +461,10 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                 withContext(Dispatchers.IO) {
                     // A failed Default bootstrap must not crash the IME nor
                     // leave the placeholder forever; fall back and continue.
-                    runCatching {
+                    // Catch Exception (not Throwable) so Errors still surface.
+                    try {
                         ImePackageManager.ensureDefaultPackageReady()
-                    }.onFailure { t ->
+                    } catch (t: Exception) {
                         if (t is CancellationException) throw t
                         Timber.e(t, "Default package bootstrap failed; applying fallback theme")
                         runCatching { PackageCompiler.applyTheme(ThemeManager.fallbackTheme) }

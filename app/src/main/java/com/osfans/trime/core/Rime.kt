@@ -399,25 +399,28 @@ class Rime(
     }
 
     fun startup(fullCheck: Boolean = false) {
-        if (lifecycle.currentState != RimeLifecycle.State.STOPPED) {
+        // Atomic CAS STOPPED -> STARTING: a concurrent restartRime or
+        // createSession that also observes STOPPED gets false here and
+        // returns instead of double-starting (emitState would throw).
+        if (!lifecycle.tryTransition(listOf(RimeLifecycle.State.STOPPED), RimeLifecycle.State.STARTING)) {
             Timber.w("Skip starting rime: not at stopped state!")
             return
         }
         _uiState.update { it.copy(deployState = DeployState.Idle) }
         registerRimeMessageHandler(rimeMessageHandler)
-        lifecycleRegistry.emitState(RimeLifecycle.State.STARTING)
         dispatcher.start(fullCheck)
     }
 
     fun finalize() {
-        val state = lifecycle.currentState
-        // A failed engine must also be finalizable so the daemon can tear it
-        // down and retry from STOPPED.
-        if (state != RimeLifecycle.State.READY && state != RimeLifecycle.State.FAILED) {
+        // Atomic CAS READY|FAILED -> STOPPING (see [startup]).
+        if (!lifecycle.tryTransition(
+                listOf(RimeLifecycle.State.READY, RimeLifecycle.State.FAILED),
+                RimeLifecycle.State.STOPPING,
+            )
+        ) {
             Timber.w("Skip stopping rime: not at ready state!")
             return
         }
-        lifecycleRegistry.emitState(RimeLifecycle.State.STOPPING)
         Timber.i("Rime finalize()")
         dispatcher.stop().let {
             if (it.isNotEmpty()) {

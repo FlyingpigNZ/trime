@@ -285,8 +285,14 @@ object RimeDaemon {
             // A live session whose deploy failed gets one automatic retry;
             // repeated failures are left to the user (the deploy-failure
             // notification) to avoid a retry loop on persistent environment
-            // problems. Reset once the engine reaches READY again.
-            if (sessions.isNotEmpty() && failedAutoRetried.compareAndSet(false, true)) {
+            // problems. Skip it when a deferred restart is already pending —
+            // the deferred restart will redeploy anyway, and running both
+            // would cause a redundant second restart.
+            val (hasSessions, hasPendingRestart) =
+                lock.withLock {
+                    sessions.isNotEmpty() to pendingRestart
+                }
+            if (hasSessions && !hasPendingRestart && failedAutoRetried.compareAndSet(false, true)) {
                 TrimeApplication.getInstance().coroutineScope.launch(Dispatchers.IO) {
                     delay(FAILED_RETRY_DELAY_MS)
                     runCatching { restartRime() }

@@ -8,6 +8,8 @@ package com.osfans.trime.ui.main
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
@@ -28,6 +30,9 @@ class ClipEditActivity : Activity() {
     private lateinit var editText: EditText
     private var clipType: String? = null
 
+    /** Whether the user edited the text since the last [setBean]. */
+    private var dirty = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.attributes.gravity = Gravity.TOP
@@ -39,6 +44,19 @@ class ClipEditActivity : Activity() {
             }
         setContentView(binding.root)
         inputMethodManager.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+        // User edits mark the text dirty; setBean suspends the flag so the
+        // programmatic setText does not count as an edit.
+        editText.addTextChangedListener(
+            object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    if (!loadingBean) dirty = true
+                }
+
+                override fun afterTextChanged(s: Editable?) = Unit
+            },
+        )
         if (savedInstanceState == null) {
             // First creation: load the bean from the intent. On a recreation
             // (rotation) the EditText text is restored by the view state and
@@ -47,6 +65,7 @@ class ClipEditActivity : Activity() {
         } else {
             beanId = savedInstanceState.getInt(BEAN_ID, beanId)
             clipType = savedInstanceState.getString(CLIP_TYPE)
+            dirty = savedInstanceState.getBoolean(KEY_DIRTY)
         }
     }
 
@@ -54,7 +73,10 @@ class ClipEditActivity : Activity() {
         super.onSaveInstanceState(outState)
         outState.putInt(BEAN_ID, beanId)
         outState.putString(CLIP_TYPE, clipType)
+        outState.putBoolean(KEY_DIRTY, dirty)
     }
+
+    private var loadingBean = false
 
     private fun finishEditing() {
         val str = editText.editableText.toString()
@@ -72,12 +94,21 @@ class ClipEditActivity : Activity() {
 
     private fun setBean(bean: DatabaseBean) {
         beanId = bean.id
-        editText.setText(bean.text)
+        loadingBean = true
+        try {
+            editText.setText(bean.text)
+        } finally {
+            loadingBean = false
+        }
+        dirty = false
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        processIntent(intent)
+        // Never clobber an unsaved edit with a fresh intent.
+        if (!dirty) {
+            processIntent(intent)
+        }
     }
 
     private fun processIntent(intent: Intent) {
@@ -108,5 +139,6 @@ class ClipEditActivity : Activity() {
         const val CLIP_TYPE = "clip_type"
         const val FROM_CLIPBOARD = "from_clipboard"
         const val FROM_COLLECTION = "from_collection"
+        private const val KEY_DIRTY = "dirty"
     }
 }

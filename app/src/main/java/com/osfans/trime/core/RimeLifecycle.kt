@@ -64,6 +64,34 @@ class RimeLifecycleRegistry : RimeLifecycle {
         observers.forEach { it.onChanged(state) }
     }
 
+    /**
+     * Atomically move from any of [from] to [to]. Returns false — without
+     * notifying and without throwing — when the current state is not one of
+     * [from], meaning another caller already transitioned. [Rime.startup] and
+     * [Rime.finalize] use this so concurrent restart/createSession callers
+     * cannot both observe STOPPED and double-start the engine (the old
+     * check-and-set in [emitState] was not atomic and threw instead).
+     */
+    fun tryTransition(
+        from: Collection<RimeLifecycle.State>,
+        to: RimeLifecycle.State,
+    ): Boolean {
+        val changed =
+            synchronized(internalState) {
+                if (internalState in from) {
+                    internalState = to
+                    true
+                } else {
+                    false
+                }
+            }
+        if (changed) {
+            Timber.d("Rime lifecycle -> $to")
+            observers.forEach { it.onChanged(to) }
+        }
+        return changed
+    }
+
     private fun checkAtState(vararg states: RimeLifecycle.State) = takeIf { states.any { state -> internalState == state } }
         ?: throw IllegalStateException("Currently not at ${states.toList()}! Actual state is $internalState")
 }
