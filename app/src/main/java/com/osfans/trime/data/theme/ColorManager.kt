@@ -37,6 +37,19 @@ object ColorManager {
 
     private lateinit var _activeColorScheme: ColorScheme
 
+    /**
+     * Whether [init] has run. Distinct from _activeColorScheme being set:
+     * switchTheme() also initializes the scheme (during package activation)
+     * but does not know isNightMode yet — only init() derives it from the
+     * system Configuration. ensureInitialized() must not skip init() just
+     * because the scheme exists, or the keyboard resolves the day palette.
+     */
+    private var initDone = false
+
+    /** Whether [init] has run (isNightMode is known). */
+    val isInitialized: Boolean
+        get() = initDone
+
     var activeColorScheme: ColorScheme
         get() = _activeColorScheme
         private set(value) {
@@ -77,6 +90,7 @@ object ColorManager {
     fun init(configuration: Configuration) {
         isNightMode = configuration.isNightMode() && followSystemDayNight
         activeColorScheme = evaluateActiveColorScheme()
+        initDone = true
         // activeColorScheme's setter skips rebuild when the scheme instance is
         // unchanged; init may be the first time isNightMode is known, so force
         // the palette rebuild to apply the correct day/night colors.
@@ -95,6 +109,12 @@ object ColorManager {
 
     fun onSystemNightModeChange(isNight: Boolean) {
         isNightMode = isNight && followSystemDayNight
+        // On a cold start the system can deliver the ui-mode configuration
+        // change BEFORE ColorManager.init has run (Rime is still starting),
+        // so _activeColorScheme is not initialized yet. Rebuilding the palette
+        // then throws and the state is silently lost. Only rebuild when the
+        // scheme is known; otherwise init() applies the recorded isNightMode.
+        if (!this::_activeColorScheme.isInitialized) return
         rebuildResolvedPalette()
         fireChange()
     }

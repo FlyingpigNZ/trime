@@ -522,6 +522,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle): InlineSuggestionsRequest? {
         if (!inlineSuggestions || !inputDeviceManager.useVirtualKeyboard) return null
+        // The system can request inline suggestions while Rime/theme bootstrap
+        // is still in progress (ColorManager not initialized); building the
+        // request then crashes on the uninitialized color scheme. Defer until
+        // the theme is ready.
+        if (!ThemeManager.isInitialized) return null
         return InlineSuggestions.createRequest(this)
     }
 

@@ -77,9 +77,16 @@ object ThemeManager {
         ColorManager.init(configuration)
     }
 
-    /** Initialize the active theme if the IME view is created before Rime is ready. */
+    /**
+     * Initialize the active theme if the IME view is created before Rime is
+     * ready. Checks both the theme and the ColorManager: the theme
+     * (_activeTheme) can be set early (e.g. applySchemaLayout on package
+     * activation) while ColorManager.init has not run yet, so isNightMode is
+     * still unknown and the keyboard would resolve the day palette (wrong
+     * background) instead of the night one.
+     */
     fun ensureInitialized(configuration: Configuration) {
-        if (!::_activeTheme.isInitialized) {
+        if (!::_activeTheme.isInitialized || !ColorManager.isInitialized) {
             init(configuration)
         }
     }
