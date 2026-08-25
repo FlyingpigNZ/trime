@@ -497,3 +497,4 @@ __pycache__/
 
 # Local VSCode workspace settings
 .vscode/
+.gradle-home/

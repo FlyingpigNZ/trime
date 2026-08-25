@@ -4,8 +4,8 @@
 
 package com.osfans.trime.data.schema
 
+import android.app.ActivityManager
 import android.content.Intent
-import android.os.Process
 import androidx.core.content.ContextCompat
 import com.osfans.trime.BuildConfig
 import com.osfans.trime.daemon.ImePackageNotifications
@@ -27,25 +27,25 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Runs workspace compiles in the separate `:compile` process and waits for
- * `compiled.marker` / `compiled.error` / the compile timeout. Also owns the
- * compiled marker bookkeeping ([markCurrentWorkspaceCompiled]) and theme
- * reload ([restoreActiveTheme]) shared by the compile and activation flows.
+ * `compiled.marker` / `compiled.error` / the compile timeout, with fail-fast
+ * death detection via [ActivityManager.getRunningAppProcesses].
+ *
+ * Process liveness is a system-level fact: [ActivityManager.getRunningAppProcesses]
+ * always includes same-uid processes (the main process and the `:compile`
+ * process share one uid), so a live compile is present in the list and a dead
+ * one is not. This is immune to the file-backed pid/heartbeat flakiness that
+ * previously caused false "compile died" reports on device — no pid files, no
+ * /proc parsing, no binder connections, no auto-restarted zombie processes.
+ *
+ * The compile service's own ground-truth files (compiled.marker / compiled.error)
+ * still decide the final outcome; process liveness only accelerates the timeout
+ * path when the process genuinely died.
  *
  * Split out of [ImePackageManager].
  */
 internal object PackageCompiler {
     private val compiling = AtomicBoolean(false)
     private val compileMutex = Mutex()
-
-    /**
-     * The compile session of the most recent compile, recorded while polling
-     * for its marker. The session process kills itself after finishing, but
-     * the kill is asynchronous: before opening a new session we wait for this
-     * one to fully exit (force-killing it on timeout), so the new session
-     * always starts in a fresh process with clean librime state.
-     */
-    @Volatile
-    private var lastCompileSession: PackageStore.CompileSessionRef? = null
 
     /** True while a compile is running; UI should block new imports. */
     fun isCompiling(): Boolean = compiling.get()
@@ -118,49 +118,52 @@ internal object PackageCompiler {
                 throw IllegalStateException("IME package compile is already in progress")
             }
             try {
-                // One compile session at a time, and only after the previous
-                // session is FULLY destroyed: librime keeps global Deployer
-                // state per process, so a new session started before the old
-                // process exited would run its deploy against stale state and
-                // fail instantly.
-                awaitPreviousCompileSessionExit()
-                val marker = File(workspace, "compiled.marker")
-                val error = File(workspace, "compiled.error")
-                marker.delete()
-                error.delete()
-                // Remove liveness artifacts left by a previously killed
-                // compile process so they cannot be mistaken for the new one
-                // (or for "no process started yet").
-                File(workspace, PackageStore.COMPILE_PID_FILE).delete()
-                File(workspace, PackageStore.COMPILE_HEARTBEAT_FILE).delete()
-                val intent =
-                    Intent(appContext, PackageCompileService::class.java).apply {
-                        putExtra(PackageCompileService.EXTRA_WORKSPACE_DIR, workspace.absolutePath)
-                        putExtra(
-                            PackageCompileService.EXTRA_SHARED_DIR,
-                            DataManager.sharedDataDir.absolutePath,
-                        )
-                        putExtra(PackageCompileService.EXTRA_VERSION, BuildConfig.BUILD_VERSION_NAME)
+                // The whole wait runs off the main thread: getRunningAppProcesses
+                // is a blocking binder IPC and must never run on the UI thread
+                // (it stalled rendering by ~8s/frame on device). The caller may
+                // be on the main thread (e.g. import from the settings UI).
+                withContext(Dispatchers.IO) {
+                    // One compile session at a time, and only after the previous
+                    // session is FULLY gone: librime keeps global Deployer state
+                    // per process, so a new session started before the old process
+                    // exited would run its deploy against stale state and fail
+                    // instantly.
+                    awaitPreviousCompileProcessExit()
+                    val marker = File(workspace, "compiled.marker")
+                    val error = File(workspace, "compiled.error")
+                    marker.delete()
+                    error.delete()
+                    val intent =
+                        Intent(appContext, PackageCompileService::class.java).apply {
+                            putExtra(PackageCompileService.EXTRA_WORKSPACE_DIR, workspace.absolutePath)
+                            putExtra(
+                                PackageCompileService.EXTRA_SHARED_DIR,
+                                DataManager.sharedDataDir.absolutePath,
+                            )
+                            putExtra(PackageCompileService.EXTRA_VERSION, BuildConfig.BUILD_VERSION_NAME)
+                        }
+                    ContextCompat.startForegroundService(appContext, intent)
+                    val deadline = System.currentTimeMillis() + COMPILE_TIMEOUT_MS
+                    // Outcome is decided by the compile service's own ground-truth
+                    // files (compiled.marker / compiled.error) plus the timeout.
+                    // Fail-fast: if the :compile process vanishes from the system
+                    // process list, it died (or crashed) mid-compile — declare
+                    // death instead of waiting out the full timeout.
+                    var compileProcessSeen = false
+                    while (!marker.isFile && !error.isFile && System.currentTimeMillis() < deadline) {
+                        val alive = isCompileProcessAlive()
+                        if (alive) compileProcessSeen = true
+                        if (compileProcessSeen && !alive) {
+                            throw IllegalStateException("IME package compile process died: $packageId")
+                        }
+                        delay(COMPILE_POLL_INTERVAL_MS)
                     }
-                ContextCompat.startForegroundService(appContext, intent)
-                val deadline = System.currentTimeMillis() + COMPILE_TIMEOUT_MS
-                // Outcome is decided by the compile service's own ground-truth
-                // files (compiled.marker / compiled.error) plus the timeout.
-                // The separate liveness/death detection was removed: on this
-                // device the pid file reads were unreliable and repeatedly
-                // reported a live compile as dead ("process died") while the
-                // :compile process was actually still running and succeeded.
-                // Record the session identity so the next compile can wait for
-                // this session to fully exit before starting.
-                while (!marker.isFile && !error.isFile && System.currentTimeMillis() < deadline) {
-                    PackageStore.readCompileSessionRef(workspace)?.let { lastCompileSession = it }
-                    delay(COMPILE_POLL_INTERVAL_MS)
-                }
-                if (error.isFile) {
-                    throw IllegalStateException("IME package compile failed: $packageId")
-                }
-                if (!marker.isFile) {
-                    throw IllegalStateException("IME package compile timed out: $packageId")
+                    if (error.isFile) {
+                        throw IllegalStateException("IME package compile failed: $packageId")
+                    }
+                    if (!marker.isFile) {
+                        throw IllegalStateException("IME package compile timed out: $packageId")
+                    }
                 }
                 // If the active package was recompiled in place, restart Rime so it
                 // picks up the new workspace contents, and reload the theme so the
@@ -180,35 +183,52 @@ internal object PackageCompiler {
     }
 
     /**
-     * Wait for the previous compile session to fully exit before opening a new
-     * one. The session process kills itself after finishing, but the kill is
+     * Whether the `:compile` process is currently alive, via the system's own
+     * process list. Same-uid processes are always visible to
+     * [ActivityManager.getRunningAppProcesses], so this is a reliable
+     * system-level fact — no pid files, no /proc reads, no binder.
+     */
+    private fun isCompileProcessAlive(): Boolean {
+        val manager = appContext.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? ActivityManager
+            ?: return true // No manager; never report death on a platform quirk.
+        val processes = runCatching { manager.runningAppProcesses }.getOrElse {
+            Timber.w(it, "PackageCompiler: runningAppProcesses failed")
+            return true
+        }
+        return processes.any { it.processName == COMPILE_PROCESS_NAME }
+    }
+
+    /**
+     * Wait for a previous `:compile` process to fully exit before opening a new
+     * session. The session process kills itself after finishing, but the kill is
      * asynchronous; opening a new session before the old process died would
      * land the new intent in the dying process, whose librime singleton is
-     * already initialized — the deploy then fails instantly. If the recorded
-     * session is still alive past a bounded wait, force-kill it (same uid) so
-     * the next session always starts in a fresh process.
+     * already initialized — the deploy then fails instantly.
      */
-    private suspend fun awaitPreviousCompileSessionExit() {
-        val previous = lastCompileSession ?: return
-        lastCompileSession = null
-        if (!PackageStore.isCompileSessionAlive(previous)) return
+    private suspend fun awaitPreviousCompileProcessExit() {
+        if (!isCompileProcessAlive()) return
         val startedAt = System.currentTimeMillis()
         while (System.currentTimeMillis() - startedAt <= COMPILE_SESSION_EXIT_WAIT_MS) {
-            if (!PackageStore.isCompileSessionAlive(previous)) return
+            if (!isCompileProcessAlive()) return
             delay(COMPILE_SESSION_EXIT_POLL_MS)
         }
-        if (PackageStore.isCompileSessionAlive(previous)) {
-            Timber.w("Previous compile session ${previous.pid} did not exit; force-killing it")
-            Process.killProcess(previous.pid)
-        }
+        Timber.w("Previous compile process did not exit within ${COMPILE_SESSION_EXIT_WAIT_MS}ms")
+        // The process refuses to die; there is nothing more the main process
+        // can do about it here (it cannot kill another same-uid process's
+        // service without a pid). The new session will start anyway; the
+        // :compile service's single-flight guard will reject any duplicate
+        // request if the old process is still busy.
     }
 
     private const val COMPILE_TIMEOUT_MS = 10 * 60 * 1000L
     private const val COMPILE_POLL_INTERVAL_MS = 500L
 
-    /** How long to wait for the previous compile session to exit before force-killing it. */
+    /** How long to wait for a previous compile process to exit. */
     private const val COMPILE_SESSION_EXIT_WAIT_MS = 10 * 1000L
 
-    /** Poll interval while waiting for the previous compile session to exit. */
+    /** Poll interval while waiting for a previous compile process to exit. */
     private const val COMPILE_SESSION_EXIT_POLL_MS = 100L
+
+    /** The :compile process name (applicationId + ":compile"). */
+    private val COMPILE_PROCESS_NAME: String = "${appContext.packageName}:compile"
 }
