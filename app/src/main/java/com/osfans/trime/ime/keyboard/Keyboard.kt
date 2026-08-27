@@ -30,12 +30,14 @@ class Keyboard(
     private val rime: RimeSession,
 ) {
 
-    /** 按鍵默認水平間距  */
+    /** 按鍵默認水平間距 (scaled with the keyboard height) */
     internal val horizontalGap: Int =
-        intArrayOf(
+        (intArrayOf(
             selfConfig?.horizontalGap ?: 0,
             theme.generalStyle.horizontalGap,
-        ).firstOrNull { it > 0 }?.let { context.dp(it) } ?: 0
+        ).firstOrNull { it > 0 } ?: 0)
+            .let { context.dp(it) }
+            .let { (it * heightScaleFactor).toInt() }
 
     /** 默認鍵寬  */
     private val keyWidth: Int = (allowedWidth * theme.generalStyle.keyWidth / 100).toInt()
@@ -47,12 +49,14 @@ class Keyboard(
             theme.generalStyle.keyHeight,
         ).firstOrNull { it > 0 } ?: 0
 
-    /** 默認行距  */
+    /** 默認行距 (scaled with the keyboard height) */
     internal val verticalGap: Int =
-        intArrayOf(
+        (intArrayOf(
             selfConfig?.verticalGap ?: 0,
             theme.generalStyle.verticalGap,
-        ).firstOrNull { it > 0 }?.let { context.dp(it) } ?: 0
+        ).firstOrNull { it > 0 } ?: 0)
+            .let { context.dp(it) }
+            .let { (it * heightScaleFactor).toInt() }
 
     /** 默認按鍵圓角半徑  */
     val roundCorner: Float =
