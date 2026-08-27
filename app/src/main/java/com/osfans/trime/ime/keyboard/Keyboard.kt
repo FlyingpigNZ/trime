@@ -26,18 +26,18 @@ import kotlin.math.pow
 class Keyboard(
     private val context: Context,
     private val theme: Theme,
-    selfConfig: TextKeyboard? = null,
+    private val selfConfig: TextKeyboard? = null,
     private val rime: RimeSession,
 ) {
 
     /** 按鍵默認水平間距 (scaled with the keyboard height) */
-    internal val horizontalGap: Int =
-        (intArrayOf(
-            selfConfig?.horizontalGap ?: 0,
-            theme.generalStyle.horizontalGap,
-        ).firstOrNull { it > 0 } ?: 0)
-            .let { context.dp(it) }
-            .let { (it * heightScaleFactor).toInt() }
+    internal val horizontalGap: Int
+        get() = (context.dp(
+            intArrayOf(
+                selfConfig?.horizontalGap ?: 0,
+                theme.generalStyle.horizontalGap,
+            ).firstOrNull { it > 0 } ?: 0,
+        ) * heightScaleFactor).toInt()
 
     /** 默認鍵寬  */
     private val keyWidth: Int = (allowedWidth * theme.generalStyle.keyWidth / 100).toInt()
@@ -50,13 +50,13 @@ class Keyboard(
         ).firstOrNull { it > 0 } ?: 0
 
     /** 默認行距 (scaled with the keyboard height) */
-    internal val verticalGap: Int =
-        (intArrayOf(
-            selfConfig?.verticalGap ?: 0,
-            theme.generalStyle.verticalGap,
-        ).firstOrNull { it > 0 } ?: 0)
-            .let { context.dp(it) }
-            .let { (it * heightScaleFactor).toInt() }
+    internal val verticalGap: Int
+        get() = (context.dp(
+            intArrayOf(
+                selfConfig?.verticalGap ?: 0,
+                theme.generalStyle.verticalGap,
+            ).firstOrNull { it > 0 } ?: 0,
+        ) * heightScaleFactor).toInt()
 
     /** 默認按鍵圓角半徑  */
     val roundCorner: Float =
@@ -159,15 +159,12 @@ class Keyboard(
 
     /**
      * The user-adjustable height scale, as a multiplier (1f = original).
-     * Derived from the base height and the scaled total height so portrait,
-     * landscape and per-keyboard heights all follow their own baseline.
+     * Computed from the height-scale preference directly, so it does not
+     * depend on property-initialization order: portrait, landscape and
+     * per-keyboard heights all share the same user-adjustable scale.
      */
     val heightScaleFactor: Float
-        get() = if (unscaledKeyboardHeight > 0) {
-            keyboardHeight.toFloat() / unscaledKeyboardHeight
-        } else {
-            1f
-        }
+        get() = heightScalePercent() / HEIGHT_SCALE_FACTOR.toFloat()
 
     val keyboardHeight: Int =
         unscaledKeyboardHeight * heightScalePercent() / HEIGHT_SCALE_FACTOR

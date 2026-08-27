@@ -70,7 +70,14 @@ class InputBarDelegate : InputBroadcastReceiver {
     private val candidate: CompactCandidateDelegate by di.instance()
     private val rime: RimeSession by di.instance()
 
-    val themedHeight = (theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt()
+    /**
+     * Bar height in px, scaled with the keyboard height. Read at layout time
+     * (not captured at construction): [UiScale.factor] is written by
+     * [com.osfans.trime.ime.keyboard.Keyboard] only after this delegate is
+     * constructed, so an eager read would see the stale/default factor.
+     */
+    val themedHeight: Int
+        get() = (theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt()
 
     private val prefs = AppPrefs.defaultInstance()
 

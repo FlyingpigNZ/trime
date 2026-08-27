@@ -46,7 +46,7 @@ style-lint: spotlessCheck clang-format-lint
 
 python-verifiers:
 	cd script && python3 -m unittest test_behavior_verifier test_component_resolver \
-		test_package_schema test_color_verifier test_validate_definitions
+		test_package_schema test_color_verifier test_validate_definitions test_generate_manifest
 	python3 script/validate-definitions.py --check-shipped
 
 style-apply: spotlessApply clang-format

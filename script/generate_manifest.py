@@ -15,24 +15,34 @@ renaming definition/Rime files, then package with `package_schema.py`:
 
 Only the two generated sections are rewritten; this is a full YAML rewrite,
 so hand-written comments in the old manifest are not preserved.
+
+Component type mapping follows doc/definition-schema.md: `keyboard.yaml` is a
+`keyboard`, `behavior.yaml` a `behavior`, `color.yaml` a `color`, and
+`style.yaml` / `chrome.yaml` / `liquid_keyboard.yaml` are all `style`
+components (each holds one or more of the style / preedit / window /
+tool_bar / liquid_keyboard sections).
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
 import yaml
 
+logger = logging.getLogger(__name__)
+
 # Root-level definition files and the component type they map to.
+# See doc/definition-schema.md "Package layout" / "style.yaml / chrome.yaml".
 COMPONENT_TYPE_BY_FILE = {
     "keyboard.yaml": "keyboard",
     "behavior.yaml": "behavior",
     "color.yaml": "color",
     "style.yaml": "style",
-    "liquid_keyboard.yaml": "style",
     "chrome.yaml": "style",
+    "liquid_keyboard.yaml": "style",
 }
 
 SCHEMA_SUFFIX = ".schema.yaml"
@@ -55,10 +65,9 @@ def build_components(src: Path) -> list[dict[str, dict[str, str]]]:
             continue
         kind = COMPONENT_TYPE_BY_FILE.get(path.name)
         if kind is None:
-            print(
-                f"warning: {path.name}: unknown root definition file, "
-                "not added to components",
-                file=sys.stderr,
+            logger.warning(
+                "%s: unknown root definition file, not added to components",
+                path.name,
             )
             continue
         components.append({kind: {"file": path.name}})

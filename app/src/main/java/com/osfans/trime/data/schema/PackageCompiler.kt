@@ -190,9 +190,12 @@ internal object PackageCompiler {
      */
     private fun isCompileProcessAlive(): Boolean {
         val manager = appContext.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? ActivityManager
-            ?: return true // No manager; never report death on a platform quirk.
+            ?: run {
+                Timber.w("PackageCompiler: no ActivityManager; assuming compile process alive")
+                return true // No manager; never report death on a platform quirk.
+            }
         val processes = runCatching { manager.runningAppProcesses }.getOrElse {
-            Timber.w(it, "PackageCompiler: runningAppProcesses failed")
+            Timber.w(it, "PackageCompiler: runningAppProcesses failed; assuming compile process alive")
             return true
         }
         return processes.any { it.processName == COMPILE_PROCESS_NAME }
