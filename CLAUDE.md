@@ -33,6 +33,19 @@ fix the data definition or the schema first.
    - If a fix genuinely belongs upstream, report/upstream it separately;
      never carry it in our tree.
 
+5. **Data inconsistency is a data problem — fix the data, not the code.**
+   - When the same data is defined inconsistently (e.g. one YAML value
+     carries padding spaces while the rest do not) and the code that
+     consumes it produces inconsistent behavior, normalize the data to a
+     single consistent form instead of loosening the code to tolerate every
+     variant.
+   - Relaxing the parser/consumer to accept all variants hides the
+     inconsistency and makes the schema meaningless; the schema and the
+     shipped data must agree, then the code consumes that one form.
+   - Apply this also to packaged assets: when the unpacked sources are
+     fixed, refresh the corresponding zip/asset so the shipped artifact
+     matches the sources.
+
 ## Working style
 
 - Validate definitions early and fail loudly with clear messages.
