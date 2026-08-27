@@ -13,6 +13,7 @@ import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.LiquidKeyboard
 import com.osfans.trime.ime.keyboard.CommonKeyboardActionListener
+import com.osfans.trime.ime.keyboard.UiScale
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.above
 import splitties.views.dsl.constraintlayout.after
@@ -66,7 +67,7 @@ class LiquidLayout(
                         }
                         return@Array ui.root
                     }
-                val marginX = theme.liquidKeyboard.marginX
+                val marginX = theme.liquidKeyboard.marginX * UiScale.factor
                 when (theme.liquidKeyboard.fixedKeyBar.position) {
                     LiquidKeyboard.KeyBar.Position.LEFT,
                     LiquidKeyboard.KeyBar.Position.RIGHT,
@@ -120,7 +121,7 @@ class LiquidLayout(
 
     val recyclerView =
         recyclerView {
-            val space = dp(theme.liquidKeyboard.marginX.toInt())
+            val space = dp((theme.liquidKeyboard.marginX * UiScale.factor).toInt())
             addItemDecoration(SpacesItemDecoration(space))
             setPadding(space)
         }
