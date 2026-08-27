@@ -147,10 +147,11 @@ class Keyboard(
     val asciiKeyboard: String? = selfConfig?.asciiKeyboard // 英文鍵盤
 
     val keyboardHeight: Int =
-        intArrayOf(
+        (intArrayOf(
             selfConfig?.let { getKeyboardHeightFromKeyboardConfig(it) } ?: 0,
             getKeyboardHeightFromTheme(theme),
-        ).firstOrNull { it > 0 } ?: 0
+        ).firstOrNull { it > 0 } ?: 0) *
+            heightScalePercent() / HEIGHT_SCALE_FACTOR
 
     private val expandKeypressArea: Boolean by AppPrefs.defaultInstance().keyboard.expandKeypressArea
 
@@ -381,6 +382,10 @@ class Keyboard(
         return context.dp(keyboardHeight)
     }
 
+    /** User-adjustable keyboard height scale (percent, 100 = original). */
+    private fun heightScalePercent(): Int =
+        AppPrefs.defaultInstance().keyboard.heightScale.getValue()
+
     fun setModifierKey(
         c: Int,
         key: Key?,
@@ -548,6 +553,9 @@ class Keyboard(
         private const val GRID_HEIGHT = 5
         private const val GRID_SIZE = GRID_WIDTH * GRID_HEIGHT
         private const val MAX_TOTAL_WEIGHT = 100
+
+        /** Percentage basis of the user-adjustable keyboard height scale. */
+        private const val HEIGHT_SCALE_FACTOR = 100
 
         /** Number of key widths from current touch point to search for nearest keys.  */
         const val SEARCH_DISTANCE = 1.4f

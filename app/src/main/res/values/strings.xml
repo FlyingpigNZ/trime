@@ -158,6 +158,8 @@
     <string name="custom_sound_effect_enabled">Use custom key sound</string>
     <string name="enable_landscape_mode">Enable Landscape Mode</string>
     <string name="split_space_percent">Auto Split Keyboard Space Ratio</string>
+    <string name="keyboard_height_scale">Keyboard height</string>
+    <string name="keyboard_height_scale_summary">Scale the keyboard height (50–150%%) by resizing all key rows proportionally</string>
     <string name="grant_permission">Grant permission</string>
     <string name="notification_permission_title">No Notification Permission</string>
     <string name="notification_permission_message">Without the permission to post notifications, we are not able to notify you when some time-consuming operations are done.</string>

@@ -157,6 +157,8 @@
     <string name="custom_sound_effect_enabled">使用自定义按键音效</string>
     <string name="enable_landscape_mode">启用横屏模式</string>
     <string name="split_space_percent">自动分割键盘比例</string>
+    <string name="keyboard_height_scale">键盘高度</string>
+    <string name="keyboard_height_scale_summary">按比例缩放键盘高度（50%%–150%%），所有按键行同步缩放</string>
     <string name="grant_permission">授予权限</string>
     <string name="notification_permission_title">没有通知权限</string>
     <string name="notification_permission_message">没有发送通知的权限，我们无法在一些耗时操作完成时通知您。</string>
