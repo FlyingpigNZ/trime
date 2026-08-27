@@ -31,6 +31,10 @@ class KeyboardView(
 
     private val keys get() = keyboard.keys
 
+    /** Height scale multiplier for key content (text/icons/offsets). */
+    internal val heightScaleFactor: Float
+        get() = keyboard.heightScaleFactor
+
     internal val labelEnter: String
         get() = enterKeyDisplay.keyLabel
     internal val keyTextSize = theme.generalStyle.keyTextSize

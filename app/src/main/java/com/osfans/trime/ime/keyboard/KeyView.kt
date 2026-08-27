@@ -316,7 +316,9 @@ class KeyView(
 
     private fun drawLabel(canvas: Canvas, label: String) {
         val textColor = key.getTextColor()
-        val textSize = sp(key.keyTextSize.takeIf { it > 0 } ?: if (label.length > 1) keyboardView.keyLongTextSize else keyboardView.keyTextSize)
+        val textSize =
+            sp(key.keyTextSize.takeIf { it > 0 } ?: if (label.length > 1) keyboardView.keyLongTextSize else keyboardView.keyTextSize) *
+                keyboardView.heightScaleFactor
 
         if (label.isIconFont) {
             drawIcon(canvas, label, textSize.toInt(), textColor, key.keyTextOffsetX, key.keyTextOffsetY)
@@ -333,7 +335,12 @@ class KeyView(
             val fontMetrics = textPaint.fontMetrics
             val adjustmentY = -(fontMetrics.ascent + fontMetrics.descent) / 2f
 
-            canvas.drawText(label, centerX + sp(key.keyTextOffsetX), centerY + adjustmentY + sp(key.keyTextOffsetY), textPaint)
+            canvas.drawText(
+                label,
+                centerX + sp(key.keyTextOffsetX * keyboardView.heightScaleFactor),
+                centerY + adjustmentY + sp(key.keyTextOffsetY * keyboardView.heightScaleFactor),
+                textPaint,
+            )
         }
     }
 
@@ -362,12 +369,12 @@ class KeyView(
 
         icon.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
 
-        val centerX = (width - paddingLeft - paddingRight) / 2f + paddingLeft + sp(offsetX)
+        val centerX = (width - paddingLeft - paddingRight) / 2f + paddingLeft + sp(offsetX * keyboardView.heightScaleFactor)
 
         val centerY = when (isTop) {
-            true -> paddingTop + halfSize + sp(offsetY)
-            false -> height - paddingBottom - size + sp(offsetY)
-            null -> (height - paddingTop - paddingBottom) / 2f + paddingTop + sp(offsetY)
+            true -> paddingTop + halfSize + sp(offsetY * keyboardView.heightScaleFactor)
+            false -> height - paddingBottom - size + sp(offsetY * keyboardView.heightScaleFactor)
+            null -> (height - paddingTop - paddingBottom) / 2f + paddingTop + sp(offsetY * keyboardView.heightScaleFactor)
         }
 
         icon.setBounds(
@@ -388,7 +395,9 @@ class KeyView(
         if (!isTop && !showHint) return
 
         val textColor = key.getSymbolColor()
-        val textSize = sp(key.symbolTextSize.takeIf { it > 0f } ?: keyboardView.symbolTextSize)
+        val textSize =
+            sp(key.symbolTextSize.takeIf { it > 0f } ?: keyboardView.symbolTextSize) *
+                keyboardView.heightScaleFactor
         val offsetX = if (isTop) key.keySymbolOffsetX else key.keyHintOffsetX
         val offsetY = if (isTop) key.keySymbolOffsetY else key.keyHintOffsetY
 
@@ -406,11 +415,11 @@ class KeyView(
             val lineHeight = fontMetrics.descent - fontMetrics.ascent
             val totalHeight = lineHeight * lines.size
 
-            val centerX = (width - paddingLeft - paddingRight) / 2f + paddingLeft + sp(offsetX)
+            val centerX = (width - paddingLeft - paddingRight) / 2f + paddingLeft + sp(offsetX * keyboardView.heightScaleFactor)
             val startY = if (isTop) {
-                paddingTop - fontMetrics.top + sp(offsetY) - (totalHeight - lineHeight) / 2
+                paddingTop - fontMetrics.top + sp(offsetY * keyboardView.heightScaleFactor) - (totalHeight - lineHeight) / 2
             } else {
-                height - paddingBottom - fontMetrics.bottom + sp(offsetY) - (totalHeight - lineHeight) / 2
+                height - paddingBottom - fontMetrics.bottom + sp(offsetY * keyboardView.heightScaleFactor) - (totalHeight - lineHeight) / 2
             }
 
             for (i in lines.indices) {

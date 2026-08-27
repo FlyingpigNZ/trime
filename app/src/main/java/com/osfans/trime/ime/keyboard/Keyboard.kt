@@ -146,12 +146,27 @@ class Keyboard(
     val isLock = selfConfig?.lock ?: false // 切換程序時記憶鍵盤
     val asciiKeyboard: String? = selfConfig?.asciiKeyboard // 英文鍵盤
 
-    val keyboardHeight: Int =
-        (intArrayOf(
+    /** Keyboard height in dp before the user-adjustable scale is applied. */
+    val unscaledKeyboardHeight: Int =
+        intArrayOf(
             selfConfig?.let { getKeyboardHeightFromKeyboardConfig(it) } ?: 0,
             getKeyboardHeightFromTheme(theme),
-        ).firstOrNull { it > 0 } ?: 0) *
-            heightScalePercent() / HEIGHT_SCALE_FACTOR
+        ).firstOrNull { it > 0 } ?: 0
+
+    /**
+     * The user-adjustable height scale, as a multiplier (1f = original).
+     * Derived from the base height and the scaled total height so portrait,
+     * landscape and per-keyboard heights all follow their own baseline.
+     */
+    val heightScaleFactor: Float
+        get() = if (unscaledKeyboardHeight > 0) {
+            keyboardHeight.toFloat() / unscaledKeyboardHeight
+        } else {
+            1f
+        }
+
+    val keyboardHeight: Int =
+        unscaledKeyboardHeight * heightScalePercent() / HEIGHT_SCALE_FACTOR
 
     private val expandKeypressArea: Boolean by AppPrefs.defaultInstance().keyboard.expandKeypressArea
 
