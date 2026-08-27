@@ -21,6 +21,7 @@ import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.core.AutoScaleTextView
 import com.osfans.trime.ime.keyboard.KeyboardSwitcher
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.ime.keyboard.isIconFont
 import com.osfans.trime.ime.keyboard.toIconName
 import splitties.dimensions.dp
@@ -73,7 +74,7 @@ class PopupKeyboardUi(
 
         val textView = view(::AutoScaleTextView) {
             scaleMode = AutoScaleTextView.Mode.Proportional
-            textSize = theme.generalStyle.popupTextSize
+            textSize = theme.generalStyle.popupTextSize * UiScale.factor
             setTextColor(ColorManager.getColor(ThemeColor.POPUP_TEXT_COLOR))
             typeface = FontManager.getTypeface("POPUP_FONT")
         }
@@ -99,7 +100,7 @@ class PopupKeyboardUi(
             if (text.isIconFont) {
                 imageView.setImageDrawable(
                     IconicsDrawable(ctx, text.toIconName()).apply {
-                        sizeDp = theme.generalStyle.popupTextSize.toInt()
+                        sizeDp = (theme.generalStyle.popupTextSize * UiScale.factor).toInt()
                         colorFilter = PorterDuffColorFilter(ColorManager.getColor(ThemeColor.POPUP_TEXT_COLOR), PorterDuff.Mode.SRC_IN)
                     },
                 )

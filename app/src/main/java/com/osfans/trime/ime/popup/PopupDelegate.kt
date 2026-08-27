@@ -13,6 +13,7 @@ import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.dependency.InputDependencyManager
 import com.osfans.trime.ime.keyboard.KeyboardSwitcher
+import com.osfans.trime.ime.keyboard.UiScale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -36,19 +37,19 @@ class PopupDelegate {
     private val showingContainerUi = HashMap<Int, PopupContainerUi>()
 
     private val popupBottomMargin by lazy {
-        context.dp(theme.generalStyle.popupBottomMargin)
+        context.dp((theme.generalStyle.popupBottomMargin * UiScale.factor).toInt())
     }
     private val popupWidth by lazy {
-        context.dp(theme.generalStyle.popupWidth)
+        context.dp((theme.generalStyle.popupWidth * UiScale.factor).toInt())
     }
     private val popupHeight by lazy {
-        context.dp(theme.generalStyle.popupHeight)
+        context.dp((theme.generalStyle.popupHeight * UiScale.factor).toInt())
     }
     private val popupKeyHeight by lazy {
-        context.dp(theme.generalStyle.popupKeyHeight)
+        context.dp((theme.generalStyle.popupKeyHeight * UiScale.factor).toInt())
     }
     private val popupRadius by lazy {
-        context.dp(theme.generalStyle.roundCorner)
+        context.dp(theme.generalStyle.roundCorner * UiScale.factor)
     }
     private val hideThreshold = 100L
 
