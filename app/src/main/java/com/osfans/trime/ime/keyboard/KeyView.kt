@@ -242,19 +242,12 @@ class KeyView(
     private fun showPopupPreview(behavior: KeyBehavior = KeyBehavior.CLICK) {
         if (!keyboardView.popupOnKeyPress) return
         key.getPreviewText(behavior).takeIf { it.isNotEmpty() }?.let { previewText ->
-            val context =
-                if (previewText.isIconFont) {
-                    previewText
-                } else {
-                    // Labels may carry padding whitespace (e.g. 14-key combo
-                    // keys use ' L '), so take the first non-whitespace
-                    // character instead of blindly codePointAt(0).
-                    val firstChar = previewText.firstOrNull { !it.isWhitespace() }
-                    firstChar?.let { String(Character.toChars(it.code)) } ?: ""
-                }
-            if (context.isNotEmpty()) {
-                popup.listener.onPopupAction(PopupAction.PreviewAction(id, context, bounds))
+            val context = if (previewText.isIconFont) {
+                previewText
+            } else {
+                String(Character.toChars(previewText.codePointAt(0)))
             }
+            popup.listener.onPopupAction(PopupAction.PreviewAction(id, context, bounds))
         }
     }
 
