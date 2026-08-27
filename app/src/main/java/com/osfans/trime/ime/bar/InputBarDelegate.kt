@@ -40,6 +40,7 @@ import com.osfans.trime.ime.dependency.InputDependencyManager
 import com.osfans.trime.ime.keyboard.CommonKeyboardActionListener
 import com.osfans.trime.ime.keyboard.KeyBehavior
 import com.osfans.trime.ime.keyboard.KeyboardWindow
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.ime.switches.SwitchOptionWindow
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.BoardWindowManager
@@ -69,7 +70,7 @@ class InputBarDelegate : InputBroadcastReceiver {
     private val candidate: CompactCandidateDelegate by di.instance()
     private val rime: RimeSession by di.instance()
 
-    val themedHeight = theme.generalStyle.run { candidateViewHeight + commentHeight }
+    val themedHeight = (theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt()
 
     private val prefs = AppPrefs.defaultInstance()
 

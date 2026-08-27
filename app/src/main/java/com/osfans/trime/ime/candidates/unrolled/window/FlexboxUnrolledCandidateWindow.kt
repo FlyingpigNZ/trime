@@ -16,6 +16,7 @@ import com.osfans.trime.ime.candidates.CandidateViewHolder
 import com.osfans.trime.ime.candidates.unrolled.PagingCandidateViewAdapter
 import com.osfans.trime.ime.candidates.unrolled.UnrolledCandidateLayout
 import com.osfans.trime.ime.candidates.unrolled.decoration.FlexboxHorizontalDecoration
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.ime.window.BoardWindow
 import splitties.dimensions.dp
 import splitties.views.dsl.core.wrapContent
@@ -33,7 +34,7 @@ class FlexboxUnrolledCandidateWindow : BaseUnrolledCandidateWindow() {
             ): CandidateViewHolder = super.onCreateViewHolder(parent, viewType).apply {
                 itemView.apply {
                     minimumWidth = dp(40)
-                    val itemHeight = dp(theme.generalStyle.run { candidateViewHeight + commentHeight })
+                    val itemHeight = dp((theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt())
                     layoutParams =
                         FlexboxLayoutManager
                             .LayoutParams(wrapContent, itemHeight)

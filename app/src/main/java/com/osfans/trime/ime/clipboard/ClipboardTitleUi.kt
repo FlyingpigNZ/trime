@@ -10,6 +10,7 @@ import com.osfans.trime.R
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.bar.ui.ToolButton
 import com.osfans.trime.ime.core.InputTabLayout
+import com.osfans.trime.ime.keyboard.UiScale
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.centerVertically
 import splitties.views.dsl.constraintlayout.constraintLayout
@@ -26,7 +27,7 @@ class ClipboardTitleUi(override val ctx: Context, private val theme: Theme) : Ui
 
     val deleteAllButton = ToolButton(ctx, R.drawable.ic_baseline_delete_sweep_24)
 
-    private val size = theme.generalStyle.run { candidateViewHeight + commentHeight }
+    private val size = (theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt()
 
     override val root = constraintLayout {
         add(

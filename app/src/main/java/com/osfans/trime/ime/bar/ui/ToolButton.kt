@@ -27,6 +27,7 @@ import com.osfans.trime.ime.core.AutoScaleTextView
 import com.osfans.trime.ime.dependency.InputDependencyManager
 import com.osfans.trime.ime.keyboard.GestureFrame
 import com.osfans.trime.ime.keyboard.KeyboardSwitcher
+import com.osfans.trime.ime.keyboard.UiScale
 import org.kodein.di.instance
 import splitties.dimensions.dp
 import splitties.views.dsl.core.add
@@ -103,7 +104,7 @@ class ToolButton(context: Context) : GestureFrame(context) {
         image.padding = padding
         label.padding = padding
 
-        fontSize = fg.fontSize
+        fontSize = fg.fontSize * UiScale.factor
         label.textSize = fontSize
 
         label.typeface = FontManager.getTypeface("toolbar_font")

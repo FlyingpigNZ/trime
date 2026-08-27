@@ -168,6 +168,10 @@ class Keyboard(
     val keyboardHeight: Int =
         unscaledKeyboardHeight * heightScalePercent() / HEIGHT_SCALE_FACTOR
 
+    init {
+        UiScale.updateFactor(heightScaleFactor)
+    }
+
     private val expandKeypressArea: Boolean by AppPrefs.defaultInstance().keyboard.expandKeypressArea
 
     init {

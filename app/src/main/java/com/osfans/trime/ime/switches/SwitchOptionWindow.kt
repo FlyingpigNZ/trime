@@ -24,6 +24,7 @@ import com.osfans.trime.ime.bar.ui.ToolButton
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.dialog.EnabledSchemaPickerDialog
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.util.AppUtils
 import kotlinx.coroutines.Dispatchers
@@ -213,7 +214,7 @@ class SwitchOptionWindow :
 
     private val barExternalView by lazy {
         context.constraintLayout {
-            val size = dp(theme.generalStyle.run { candidateViewHeight + commentHeight })
+            val size = dp((theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt())
             add(
                 settingsButton,
                 lParams(size, size) {

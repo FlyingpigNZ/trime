@@ -19,6 +19,7 @@ import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.model.GeneralStyle
 import com.osfans.trime.ime.core.AutoScaleTextView
 import com.osfans.trime.ime.keyboard.GestureFrame
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.util.roundedRippleDrawable
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.baselineToBaselineOf
@@ -49,8 +50,8 @@ class CandidateItemUi(
     private val theme: Theme,
 ) : Ui {
 
-    private val textSize = theme.generalStyle.candidateTextSize
-    private val commentSize = theme.generalStyle.commentTextSize
+    private val textSize = theme.generalStyle.candidateTextSize * UiScale.factor
+    private val commentSize = theme.generalStyle.commentTextSize * UiScale.factor
 
     private val textFont = FontManager.getTypeface("candidate_font")
     private val commentFont = FontManager.getTypeface("comment_font")
@@ -153,7 +154,7 @@ class CandidateItemUi(
          */
         add(
             content,
-            lParams(wrapContent, dp(theme.generalStyle.candidateViewHeight)) {
+            lParams(wrapContent, dp((theme.generalStyle.candidateViewHeight * UiScale.factor).toInt())) {
                 gravity = gravityCenter
             },
         )

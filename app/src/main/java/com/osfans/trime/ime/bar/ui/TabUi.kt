@@ -13,6 +13,7 @@ import com.osfans.trime.R
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeColor
+import com.osfans.trime.ime.keyboard.UiScale
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.after
 import splitties.views.dsl.constraintlayout.centerHorizontally
@@ -51,13 +52,13 @@ class TabUi(
     private val titleText = textView {
         typeface = Typeface.defaultFromStyle(Typeface.BOLD)
         gravity = gravityVerticalCenter
-        textSize = theme.generalStyle.candidateTextSize
+        textSize = theme.generalStyle.candidateTextSize * UiScale.factor
         setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
     }
 
     private var external: View? = null
 
-    private val size = ctx.dp(theme.generalStyle.run { candidateViewHeight + commentHeight })
+    private val size = ctx.dp((theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt())
 
     override val root =
         constraintLayout {

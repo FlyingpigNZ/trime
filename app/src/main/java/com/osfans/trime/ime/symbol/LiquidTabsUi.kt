@@ -14,6 +14,7 @@ import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.keyboard.GestureFrame
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.util.roundedRippleDrawable
 import splitties.dimensions.dp
 import splitties.views.dsl.core.Ui
@@ -41,7 +42,7 @@ class LiquidTabsUi(
 
         val text =
             textView {
-                textSize = theme.generalStyle.candidateTextSize
+                textSize = theme.generalStyle.candidateTextSize * UiScale.factor
                 typeface = FontManager.getTypeface("candidate_font")
                 setTextColor(textColor)
             }
