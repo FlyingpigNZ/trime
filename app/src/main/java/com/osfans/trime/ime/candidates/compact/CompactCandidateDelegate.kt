@@ -97,6 +97,18 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     private var candidatesVersion = 0
     private var lastCandidatesHash = 0
 
+    /**
+     * Candidates version observed at the last auto-expand decision. When the
+     * version changes between two refreshes it means the candidate content
+     * itself changed (a key press: Backspace, a new character, a selection),
+     * as opposed to a pure highlight move (arrow-key navigation) which keeps
+     * the content identical. Auto-expand must only react to navigation: a
+     * highlight that is out of bounds because of a content change (e.g. the
+     * residual selected_index after Backspace reopens a selected segment) is
+     * not a user navigation signal and must not re-attach the window.
+     */
+    private var lastAutoExpandVersion = -1
+
     private val _unrolledCandidateOffset =
         MutableSharedFlow<UnrolledCandidateUpdate>(
             replay = 1,
@@ -114,19 +126,22 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
             ),
         )
         // Auto-expand purely on the highlighted index exceeding the compact
-        // visible count, as in the original feature: whenever the highlight is
-        // out of the compact range the unrolled window must reveal it. The
-        // Backspace re-popup is prevented upstream — the highlight is reset
-        // to -1 when the unrolled window is collapsed (see
-        // resetUnrolledHighlight), so a rebuilt menu can never look
-        // out-of-bounds right after a collapse.
+        // visible count (as in the original feature), but only when the
+        // candidate content did not change since the last refresh. A content
+        // change means a key press (Backspace, new character, selection)
+        // rebuilt the menu; the highlight it reports is residual state, not a
+        // navigation move, and must not re-attach the window. Arrow-key
+        // navigation keeps the content identical and only moves the highlight,
+        // so it still triggers the auto-expand.
         val highlighted = adapter.highlightedIdx
+        val contentChanged = candidatesVersion != lastAutoExpandVersion
+        lastAutoExpandVersion = candidatesVersion
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesUpdated,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty to
                 (adapter.total == childCount),
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesHighlighted to
-                (highlighted >= childCount),
+                (!contentChanged && highlighted >= childCount),
         )
     }
 
