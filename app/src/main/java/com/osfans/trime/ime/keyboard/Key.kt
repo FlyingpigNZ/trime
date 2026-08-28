@@ -100,6 +100,13 @@ class Key(
     private val offKeyBackground by lazy { ColorManager.getDrawable(ThemeColor.OFF_KEY_BACK_COLOR) }
     private val onKeyBackground by lazy { ColorManager.getDrawable(ThemeColor.ON_KEY_BACK_COLOR) }
 
+    private val keyBorderColor by lazy { getColor({ keyBorderColor }, "key_border_color") }
+    private val offKeyBorderColor by lazy { getColor("off_key_border_color", keyBorderColor) }
+    private val onKeyBorderColor by lazy { getColor("on_key_border_color", keyBorderColor) }
+    private val hlKeyBorderColor by lazy { getColor({ hlKeyBorderColor }, "hilited_key_border_color") }
+    private val hlOffKeyBorderColor by lazy { getColor("hilited_off_key_border_color", hlKeyBorderColor) }
+    private val hlOnKeyBorderColor by lazy { getColor("hilited_on_key_border_color", hlKeyBorderColor) }
+
     private val keyTextColor by lazy { getColor({ keyTextColor }, "key_text_color") }
     private val offKeyTextColor by lazy { getColor("off_key_text_color", keyTextColor) }
     private val onKeyTextColor by lazy { getColor("on_key_text_color", keyTextColor) }
@@ -109,6 +116,7 @@ class Key(
     private val hlKeyBackground by lazy { getDrawable({ hlKeyBackColor }, "hilited_key_back_color") }
     private val hlOffKeyBackground by lazy { ColorManager.getDrawable(ThemeColor.HILITED_OFF_KEY_BACK_COLOR) }
     private val hlOnKeyBackground by lazy { ColorManager.getDrawable(ThemeColor.HILITED_ON_KEY_BACK_COLOR) }
+
     private val hlKeyTextColor by lazy { getColor({ hlKeyTextColor }, "hilited_key_text_color") }
     private val hlOffKeyTextColor by lazy { getColor("hilited_off_key_text_color", hlKeyTextColor) }
     private val hlOnKeyTextColor by lazy { getColor("hilited_on_key_text_color", hlKeyTextColor) }
@@ -274,6 +282,12 @@ class Key(
             }
         }
         else -> if (isPressed) hlKeyBackground else keyBackground
+    }
+
+    fun getBorderColor(): Int = when (appearanceType) {
+        2 -> if (isPressed) hlOnKeyBorderColor else onKeyBorderColor
+        1 -> if (isPressed) hlOffKeyBorderColor else offKeyBorderColor
+        else -> if (isPressed) hlKeyBorderColor else keyBorderColor
     }
 
     fun getTextColor(): Int = when (appearanceType) {
