@@ -98,13 +98,15 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     private var lastCandidatesHash = 0
 
     /**
-     * Highlighted index from the previous refresh, used to detect when the
-     * highlight just moved outside the compact visible range (a navigation
-     * signal). Only that rising edge may auto-attach the unrolled window;
-     * a stale out-of-range highlight (e.g. after Backspace rebuilds a menu)
-     * must not.
+     * Whether the highlighted index was inside the compact visible range at
+     * the previous refresh. Used to detect the rising edge of the highlight
+     * crossing out of the compact bar: only that transition may auto-attach
+     * the unrolled window. A highlight that is already out of bounds when the
+     * window was collapsed (e.g. left over from a previous expansion) must
+     * not re-attach it — the user collapsed it explicitly, so it stays
+     * collapsed until they navigate again or click the button.
      */
-    private var lastHighlightedIdx = -1
+    private var lastHighlightInBounds = true
 
     private val _unrolledCandidateOffset =
         MutableSharedFlow<UnrolledCandidateUpdate>(
@@ -122,16 +124,15 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
                 version = candidatesVersion,
             ),
         )
-        // Candidate updates only drive the button state, never auto-attach the
-        // unrolled window — except for the navigation-driven rising edge below
-        // (highlight just moved outside the compact bar). This keeps the
-        // "auto-expand to reveal the highlighted candidate" feature without
-        // re-attaching the window on unrelated refreshes (e.g. Backspace
-        // rebuilding the menu after a selection).
+        // Only the rising edge of the highlight crossing out of the compact
+        // visible range auto-attaches the unrolled window (navigation signal).
+        // Once the window is collapsed, a highlight that merely stays or moves
+        // around outside the range must not re-attach it — only an explicit
+        // transition from inside to outside may.
         val highlighted = adapter.highlightedIdx
-        val highlightMovedOut = highlighted != lastHighlightedIdx &&
-            highlighted >= childCount
-        lastHighlightedIdx = highlighted
+        val nowInBounds = highlighted < childCount
+        val highlightMovedOut = lastHighlightInBounds && !nowInBounds
+        lastHighlightInBounds = nowInBounds
         // Push both booleans in a single event so the state machine evaluates
         // on one consistent snapshot. Pushing them separately would leave the
         // previously written UnrolledCandidatesHighlighted visible to the
