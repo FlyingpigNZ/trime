@@ -194,6 +194,11 @@ class InputBarDelegate : InputBroadcastReceiver {
     val unrollButtonStateMachine =
         UnrollButtonStateMachine.new {
             when (it) {
+                UnrollButtonStateMachine.State.AboutToAttachWindow -> {
+                    setUnrollButtonToDetach()
+                    setUnrollButtonEnabled(true)
+                    windowManager.attachWindow(FlexboxUnrolledCandidateWindow())
+                }
                 UnrollButtonStateMachine.State.ClickToAttachWindow -> {
                     setUnrollButtonToAttach()
                     setUnrollButtonEnabled(true)

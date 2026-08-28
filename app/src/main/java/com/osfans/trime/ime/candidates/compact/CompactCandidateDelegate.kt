@@ -36,13 +36,18 @@ import splitties.views.dsl.recyclerview.recyclerView
 import kotlin.math.max
 
 /**
- * 一次候选菜单刷新的快照，供 unrolled 窗口决定是否需要重新加载。
+ * Snapshot of one candidate-menu refresh, consumed by the unrolled window to
+ * decide whether it must reload.
  *
- * [offset] 是 compact 当前显示的候选数（unrolled 从它之后开始显示），
- * [highlightedIdx] 是当前高亮候选下标，[version] 是候选内容的版本号——
- * 每次收到新的候选列表都会递增。dedup 时必须带上 [version]：选字后新菜单
- * 的候选数量与高亮下标可能恰好与旧菜单相同，仅比较 offset/highlight 会
- * 误判为"无变化"而跳过 unrolled 的刷新，导致 unrolled 停留在旧候选。
+ * [offset] is the number of candidates currently shown by the compact bar
+ * (the unrolled window displays the ones after it), [highlightedIdx] is the
+ * current highlighted candidate index, and [version] is a content version
+ * that increments whenever the candidate list actually changes. The dedup in
+ * BaseUnrolledCandidateWindow must include [version]: after selecting a
+ * character the new menu may have exactly the same visible count and
+ * highlight as the old one, so comparing offset/highlight alone would
+ * wrongly skip the refresh and leave the unrolled window on stale
+ * candidates.
  */
 data class UnrolledCandidateUpdate(
     val offset: Int,
@@ -83,11 +88,23 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     private var secondLayoutPassDone = false
 
     /**
-     * 候选内容版本号，每次 [onCandidateListUpdate] 递增。供 unrolled 窗口
-     * 区分"同一菜单的重复布局"与"新候选内容"——即使候选数量和高亮下标都
-     * 恰好没变（选字后新菜单与旧菜单等长等高亮），版本号变化也保证刷新。
+     * Content version of the candidate list, bumped in [onCandidateListUpdate]
+     * only when the candidates actually differ (compared by content hash).
+     * Lets the unrolled window distinguish "relayout of the same menu"
+     * (version unchanged) from "a new candidate list" (version changed),
+     * even when the visible count and highlight happen to stay the same.
      */
     private var candidatesVersion = 0
+    private var lastCandidatesHash = 0
+
+    /**
+     * Highlighted index from the previous refresh, used to detect when the
+     * highlight just moved outside the compact visible range (a navigation
+     * signal). Only that rising edge may auto-attach the unrolled window;
+     * a stale out-of-range highlight (e.g. after Backspace rebuilds a menu)
+     * must not.
+     */
+    private var lastHighlightedIdx = -1
 
     private val _unrolledCandidateOffset =
         MutableSharedFlow<UnrolledCandidateUpdate>(
@@ -105,11 +122,16 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
                 version = candidatesVersion,
             ),
         )
-        // 候选菜单更新只负责按钮的显隐/形态（UnrolledCandidatesEmpty），
-        // 不再自动挂载 unrolled 窗口：若此处判定"还有菜单"并把状态机推回
-        // ClickToDetachWindow，InputBarDelegate 会执行 setUnrollWindowToAttach
-        // 把窗口自动弹回来。这正是"选完 unrolled 单字、收起窗口后按
-        // Backspace 重建菜单，unrolled 窗口自己出现"的根源。
+        // Candidate updates only drive the button state, never auto-attach the
+        // unrolled window — except for the navigation-driven rising edge below
+        // (highlight just moved outside the compact bar). This keeps the
+        // "auto-expand to reveal the highlighted candidate" feature without
+        // re-attaching the window on unrelated refreshes (e.g. Backspace
+        // rebuilding the menu after a selection).
+        val highlighted = adapter.highlightedIdx
+        val highlightMovedOut = highlighted != lastHighlightedIdx &&
+            highlighted >= childCount
+        lastHighlightedIdx = highlighted
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesUpdated,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty to
@@ -118,7 +140,7 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesUpdated,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesHighlighted to
-                (adapter.highlightedIdx >= childCount),
+                highlightMovedOut,
         )
     }
 
@@ -195,10 +217,14 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     override fun onCandidateListUpdate(data: Candidates.Bulk) {
         val (total, highlighted, candidates) = data
 
-        // 新候选内容：版本号递增，让 unrolled 窗口在 dedup 时能区分
-        // "同一菜单的重复布局"（版本号不变）与"选字后的新菜单"
-        // （版本号变化），即使候选数量/高亮下标恰好与之前相同。
-        candidatesVersion++
+        // Bump the content version only when the candidates actually differ.
+        // Keeps relayouts of the same menu deduplicated while guaranteeing a
+        // reload after a selection changes the candidate set.
+        val hash = candidates.contentHashCode()
+        if (hash != lastCandidatesHash) {
+            lastCandidatesHash = hash
+            candidatesVersion++
+        }
 
         val maxSpanCount = maxSpanCountPref.getValue()
 

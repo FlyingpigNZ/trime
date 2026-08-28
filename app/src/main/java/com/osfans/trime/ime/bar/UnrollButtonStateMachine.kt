@@ -7,6 +7,7 @@ package com.osfans.trime.ime.bar
 
 import com.osfans.trime.ime.bar.UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty
 import com.osfans.trime.ime.bar.UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesHighlighted
+import com.osfans.trime.ime.bar.UnrollButtonStateMachine.State.AboutToAttachWindow
 import com.osfans.trime.ime.bar.UnrollButtonStateMachine.State.ClickToAttachWindow
 import com.osfans.trime.ime.bar.UnrollButtonStateMachine.State.ClickToDetachWindow
 import com.osfans.trime.ime.bar.UnrollButtonStateMachine.State.Hidden
@@ -14,8 +15,21 @@ import com.osfans.trime.util.BuildTransitionEvent
 import com.osfans.trime.util.EventStateMachine
 import com.osfans.trime.util.TransitionBuildBlock
 
+/**
+ * Drives the unroll button state and the unrolled candidates window.
+ *
+ * [UnrolledCandidatesUpdated] only drives button visibility/state. The window
+ * itself is attached either by the user clicking the button, by
+ * [UnrolledCandidatesAttached], or by [AboutToAttachWindow] — which is entered
+ * only when the highlighted index just moved outside the compact visible
+ * range (a navigation-driven signal, see CompactCandidateDelegate). This
+ * restores the "auto-expand when the highlight leaves the compact bar"
+ * behavior from 041675a0 without re-attaching the window on every candidate
+ * refresh (e.g. pressing Backspace after selecting a character).
+ */
 object UnrollButtonStateMachine {
     enum class State {
+        AboutToAttachWindow,
         ClickToAttachWindow,
         ClickToDetachWindow,
         Hidden,
@@ -32,15 +46,11 @@ object UnrollButtonStateMachine {
         UnrolledCandidatesUpdated({
             from(Hidden) transitTo ClickToAttachWindow on (UnrolledCandidatesEmpty to false)
             from(ClickToAttachWindow) transitTo Hidden on (UnrolledCandidatesEmpty to true)
-            // 注意：不再有 ClickToAttachWindow -> ClickToDetachWindow 规则。
-            // 候选菜单更新只负责按钮的显隐/形态，绝不自动挂载 unrolled
-            // 窗口。窗口只由用户点击 unroll 按钮（setUnrollButtonToAttach /
-            // setUnrollButtonToDetach 的点击回调）或 UnrolledCandidatesAttached
-            // 显式挂载。否则选完 unrolled 单字、收起窗口后按 Backspace
-            // 重建菜单时，unrolled 窗口会"自己弹出来"。
+            from(ClickToAttachWindow) transitTo AboutToAttachWindow on (UnrolledCandidatesHighlighted to true)
         }),
         UnrolledCandidatesAttached({
             from(ClickToAttachWindow) transitTo ClickToDetachWindow
+            from(AboutToAttachWindow) transitTo ClickToDetachWindow
         }),
         UnrolledCandidatesDetached({
             from(ClickToDetachWindow) transitTo Hidden on (UnrolledCandidatesEmpty to true)
