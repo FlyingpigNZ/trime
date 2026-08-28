@@ -132,13 +132,17 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
         val highlightMovedOut = highlighted != lastHighlightedIdx &&
             highlighted >= childCount
         lastHighlightedIdx = highlighted
+        // Push both booleans in a single event so the state machine evaluates
+        // on one consistent snapshot. Pushing them separately would leave the
+        // previously written UnrolledCandidatesHighlighted visible to the
+        // first push (EventStateMachine.push updates only the passed keys),
+        // letting a stale `true` from an earlier auto-expand re-attach the
+        // window on the next unrelated refresh (e.g. Backspace after the
+        // user collapsed the window).
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesUpdated,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty to
                 (adapter.total == childCount),
-        )
-        bar.unrollButtonStateMachine.push(
-            UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesUpdated,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesHighlighted to
                 highlightMovedOut,
         )

@@ -157,19 +157,20 @@ abstract class BaseUnrolledCandidateWindow :
     }
 
     override fun onDetached() {
-        // "Menu empty" is judged by the actual menu state, not by the compact
-        // adapter's total compared against the unrolled adapter's offset: the
-        // unrolled offset is whatever the last refreshWith wrote (0 on a
-        // fresh window), while the compact total is -1 or >= 1 whenever a
-        // menu is present, so that comparison is effectively always false and
-        // would leave the state machine at ClickToAttachWindow, causing any
-        // later candidate update to auto-attach the window again. Use
-        // hasMenu, which RimeUiState tracks separately from composition (a
-        // menu can exist without composing, e.g. look-up candidates).
+        // Reuse the UnrolledCandidatesEmpty written by the last
+        // refreshUnrolled() as the single source of truth, instead of
+        // recomputing it here. The two definitions would diverge: the compact
+        // path uses "adapter.total == childCount" ("everything fits the
+        // compact bar, nothing left to unroll"), while !hasMenu would say
+        // "no menu at all". After selecting a character the remaining
+        // candidates may all fit the compact bar (total == childCount →
+        // Empty = true) while a menu still exists (hasMenu = true → Empty =
+        // false); recomputing here would then leave the button at
+        // ClickToAttachWindow even though there is nothing left to unroll.
+        // While the unrolled window is attached, refreshUnrolled() has always
+        // written the latest value, so reusing it is correct.
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesDetached,
-            UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty to
-                !rime.uiState.value.hasMenu,
         )
         offsetJob?.cancel()
         candidatesSubmitJob?.cancel()
