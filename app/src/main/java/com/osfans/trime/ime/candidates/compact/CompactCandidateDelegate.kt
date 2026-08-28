@@ -35,6 +35,21 @@ import splitties.dimensions.dp
 import splitties.views.dsl.recyclerview.recyclerView
 import kotlin.math.max
 
+/**
+ * 一次候选菜单刷新的快照，供 unrolled 窗口决定是否需要重新加载。
+ *
+ * [offset] 是 compact 当前显示的候选数（unrolled 从它之后开始显示），
+ * [highlightedIdx] 是当前高亮候选下标，[version] 是候选内容的版本号——
+ * 每次收到新的候选列表都会递增。dedup 时必须带上 [version]：选字后新菜单
+ * 的候选数量与高亮下标可能恰好与旧菜单相同，仅比较 offset/highlight 会
+ * 误判为"无变化"而跳过 unrolled 的刷新，导致 unrolled 停留在旧候选。
+ */
+data class UnrolledCandidateUpdate(
+    val offset: Int,
+    val highlightedIdx: Int,
+    val version: Int,
+)
+
 class CompactCandidateDelegate : InputBroadcastReceiver {
     private val di = InputDependencyManager.getInstance().di
     private val context: Context by di.instance()
@@ -67,8 +82,15 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     private var secondLayoutPassNeeded = false
     private var secondLayoutPassDone = false
 
+    /**
+     * 候选内容版本号，每次 [onCandidateListUpdate] 递增。供 unrolled 窗口
+     * 区分"同一菜单的重复布局"与"新候选内容"——即使候选数量和高亮下标都
+     * 恰好没变（选字后新菜单与旧菜单等长等高亮），版本号变化也保证刷新。
+     */
+    private var candidatesVersion = 0
+
     private val _unrolledCandidateOffset =
-        MutableSharedFlow<Int>(
+        MutableSharedFlow<UnrolledCandidateUpdate>(
             replay = 1,
             onBufferOverflow = BufferOverflow.DROP_OLDEST,
         )
@@ -76,7 +98,13 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     val unrolledCandidateOffset = _unrolledCandidateOffset.asSharedFlow()
 
     fun refreshUnrolled(childCount: Int) {
-        _unrolledCandidateOffset.tryEmit(childCount)
+        _unrolledCandidateOffset.tryEmit(
+            UnrolledCandidateUpdate(
+                offset = childCount,
+                highlightedIdx = adapter.highlightedIdx,
+                version = candidatesVersion,
+            ),
+        )
         // 候选菜单更新只负责按钮的显隐/形态（UnrolledCandidatesEmpty），
         // 不再自动挂载 unrolled 窗口：若此处判定"还有菜单"并把状态机推回
         // ClickToDetachWindow，InputBarDelegate 会执行 setUnrollWindowToAttach
@@ -166,6 +194,11 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
 
     override fun onCandidateListUpdate(data: Candidates.Bulk) {
         val (total, highlighted, candidates) = data
+
+        // 新候选内容：版本号递增，让 unrolled 窗口在 dedup 时能区分
+        // "同一菜单的重复布局"（版本号不变）与"选字后的新菜单"
+        // （版本号变化），即使候选数量/高亮下标恰好与之前相同。
+        candidatesVersion++
 
         val maxSpanCount = maxSpanCountPref.getValue()
 

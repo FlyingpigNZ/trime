@@ -106,15 +106,25 @@ abstract class BaseUnrolledCandidateWindow :
                 // onLayoutCompleted re-emits the same child count on every
                 // layout pass; skip identical values so a mere relayout does
                 // not reset the scroll position and reload the paging source.
-                // The dedup key must include the highlight index: a relayout
-                // with the same count but a new highlight must still refresh.
+                // The dedup key must include the highlight index and the
+                // candidates version: a relayout with the same count but a new
+                // highlight, or a new menu with the same count/highlight (e.g.
+                // after selecting a character), must still refresh.
                 var lastOffset = Int.MIN_VALUE
                 var lastHighlight = -1
-                compactCandidate.unrolledCandidateOffset.collect { offset ->
-                    val highlight = compactCandidate.adapter.highlightedIdx
-                    if (offset == lastOffset && highlight == lastHighlight) return@collect
+                var lastVersion = -1
+                compactCandidate.unrolledCandidateOffset.collect { update ->
+                    val offset = update.offset
+                    val highlight = update.highlightedIdx
+                    if (offset == lastOffset &&
+                        highlight == lastHighlight &&
+                        update.version == lastVersion
+                    ) {
+                        return@collect
+                    }
                     lastOffset = offset
                     lastHighlight = highlight
+                    lastVersion = update.version
                     if (offset <= 0) {
                         windowManager.attachWindow(KeyboardWindow)
                     } else {
