@@ -32,12 +32,14 @@ class Keyboard(
 
     /** 按鍵默認水平間距 (scaled with the keyboard height) */
     internal val horizontalGap: Int
-        get() = (context.dp(
-            intArrayOf(
-                selfConfig?.horizontalGap ?: 0,
-                theme.generalStyle.horizontalGap,
-            ).firstOrNull { it > 0 } ?: 0,
-        ) * heightScaleFactor).toInt()
+        get() = (
+            context.dp(
+                intArrayOf(
+                    selfConfig?.horizontalGap ?: 0,
+                    theme.generalStyle.horizontalGap,
+                ).firstOrNull { it > 0 } ?: 0,
+            ) * heightScaleFactor
+            ).toInt()
 
     /** 默認鍵寬  */
     private val keyWidth: Int = (allowedWidth * theme.generalStyle.keyWidth / 100).toInt()
@@ -51,12 +53,14 @@ class Keyboard(
 
     /** 默認行距 (scaled with the keyboard height) */
     internal val verticalGap: Int
-        get() = (context.dp(
-            intArrayOf(
-                selfConfig?.verticalGap ?: 0,
-                theme.generalStyle.verticalGap,
-            ).firstOrNull { it > 0 } ?: 0,
-        ) * heightScaleFactor).toInt()
+        get() = (
+            context.dp(
+                intArrayOf(
+                    selfConfig?.verticalGap ?: 0,
+                    theme.generalStyle.verticalGap,
+                ).firstOrNull { it > 0 } ?: 0,
+            ) * heightScaleFactor
+            ).toInt()
 
     /** 默認按鍵圓角半徑  */
     val roundCorner: Float =
@@ -403,8 +407,7 @@ class Keyboard(
     }
 
     /** User-adjustable keyboard height scale (percent, 100 = original). */
-    private fun heightScalePercent(): Int =
-        AppPrefs.defaultInstance().keyboard.heightScale.getValue()
+    private fun heightScalePercent(): Int = AppPrefs.defaultInstance().keyboard.heightScale.getValue()
 
     fun setModifierKey(
         c: Int,
