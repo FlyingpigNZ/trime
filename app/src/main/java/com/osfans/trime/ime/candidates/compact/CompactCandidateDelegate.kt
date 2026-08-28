@@ -77,6 +77,11 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
 
     fun refreshUnrolled(childCount: Int) {
         _unrolledCandidateOffset.tryEmit(childCount)
+        // 候选菜单更新只负责按钮的显隐/形态（UnrolledCandidatesEmpty），
+        // 不再自动挂载 unrolled 窗口：若此处判定"还有菜单"并把状态机推回
+        // ClickToDetachWindow，InputBarDelegate 会执行 setUnrollWindowToAttach
+        // 把窗口自动弹回来。这正是"选完 unrolled 单字、收起窗口后按
+        // Backspace 重建菜单，unrolled 窗口自己出现"的根源。
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesUpdated,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty to

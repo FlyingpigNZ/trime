@@ -147,10 +147,16 @@ abstract class BaseUnrolledCandidateWindow :
     }
 
     override fun onDetached() {
+        // 用"组合是否真的结束"来判定菜单是否为空，而不是拿 compact 适配器
+        // 的 total 与 unrolled 适配器的 offset 比较：unrolled 展开时 offset
+        // 恒为 0，而菜单还在时 compact.total 恒为 -1 或 ≥1，该比较恒为
+        // false，导致收起 unrolled 后状态机误停在 ClickToAttachWindow，
+        // 后续任何候选更新都会把 unrolled 窗口自动弹回来。
+        // rime 组合结束时（无菜单）isComposing 即为 false。
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesDetached,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty to
-                (compactCandidate.adapter.total == adapter.offset),
+                !rime.uiState.value.isComposing,
         )
         offsetJob?.cancel()
         candidatesSubmitJob?.cancel()

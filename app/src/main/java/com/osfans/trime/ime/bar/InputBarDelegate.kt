@@ -201,7 +201,6 @@ class InputBarDelegate : InputBroadcastReceiver {
                 UnrollButtonStateMachine.State.ClickToDetachWindow -> {
                     setUnrollButtonToDetach()
                     setUnrollButtonEnabled(true)
-                    setUnrollWindowToAttach()
                 }
                 UnrollButtonStateMachine.State.Hidden -> {
                     setUnrollButtonEnabled(false)
@@ -225,15 +224,6 @@ class InputBarDelegate : InputBroadcastReceiver {
 
     private fun setUnrollButtonEnabled(enabled: Boolean) {
         candidateUi.unrollButton.visibility = if (enabled) View.VISIBLE else View.INVISIBLE
-    }
-
-    private fun setUnrollWindowToAttach() {
-        unrollButtonStateMachine.getBooleanState(
-            UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesHighlighted,
-        )?.let {
-            if (!it) return@let
-            windowManager.attachWindow(FlexboxUnrolledCandidateWindow())
-        }
     }
 
     override fun onCandidateListUpdate(data: Candidates.Bulk) {
