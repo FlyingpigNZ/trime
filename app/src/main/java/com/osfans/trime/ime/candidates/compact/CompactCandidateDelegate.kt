@@ -97,17 +97,6 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     private var candidatesVersion = 0
     private var lastCandidatesHash = 0
 
-    /**
-     * Whether the highlighted index was inside the compact visible range at
-     * the previous refresh. Used to detect the rising edge of the highlight
-     * crossing out of the compact bar: only that transition may auto-attach
-     * the unrolled window. A highlight that is already out of bounds when the
-     * window was collapsed (e.g. left over from a previous expansion) must
-     * not re-attach it — the user collapsed it explicitly, so it stays
-     * collapsed until they navigate again or click the button.
-     */
-    private var lastHighlightInBounds = true
-
     private val _unrolledCandidateOffset =
         MutableSharedFlow<UnrolledCandidateUpdate>(
             replay = 1,
@@ -124,29 +113,34 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
                 version = candidatesVersion,
             ),
         )
-        // Only the rising edge of the highlight crossing out of the compact
-        // visible range auto-attaches the unrolled window (navigation signal).
-        // Once the window is collapsed, a highlight that merely stays or moves
-        // around outside the range must not re-attach it — only an explicit
-        // transition from inside to outside may.
+        // Auto-expand purely on the highlighted index exceeding the compact
+        // visible count, as in the original feature: whenever the highlight is
+        // out of the compact range the unrolled window must reveal it. The
+        // Backspace re-popup is prevented upstream — the highlight is reset
+        // to -1 when the unrolled window is collapsed (see
+        // resetUnrolledHighlight), so a rebuilt menu can never look
+        // out-of-bounds right after a collapse.
         val highlighted = adapter.highlightedIdx
-        val nowInBounds = highlighted < childCount
-        val highlightMovedOut = lastHighlightInBounds && !nowInBounds
-        lastHighlightInBounds = nowInBounds
-        // Push both booleans in a single event so the state machine evaluates
-        // on one consistent snapshot. Pushing them separately would leave the
-        // previously written UnrolledCandidatesHighlighted visible to the
-        // first push (EventStateMachine.push updates only the passed keys),
-        // letting a stale `true` from an earlier auto-expand re-attach the
-        // window on the next unrelated refresh (e.g. Backspace after the
-        // user collapsed the window).
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesUpdated,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty to
                 (adapter.total == childCount),
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesHighlighted to
-                highlightMovedOut,
+                (highlighted >= childCount),
         )
+    }
+
+    /**
+     * Reset the highlighted index to -1. Called when the unrolled window is
+     * collapsed: after the user picked a candidate the highlight has no
+     * meaning, and resetting it guarantees that the next candidate refresh
+     * (e.g. Backspace rebuilding the menu) sees an in-bounds highlight and
+     * does not auto-expand the window. No state-machine push is needed here:
+     * the next refreshUnrolled() re-pushes both booleans atomically and will
+     * read the reset -1.
+     */
+    fun resetUnrolledHighlight() {
+        adapter.resetHighlightedIndex()
     }
 
     val adapter by lazy {

@@ -54,6 +54,16 @@ open class CompactCandidateViewAdapter(
         this.highlightedIdx = highlightedIndex
     }
 
+    /**
+     * Reset the highlighted index to -1. Called when the unrolled window is
+     * collapsed: the highlight has no meaning after the user picked a
+     * candidate, and keeping a stale out-of-range value would make the next
+     * candidate refresh (e.g. Backspace) auto-expand the window again.
+     */
+    fun resetHighlightedIndex() {
+        highlightedIdx = -1
+    }
+
     override fun onCreateViewHolder(
         context: Context,
         parent: ViewGroup,

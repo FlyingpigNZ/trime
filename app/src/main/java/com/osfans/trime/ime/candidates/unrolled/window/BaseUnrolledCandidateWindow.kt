@@ -169,6 +169,13 @@ abstract class BaseUnrolledCandidateWindow :
         // ClickToAttachWindow even though there is nothing left to unroll.
         // While the unrolled window is attached, refreshUnrolled() has always
         // written the latest value, so reusing it is correct.
+        //
+        // Reset the highlight to -1 as well: after the user picked a
+        // candidate and collapsed the window the highlight has no meaning.
+        // Keeping a stale out-of-range value would make the next candidate
+        // refresh (e.g. Backspace rebuilding the menu) see an out-of-bounds
+        // highlight and auto-expand the window again.
+        compactCandidate.resetUnrolledHighlight()
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesDetached,
         )
