@@ -92,6 +92,12 @@ jobs:
         id: build_changelog
         uses: mikepenz/release-changelog-builder-action@v4
         with:
+          # This repo runs on a self-hosted Gitea instance, not GitHub. Without
+          # this the action defaults to `github` and queries api.github.com
+          # (which isn't reachable), producing an empty changelog. Gitea has no
+          # compare API, so in commitMode the diff is read from the local
+          # checked-out repo.
+          platform: "gitea"
           commitMode: true
           ignorePreReleases: true
           fromTag: ${{ steps.changelog_base.outputs.base }}
