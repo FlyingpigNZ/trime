@@ -115,7 +115,40 @@ jobs:
         with:
           allowUpdates: true
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
-          artifacts: "app/build/outputs/apk/release/*.apk"
           body: |
             ${{ steps.build_changelog.outputs.changelog }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ncipollo/release-action's `artifacts` upload uses GitHub's asset
+      # creation flow, which Gitea does not implement (the action exits 0 with
+      # a "Could not determine name of attachment" warning and attaches nothing).
+      # Upload the built APKs to the release directly via the Gitea API instead.
+      - name: Upload APKs to release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # GITHUB_API_URL is populated by the Gitea runner (verified on
+          # 1.27.3), e.g. http://host:3000/api/v1. Use it so the workflow is
+          # host-agnostic instead of hardcoding the server URL.
+          API="${GITHUB_API_URL:?}"
+          REPO="${{ github.repository }}"
+          TAG="${{ github.ref_name }}"
+
+          # The release was created in the previous step; fetch its id by tag.
+          RELEASE_ID=$(curl -fsS -H "Authorization: token $GITHUB_TOKEN" \
+            "$API/repos/$REPO/releases/tags/$TAG" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])")
+          echo "release id: $RELEASE_ID"
+
+          for apk in app/build/outputs/apk/release/*.apk; do
+            [ -e "$apk" ] || continue
+            name=$(basename "$apk")
+            echo "Uploading $name ..."
+            curl -fsS -X POST -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"$apk" \
+              "$API/repos/$REPO/releases/$RELEASE_ID/assets?name=$name" \
+              -o /dev/null -w "  -> %{http_code}\n"
+          done
+          echo "Assets uploaded."
