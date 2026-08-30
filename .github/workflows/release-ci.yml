@@ -73,9 +73,20 @@ jobs:
       - name: Resolve changelog base
         id: changelog_base
         run: |
-          git fetch origin develop --quiet
-          BASE=$(git merge-base HEAD origin/develop)
-          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          # This repo is single-branch (main) with no 'develop' branch, so the
+          # old `git merge-base HEAD origin/develop` fails. Use the previous
+          # release tag as the changelog base instead; for the FIRST release on
+          # a tag-less fork there is no previous tag, so fall back to a fixed
+          # baseline commit so the first changelog isn't the whole git history.
+          prev_tag=$(git describe --tags --abbrev=0 "HEAD^" 2>/dev/null) || prev_tag=""
+          if [ -n "$prev_tag" ]; then
+            base="$prev_tag"
+          else
+            # First release: diff against the last release before the single-branch
+            # migration, keeping the initial changelog bounded.
+            base="148ff931d5c66327e51b8d01d2c36dcdad74ae12"
+          fi
+          echo "base=${base}" >> "$GITHUB_OUTPUT"
 
       - name: Build changelog
         id: build_changelog
