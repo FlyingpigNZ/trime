@@ -22,9 +22,6 @@ jobs:
       matrix:
         os:
           - ubuntu-24.04
-          - macos-26
-          - macos-26-intel
-          - windows-2025
     env:
       BUILD_ABI: armeabi-v7a,arm64-v8a,x86,x86_64
     steps:
@@ -52,22 +49,19 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
+
       - name: Install Android NDK
         # Keep the cmake version in sync with Versions.DEFAULT_CMAKE instead
-        # of maintaining it in two places. macOS/Windows cannot use grep -P,
-        # so extract the version with python (bash) / Select-String (PowerShell).
-        if: ${{ runner.os != 'Windows' }}
+        # of maintaining it in two places.
         shell: bash
         run: |
           CMAKE_VERSION=$(python3 -c 'import re,pathlib;m=re.search(r"DEFAULT_CMAKE = \"([^\"]+)\"",pathlib.Path("build-logic/convention/src/main/kotlin/Versions.kt").read_text());print(m.group(1))')
           sdkmanager --install "cmake;$CMAKE_VERSION"
-
-      - name: Install Android NDK (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        run: |
-          $m = Select-String -Path build-logic/convention/src/main/kotlin/Versions.kt -Pattern 'DEFAULT_CMAKE = "([^"]+)"'
-          $ver = $m.Matches[0].Groups[1].Value
-          sdkmanager --install "cmake;$ver"
 
       - name: Install Python dependencies
         run: |
@@ -91,7 +85,6 @@ jobs:
           git submodule update --init --recursive
 
       - name: Check code style
-        if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           make style-lint
           make python-verifiers
@@ -105,11 +98,3 @@ jobs:
         if: ${{ !steps.jni-cache.outputs.cache-hit }}
         shell: bash
         run: cp -R app/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib app/prebuilt
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: trime-${{ matrix.os }}
-          path: app/build/outputs/apk/debug/
-          # keep 30 days
-          retention-days: 30

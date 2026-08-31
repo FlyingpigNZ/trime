@@ -43,8 +43,9 @@ static inline std::vector<jchar> Utf8ToUtf16(const char* in, size_t len) {
     } else if ((c >> 5) == 0x6 && i + 1 < len &&
                (static_cast<unsigned char>(in[i + 1]) & kContinuationMask) ==
                    kContinuationTag) {
-      out.push_back(static_cast<jchar>(
-          ((c & 0x1Fu) << 6) | (static_cast<unsigned char>(in[i + 1]) & 0x3Fu)));
+      out.push_back(
+          static_cast<jchar>(((c & 0x1Fu) << 6) |
+                             (static_cast<unsigned char>(in[i + 1]) & 0x3Fu)));
       i += 2;
     } else if ((c >> 4) == 0xE && i + 2 < len &&
                (static_cast<unsigned char>(in[i + 1]) & kContinuationMask) ==
@@ -192,8 +193,7 @@ class JString {
 
  public:
   JString(JNIEnv* env, const std::string& string)
-      : env_(env),
-        jstring_(NewUtf8String(env, string.data(), string.size())) {}
+      : env_(env), jstring_(NewUtf8String(env, string.data(), string.size())) {}
 
   JString(JNIEnv* env, const char* chars)
       : env_(env),
@@ -316,9 +316,8 @@ class GlobalRefSingleton {
 
     StatusProto = reinterpret_cast<jclass>(
         env->NewGlobalRef(env->FindClass("com/osfans/trime/core/StatusProto")));
-    StatusProtoInit =
-        env->GetMethodID(StatusProto, "<init>",
-                         "(Ljava/lang/String;Ljava/lang/String;ZZZ)V");
+    StatusProtoInit = env->GetMethodID(
+        StatusProto, "<init>", "(Ljava/lang/String;Ljava/lang/String;ZZZ)V");
 
     RimeResponse = reinterpret_cast<jclass>(env->NewGlobalRef(
         env->FindClass("com/osfans/trime/core/RimeResponse")));

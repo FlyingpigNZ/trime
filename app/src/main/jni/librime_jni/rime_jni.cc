@@ -85,8 +85,10 @@ class Rime {
     // directory where installation.yaml never exists.
     RimeConfig cfg;
     if (!rime->user_config_open("installation", &cfg)) return false;
-    const char* written = rime->config_get_cstring(&cfg, "distribution_version");
-    const bool usable = written != nullptr && strcmp(written, distroVersion) == 0;
+    const char* written =
+        rime->config_get_cstring(&cfg, "distribution_version");
+    const bool usable =
+        written != nullptr && strcmp(written, distroVersion) == 0;
     rime->config_close(&cfg);
     return usable;
   }
@@ -321,7 +323,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_osfans_trime_core_Rime_startupRime(
     // dir, full disk) on a fresh workspace, where no installation.yaml was
     // ever written and no ("deploy","failure") message will ever arrive. Both
     // must land in FAILED instead of silently flipping to READY.
-    if (Rime::Instance().apiAvailable() && Rime::Instance().installationInfoUsable()) {
+    if (Rime::Instance().apiAvailable() &&
+        Rime::Instance().installationInfoUsable()) {
       notificationHandler(nullptr, 0, "deploy", "success");
     } else {
       notificationHandler(nullptr, 0, "deploy", "failure");
