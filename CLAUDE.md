@@ -52,3 +52,33 @@ fix the data definition or the schema first.
 - Prefer schema-first validation over defensive code.
 - Keep generated assets consistent with their source schemas.
 - Do not push unverified or unfinished work to remote.
+
+## Git push target
+
+Development pushes go to **`origin_home`** (the maintainer's own Gitea
+server, `http://192.168.1.50:3000/Home/trime`), **not** to `origin`
+(GitHub `FlyingpigNZ/trime`) or `upstream` (GitHub `osfans/trime`).
+
+- New work on the current feature branch should be pushed with an explicit
+  remote: `git push origin_home <branch>`.
+- After pushing, set the upstream so plain `git push` uses the right target:
+  `git branch --set-upstream-to=origin_home/<branch>`.
+- Do **not** push feature branches to `origin` / `upstream` by default. Those
+  are only for upstream-fork work (e.g. a PR to osfans/trime), which the
+  maintainer handles explicitly.
+
+### Creating a PR (Gitea)
+
+Use the `tea` CLI (Gitea's CLI), not `gh` (GitHub). `tea` is already
+authenticated to `http://192.168.1.50:3000`.
+
+```bash
+tea pull create --repo Home/trime --base main --head <branch> \
+  --title "..." --description "..."
+```
+
+- `--repo Home/trime` is the Gitea repo slug (owner `Home`, name `trime`).
+- Make sure the branch is pushed to `origin_home` first (PRs read the Gitea
+  server's copy of the branch).
+- After creating it, open the returned URL (or `tea pull list --repo Home/trime`)
+  to verify.
