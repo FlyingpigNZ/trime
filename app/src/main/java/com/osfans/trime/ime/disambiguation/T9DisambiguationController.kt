@@ -141,7 +141,16 @@ class T9DisambiguationController(
     }
 
     override fun onRimeSchemaUpdated(schema: SchemaItem) {
-        if (schema.id == currentSchemaId) return
+        if (schema.id == currentSchemaId) {
+            // The engine was restarted for the same schema (e.g. a package
+            // re-import/re-activation redeploys the active schema): the
+            // extension file on disk may have changed, so reload
+            // unconditionally instead of skipping. A restart clears the Rime
+            // composition, so dropping the owned digit/confirmed state here is
+            // always consistent.
+            reloadForSchema(schema.id)
+            return
+        }
         currentSchemaId = schema.id
         reloadForSchema(schema.id)
     }

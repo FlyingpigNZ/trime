@@ -75,9 +75,16 @@ def flypy_code(pinyin: str) -> str:
         final = pinyin[init_len:]
         if initial in XIAOHE_INITIALS and final in XIAOHE_FINALS:
             return XIAOHE_INITIALS[initial] + XIAOHE_FINALS[final]
-    # Zero-initial syllables (a, ai, ao, ...): just the final key.
+    # Zero-initial syllables (a, ai, ao, ...): mirror the Rime /base/小鹤双拼
+    # algebra, where every syllable is exactly two keys but the guide+key form
+    # is only used when the natural spelling is not already two keys:
+    #   - two-letter finals keep their natural spelling (ai -> ai, an -> an,
+    #     ao -> ao, ei -> ei, en -> en, ou -> ou — the algebra drops the
+    #     guide+key forms `^(aj|ac|ad|ew|ef|oz)(\d?)$`);
+    #   - single-letter finals double (a -> aa, o -> oo, e -> ee);
+    #   - longer finals take a vowel guide + the final key (ang -> ah, eng -> eg).
     if pinyin in XIAOHE_FINALS:
-        return XIAOHE_FINALS[pinyin]
+        return pinyin if len(pinyin) == 2 else pinyin[0] + XIAOHE_FINALS[pinyin]
     raise ValueError(f"cannot encode '{pinyin}' to 小鹤双拼")
 
 

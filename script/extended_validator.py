@@ -27,7 +27,7 @@ from typing import Any
 
 import yaml
 
-from generate_pinyin_syllables import XIAOHE_FINALS, XIAOHE_INITIALS, t9_code
+from generate_pinyin_syllables import flypy_code, t9_code
 
 EXTENDED_SUFFIX = ".extended.yaml"
 
@@ -147,12 +147,12 @@ def _validate_syllable(entry: Any, index: int, prefix: str) -> list[str]:
 
 
 def _is_valid_flypy(pinyin: str, flypy: str) -> bool:
-    """Whether [flypy] is the 小鹤双拼 key code of [pinyin]."""
-    for init_len in (2, 1):
-        initial = pinyin[:init_len]
-        final = pinyin[init_len:]
-        if initial in XIAOHE_INITIALS and final in XIAOHE_FINALS:
-            return flypy == XIAOHE_INITIALS[initial] + XIAOHE_FINALS[final]
-    if pinyin in XIAOHE_FINALS:
-        return flypy == XIAOHE_FINALS[pinyin]
-    return False
+    """Whether [flypy] is the 小鹤双拼 key code of [pinyin].
+
+    Delegates to the generator's `flypy_code` so the shipped data and the
+    validator can never disagree (see the module docstring).
+    """
+    try:
+        return flypy == flypy_code(pinyin)
+    except ValueError:
+        return False

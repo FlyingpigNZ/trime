@@ -411,6 +411,13 @@ class Rime(
             Timber.w("Skip starting rime: not at stopped state!")
             return
         }
+        // Forget the last schema id: after an engine (re)start the first
+        // StatusMessage must re-emit a SchemaMessage even when the schema id
+        // did not change (e.g. a package re-import/re-activation redeploys the
+        // same schema), so per-schema state (toolbar override, T9
+        // disambiguation data) is re-read from the workspace instead of going
+        // stale until the next real schema switch.
+        schemaCached = RimeSchema(".default")
         _uiState.update { it.copy(deployState = DeployState.Idle) }
         registerRimeMessageHandler(rimeMessageHandler)
         dispatcher.start(fullCheck)

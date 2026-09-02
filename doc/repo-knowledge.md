@@ -227,7 +227,11 @@ Kotlin wiring:
 Data:
 - `script/generate_pinyin_syllables.py` — generates the syllable table
   (pinyin + `t9_code` + `flypy_code` + `flypy_t9_code`) from the built-in
-  luna_pinyin dict and the 小鹤双拼 key mapping.
+  luna_pinyin dict and the 小鹤双拼 key mapping. Zero-initial syllables are
+  two keys like everything else, per the Rime `/base/小鹤双拼` algebra:
+  two-letter finals keep their natural spelling (`ai`, `an`, `ao`, `ei`, `en`,
+  `ou`), single-letter finals double (`a → aa`), longer finals take a vowel
+  guide + final key (`ang → ah`, `eng → eg`).
 - `script/extended_validator.py` — validates `<schemaId>.extended.yaml`
   files; wired into `script/validate-definitions.py` (`--check-shipped` and
   zip validation).
