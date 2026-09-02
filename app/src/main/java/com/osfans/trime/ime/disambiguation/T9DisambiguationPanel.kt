@@ -85,10 +85,10 @@ class T9DisambiguationPanel(
         )
         // The panel overlays the keyboard's first (punctuation) column. It is
         // deliberately transparent: the controller suppresses that column's
-        // labels/symbols (see KeyView.onDraw / Keyboard.pinyinOverlayVisible),
-        // so the underlying key backgrounds show through and keep the keyboard
-        // shape continuous — an opaque backdrop here would look disconnected.
-        // We draw nothing; the pinyin text in the adapter is the only content.
+        // keys entirely (see KeyView.onDraw / Keyboard.pinyinOverlayVisible),
+        // so neither the button shapes nor their glyphs show through behind
+        // the panel — the pinyin text in the adapter is the only content, over
+        // the plain keyboard backdrop. We draw nothing here.
         background = null
     }
 

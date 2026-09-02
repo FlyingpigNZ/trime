@@ -276,14 +276,17 @@ class KeyView(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        drawBackground(canvas, key)
-
         // When the T9 pinyin-disambiguation panel overlays the keyboard's first
-        // (punctuation) column, suppress that column's label/symbol/hint so the
-        // punctuation glyphs don't show through behind the panel. Key backgrounds
-        // are still drawn, keeping the keyboard's shape continuous.
+        // (punctuation) column, that column must not show through behind the
+        // transparent panel at all: neither the labels/symbols/hints (previous
+        // change) nor the button itself. The panel covers the column and
+        // intercepts touches, so the covered keys are unreachable while the
+        // overlay is up — draw nothing for them (background included) and the
+        // strip shows the plain keyboard backdrop behind the pinyin list.
         val overlaySuppressesColumn = keyboard.pinyinOverlayVisible && key.column == 0
         if (overlaySuppressesColumn) return
+
+        drawBackground(canvas, key)
 
         val label = key.getLabel().let {
             if (it == "enter_labels") keyboardView.labelEnter else it

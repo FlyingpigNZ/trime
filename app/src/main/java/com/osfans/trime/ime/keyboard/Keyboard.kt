@@ -79,11 +79,11 @@ class Keyboard(
 
     /**
      * Whether the T9 pinyin-disambiguation panel is currently overlaying the
-     * keyboard's first column. When true, the first-column (punctuation) key
-     * labels/symbols are suppressed so they do not show through behind the
-     * panel; the key backgrounds are still drawn so the keyboard shape stays
-     * continuous. Mutated by the disambiguation controller, read by each
-     * [KeyView] on draw.
+     * keyboard's first column. When true, the first-column (punctuation) keys
+     * are not drawn at all (button background and label/symbol/hint alike) so
+     * nothing of the covered column shows through behind the transparent
+     * panel. Mutated by the disambiguation controller, read by each [KeyView]
+     * on draw.
      */
     @Volatile
     var pinyinOverlayVisible: Boolean = false

@@ -218,10 +218,11 @@ Kotlin wiring:
   punctuation column, intercepts touches), `T9DisambiguationController`
   (drives the panel from composition updates via `rime.getRawInput()`, sends
   the picked pinyin back via `clearComposition` + `simulateKeySequence`).
-- While the panel is showing, the keyboard suppresses the first column's
-  labels/symbols (`Keyboard.pinyinOverlayVisible`; `KeyView.onDraw` skips
-  them) so the punctuation glyphs don't show through behind the transparent
-  panel; the key backgrounds stay drawn for continuity.
+- While the panel is showing, the keyboard draws nothing for the covered
+  first column (`Keyboard.pinyinOverlayVisible`; `KeyView.onDraw` returns
+  early for column-0 keys) — neither the button backgrounds nor the
+  labels/symbols show through behind the transparent panel; the pinyin items
+  render over the plain keyboard backdrop.
 
 Data:
 - `script/generate_pinyin_syllables.py` — generates the syllable table
