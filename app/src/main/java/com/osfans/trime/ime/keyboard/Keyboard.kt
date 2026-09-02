@@ -78,6 +78,17 @@ class Keyboard(
     var mSymKey: Key? = null
 
     /**
+     * Whether the T9 pinyin-disambiguation panel is currently overlaying the
+     * keyboard's first column. When true, the first-column (punctuation) key
+     * labels/symbols are suppressed so they do not show through behind the
+     * panel; the key backgrounds are still drawn so the keyboard shape stays
+     * continuous. Mutated by the disambiguation controller, read by each
+     * [KeyView] on draw.
+     */
+    @Volatile
+    var pinyinOverlayVisible: Boolean = false
+
+    /**
      * Total height of the keyboard, including the padding and keys
      *
      * @return the total height of the keyboard

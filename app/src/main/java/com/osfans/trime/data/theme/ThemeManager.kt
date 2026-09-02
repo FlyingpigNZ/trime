@@ -20,6 +20,15 @@ object ThemeManager {
 
     private lateinit var _activeTheme: Theme
 
+    /**
+     * The package-level `tool_bar` (chrome.yaml), before any per-schema
+     * `<schemaId>.extended.yaml` override is applied. Kept separate so
+     * switching to a schema without an override restores the base toolbar
+     * instead of stacking stale overrides.
+     */
+    private var baseToolBar: com.osfans.trime.data.theme.model.ToolBar =
+        com.osfans.trime.data.theme.model.ToolBar()
+
     val isInitialized: Boolean
         get() = ::_activeTheme.isInitialized
 
@@ -105,10 +114,44 @@ object ThemeManager {
             } else {
                 activeTheme.mergeSchemaLayout(layout)
             }
+        baseToolBar = theme.toolBar
         KeyActionManager.resetCache()
         FontManager.resetCache(theme)
         ColorManager.switchTheme(theme)
         LiquidData.init(theme)
         activeTheme = theme
+    }
+
+    /**
+     * Apply the active schema's `<schemaId>.extended.yaml` `tool_bar` override
+     * (feature ①) onto the current theme. When [schemaId] has no override the
+     * base package toolbar is restored, so switching schemas never leaves a
+     * stale toolbar behind. Returns true when the toolbar actually changed.
+     *
+     * The theme rebuild re-runs the theme-change listener, which recreates the
+     * input view and the whole DI graph — the centralized way every toolbar
+     * read point (AlwaysUi/ButtonsBarUi/TabUi/SegmentsWindow/FontManager)
+     * observes the new toolbar.
+     */
+    fun applySchemaToolBar(schemaId: String): Boolean {
+        // Unlike applySchemaLayout we deliberately do NOT reset the
+        // KeyActionManager cache here: a toolbar only re-wires which action
+        // names a button refers to; it does not change the preset_keys /
+        // preset_keyboards that define how a name resolves to a KeyAction. The
+        // action cache is keyed by name and resolves lazily, so a newly
+        // referenced action is parsed on first use. applySchemaLayout resets it
+        // because it replaces the key layouts themselves.
+        val ext = SchemaExtensionResolver.loadForSchema(schemaId)
+        val newToolBar = when {
+            ext == null -> baseToolBar
+            ext.toolBar?.replace == true -> ext.toolBar!!
+            ext.toolBarNode != null -> SchemaExtensionResolver.mergeToolBarNode(baseToolBar, ext.toolBarNode)
+            else -> baseToolBar
+        }
+        if (newToolBar == activeTheme.toolBar) return false
+        val merged = activeTheme.copy(toolBar = newToolBar)
+        FontManager.resetCache(merged)
+        activeTheme = merged
+        return true
     }
 }

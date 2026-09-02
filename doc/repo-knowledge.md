@@ -183,11 +183,13 @@ tongwenfeng-style toolbar (`button_spacing`, `button_font`,
 > disambiguation" features. The app can parse the active workspace's schema
 > files at schema-switch time to read per-schema directives.
 
-### 4.1 Planned: per-schema `.extended.yaml` (not yet implemented)
+### 4.1 Per-schema `.extended.yaml` (implemented)
 
 `.schema.yaml` is owned by the Rime engine (it compiles the input method), so the
-app must **not** add application-specific sections to it. Instead the plan adds a
-sibling file per schema, named after the schema id:
+app must **not** add application-specific sections to it. Each schema may ship a
+sibling application-level extension file, named after the schema id, stored under
+`rime/` (the prefix is stripped at install time, so it lands in the workspace
+root):
 
 ```text
 rime/wanxiang_flypy_t9.extended.yaml
@@ -195,9 +197,41 @@ rime/wanxiang_t9.extended.yaml
 ```
 
 It carries (a) the per-schema `tool_bar` override (`__replace: false`/`true`,
-default merge) and (b) `t9_disambiguation` (`enabled`, plus the pinyin syllable
-table / 双拼 key mapping). The app parses it with `Yaml`; the Rime engine never
-touches it. See `doc/t9-toolbar-plan.md` for the full proposal.
+default merge) and (b) `t9_disambiguation` (`enabled`, `input_method`, the
+pinyin syllable table and the 双拼 key mapping). The app parses it with `Yaml`;
+the Rime engine never touches it.
+
+Kotlin wiring:
+- `data/theme/SchemaExtension.kt` — the file model (`tool_bar`,
+  `t9_disambiguation`, syllables, flypy keys).
+- `data/theme/SchemaExtensionResolver.kt` — loads `<schemaId>.extended.yaml`
+  from `PackageStore.activeWorkspaceDir()`; computes the effective toolbar
+  (replace or node-level deep merge, same semantics as
+  `ComponentResolver.mergeMappings`).
+- `ThemeManager.applySchemaToolBar(schemaId)` — applies/restores the per-schema
+  toolbar on schema switch (called from
+  `KeyboardWindow.onRimeSchemaUpdated`); keeps `baseToolBar` so switching away
+  from an overridden schema restores the package toolbar.
+- `ime/disambiguation/` — `T9PinyinDecoder` (digit string → legal pinyin
+  sequences, full-pinyin DP + flypy two-digit grouping),
+  `T9DisambiguationPanel` (scrollable column over the keyboard's first
+  punctuation column, intercepts touches), `T9DisambiguationController`
+  (drives the panel from composition updates via `rime.getRawInput()`, sends
+  the picked pinyin back via `clearComposition` + `simulateKeySequence`).
+- While the panel is showing, the keyboard suppresses the first column's
+  labels/symbols (`Keyboard.pinyinOverlayVisible`; `KeyView.onDraw` skips
+  them) so the punctuation glyphs don't show through behind the transparent
+  panel; the key backgrounds stay drawn for continuity.
+
+Data:
+- `script/generate_pinyin_syllables.py` — generates the syllable table
+  (pinyin + `t9_code` + `flypy_code` + `flypy_t9_code`) from the built-in
+  luna_pinyin dict and the 小鹤双拼 key mapping.
+- `script/extended_validator.py` — validates `<schemaId>.extended.yaml`
+  files; wired into `script/validate-definitions.py` (`--check-shipped` and
+  zip validation).
+- The 万象14键-nogram sample package ships
+  `wanxiang_t9.extended.yaml` and `wanxiang_flypy_t9.extended.yaml`.
 
 ---
 
@@ -239,7 +273,8 @@ touches it. See `doc/t9-toolbar-plan.md` for the full proposal.
 
 `RimeApi` (`core/RimeApi.kt`): `simulateKeySequence`, `commitComposition`,
 `clearComposition`, `getRawInput`, `selectCandidate`, `changeCandidatePage`,
-`getCandidates`, `setRuntimeOption`, `getRuntimeOption`, `currentSchema`,
+`getCandidates`, `setRuntimeOption`, `getRuntimeOption`, `setInput` (set the
+context input directly to feed a mixed composition), `currentSchema`,
 `processKey`, `moveCursorPos`.
 
 > `LiquidWindow.triggerSymbolInput` is the in-repo example of "commit then feed
@@ -302,3 +337,77 @@ Schema reading:
 4. Keep generated assets (zips) consistent with their source schemas.
 5. Validate definitions early and fail loudly (schema-first).
 6. Do not push unverified/unfinished work to remote.
+
+---
+
+## 9. Dev-environment / infrastructure notes (learned the hard way)
+
+Operational facts about the DSH dev container this repo is built in. These are
+**environment quirks, not repo bugs** — they bit us once; record them so they
+are not rediscovered the hard way.
+
+### 9.1 DSH process sandbox (workspace-write) needs a usable backend
+
+- The DSH bash tool refuses to run **any** command under `workspace-write` /
+  `read-only` when no sandbox backend is usable:
+  `sandbox mode "workspace-write" is requested but no sandbox backend is usable on this host`.
+  This is fail-closed by design (`@deepseek-ai/dsh-sandbox-local`), not a bug.
+- Linux chain is `bwrap` then Landlock (`PLATFORM_CHAINS.linux`), probed once:
+  - `bwrap`: must be installed (`apt-get install bubblewrap`) **and** the
+    container must allow `unshare(CLONE_NEWUSER)` — the default Docker seccomp
+    profile denies namespace syscalls, so bwrap fails with
+    `Creating new namespace failed: Operation not permitted`.
+  - Landlock: needs the kernel compiled with `CONFIG_SECURITY_LANDLOCK`. Unraid
+    6.18 kernel does **not** (kallsyms shows address-0 weak symbols for
+    `__x64_sys_landlock_*`; the syscall returns ENOSYS). Container-side
+    `--security-opt seccomp=unconfined` does **not** fix this.
+- Fix that worked: container started with `--security-opt seccomp=unconfined`
+  (removes the namespace-syscall seccomp filter) + `bubblewrap` installed.
+  After that DSH auto-selects bwrap and `workspace-write` works, with `/etc`
+  read-only and only the workspace root + `/tmp` writable.
+
+### 9.2 Sandbox makes most of the filesystem read-only
+
+Under `workspace-write`, bwrap mounts `/` read-only and binds only the
+workspace root (plus `--tmpfs /tmp`) writable. Consequences:
+
+- `~/.gitconfig`, `~/.git-credentials`, `/root/.android`, `/opt/android-sdk`
+  are all **read-only** inside the sandbox. Commands that need to write there
+  fail with `Read-only file system` or `not writable`.
+- Gradle: point `GRADLE_USER_HOME` into the workspace
+  (`export GRADLE_USER_HOME=<workspace>/.gradle-home`) — `.gradle-home/` is
+  gitignored. Without it the wrapper tries `/root/.gradle` (read-only) and
+  dies on the lock file.
+- Android debug signing: AGP wants `/root/.android/debug.keystore`. Set
+  `ANDROID_USER_HOME=<workspace>/.android-home` (also gitignored) so the
+  keystore lands on writable storage.
+- SDK components (`platforms;android-36`, `build-tools;36.0.0`,
+  `cmake;3.31.6`, `ndk;28.0.13004108`) must be installed with an escalated
+  (danger-full-access) bash call, because `/opt/android-sdk` is outside the
+  sandbox writable roots.
+
+### 9.3 Long gradle builds die in background bash jobs
+
+Running `./gradlew :app:assembleDebug` as a **background** job gets killed
+mid-JNI-compile (daemon logs show the build stopping at a C/C++ warning with
+no error). Run builds **foreground** with a large timeout instead. A fresh
+container does a full 4-ABI JNI build (librime + plugins) — several minutes;
+the second build is fast because the JNI cache persists in `app/build`.
+
+### 9.4 Git credentials live on the Unraid host, not the container layer
+
+- The container layer (`/home/dsh`, `/root`) is **not** persistent across
+  container recreation — `.git-credentials` / `.gitconfig` / `.ssh` put there
+  are lost on rebuild.
+- The persistent, safe place is the Unraid `shfs` volume mounts, notably
+  `/ssh-keys` (host-side key store). This repo pushes to Gitea
+  (`git@192.168.1.50:Home/trime.git`) over SSH with the key
+  `/ssh-keys/gitea-dsh-dev-docker`; the remote URL and `core.sshCommand`
+  (with `-i /ssh-keys/gitea-dsh-dev-docker`) are set in the repo-local
+  `.git/config` so plain `git push` works without extra setup.
+- The container runs as **root** (matches the host's other machines), so
+  `git config --global` writes fail (read-only home); use repo-local config
+  or env-var injection (`GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory
+  GIT_CONFIG_VALUE_0=...`) instead. After a container rebuild, `chown` the
+  workspace to root if a prior root-run session left it owned by `dsh` (or
+  vice versa) so git's dubious-ownership check passes.

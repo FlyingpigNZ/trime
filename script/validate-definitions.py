@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from component_resolver import ComponentError, ComponentResolver  # noqa: E402
+from extended_validator import EXTENDED_SUFFIX, validate_extended_file  # noqa: E402
 
 
 def validate_component_manifest(data: dict, path: Path) -> list[str]:
@@ -69,6 +70,17 @@ def validate_zip(zip_path: Path) -> list[str]:
         if not manifest.is_file():
             return ["package has no manifest.yaml/component.yaml"]
         errors += validate_file(manifest)
+        errors += _validate_extended_files_in(extract_dir)
+    return errors
+
+
+def _validate_extended_files_in(package_dir: Path) -> list[str]:
+    """Validate every `<schemaId>.extended.yaml` present in a package dir."""
+    errors: list[str] = []
+    for path in sorted(package_dir.rglob(f"*{EXTENDED_SUFFIX}")):
+        found = validate_extended_file(path)
+        if found:
+            errors.append(f"{path.relative_to(package_dir)}:\n  " + "\n  ".join(found))
     return errors
 
 
@@ -83,6 +95,10 @@ def check_shipped() -> int:
         found = validate_file(path)
         if found:
             errors.append(f"{path.relative_to(ROOT)}:\n  " + "\n  ".join(found))
+        # Source-form extended files next to the manifest.
+        found = _validate_extended_files_in(path.parent)
+        if found:
+            errors.append(f"{path.parent.relative_to(ROOT)}:\n  " + "\n  ".join(found))
     # Packaged samples: validate the actual zips shipped in the repo, not
     # just their unpacked source, so a stale or corrupt zip is caught.
     sample_zips = sorted((ROOT / "sample_theme_schemas").glob("*.zip"))

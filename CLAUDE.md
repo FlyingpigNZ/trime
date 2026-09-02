@@ -52,6 +52,16 @@ fix the data definition or the schema first.
 - Prefer schema-first validation over defensive code.
 - Keep generated assets consistent with their source schemas.
 - Do not push unverified or unfinished work to remote.
+- **Format code before pushing.** CI runs `make style-lint` (Gradle
+  `spotlessCheck` for Kotlin/Java + `script/clang-format.sh -n` for
+  `app/src/main/jni/librime_jni/*.{h,cc}`) and rejects unformatted code. Before
+  pushing, run `make style-apply` (runs `./gradlew spotlessApply` and
+  `clang-format -i` over the JNI sources), then recompile to make sure the
+  format pass changed nothing semantically; or at minimum run `make style-lint`
+  on the working tree and fix what it flags.
+- After any change that touches Kotlin/Java or JNI sources, prefer to run the
+  relevant target immediately: `./gradlew spotlessApply` for Kotlin/Java,
+  `./script/clang-format.sh -i` for JNI C/C++.
 
 ## Git push target
 

@@ -1,6 +1,13 @@
 # 计划：① 方案级工具栏覆盖  ② T9/小鹤双拼 拼音拆解列
 
-> 状态：**待审阅**。这是给用户的提案，先不改代码。用户看后决定改什么、怎么动手。
+> 状态：**已实现（进行中）**。两个功能已按本计划落地：
+> - ① 方案级工具栏：`<schemaId>.extended.yaml` 的 `tool_bar` 覆盖
+>   （`__replace` 缺省 merge），schema 切换时由
+>   `ThemeManager.applySchemaToolBar` 应用/恢复。
+> - ② T9 拼音拆解列：音节表 + 小鹤键位表数据、数字串→拼音序列解码器、
+>   覆盖第一列的可滚动浮层（拦截触摸），点选拼音喂回 Rime。
+> 剩余工作见文末「待确认 / 已定」的「仍待定」节与
+> `doc/repo-knowledge.md` §4.1。
 
 两个新功能，都已读过代码、摸清现有架构。下面是计划。**设计点已按用户的
 多轮反馈修正**：
@@ -252,10 +259,13 @@ gao、…），应用列出 **`426` 所有合法的拼音组合**，放到 T9 �
 - **② 启用位字段**：`t9_disambiguation`，默认对 `t9=true` 方案开启。
 - **② 音节表数据量**：全拼 400+ 即够；小鹤双拼键位表单独成表。
 
-仍待定：
-- `<schemaId>.extended.yaml` 的**确切存放与打包路径**（`rime/` 目录随 `rime_files`
-  拷入 workspace，还是独立资源目录 / 加进 `manifest.yaml` 的 `rime_files` 列表）。
-- 浮动窗口的**确切挂载方式**（独立 View 叠在键盘第一列上 vs 独立 `BoardWindow`），
-  需确认与 `KeyboardView` 的触摸拦截不冲突。
-- `<schemaId>.extended.yaml` 里的**工具校验**：与包内 schema 一一对应、
-  `schema_id` 匹配、`tool_bar`/`t9_disambiguation` 形状校验。
+仍待定 → 已实现中确定：
+- `<schemaId>.extended.yaml` 的**存放与打包路径**：随包的 schema 文件旁（zip 根，
+  与 `wanxiang_t9.schema.yaml` 同级），安装后落到 workspace 根目录，
+  `SchemaExtensionResolver` 在那里查找。
+- 浮动窗口的**挂载方式**：独立 View 叠在 `KeyboardView` 所在 FrameLayout 之上
+  （`KeyboardWindow.attachKeyboard` 时挂载），内部 `RecyclerView` 消费触摸，
+  被盖住的标点键不触发。
+- `<schemaId>.extended.yaml` 的**工具校验**：`script/extended_validator.py` +
+  Kotlin `DefinitionValidator.validateExtendedFiles`，校验 `schema_id`、
+  `tool_bar`/`__replace` 形状、音节表键码一致性。

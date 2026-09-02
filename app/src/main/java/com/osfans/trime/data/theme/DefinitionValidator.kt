@@ -93,6 +93,71 @@ object DefinitionValidator {
         return errors
     }
 
+    /**
+     * Validate every `<schemaId>.extended.yaml` in [workspace]: structural
+     * checks via [SchemaExtension.validate] plus color-literal checks on the
+     * `tool_bar` section.
+     *
+     * [sections] carries the resolved component sections so the toolbar color
+     * check knows the package's own color keys (extended files reference those
+     * keys); pass an empty map to only check against the builtin keys.
+     */
+    fun validateExtendedFiles(
+        workspace: java.io.File,
+        sections: Map<String, Node.Mapping> = emptyMap(),
+    ): List<String> {
+        val errors = mutableListOf<String>()
+        val colorKeys = knownColorKeys(sections)
+        workspace.listFiles { file ->
+            file.isFile && file.name.endsWith(SchemaExtension.FILE_SUFFIX)
+        }?.sortedBy { it.name }?.forEach { file ->
+            val text = file.readText(Charsets.UTF_8)
+            errors += SchemaExtension.validate(text, file.name)
+            val node = parseMapping(text)
+            // The schema_id declared inside the file must match its file name:
+            // `<schemaId>.extended.yaml` is loaded by translating the file name
+            // to a schema id, so a mismatch would silently bind the wrong id.
+            node?.get("schema_id")?.string?.let { declared ->
+                val fromName = file.name.removeSuffix(SchemaExtension.FILE_SUFFIX)
+                if (declared != fromName) {
+                    errors += "${file.name}: schema_id '$declared' does not match file name '$fromName'"
+                }
+            }
+            // Color-literal validation for the toolbar section.
+            node?.get("tool_bar")?.mapping?.let { toolBar ->
+                validateColorFields(toolBar, "${file.name}.tool_bar", colorKeys, errors)
+            }
+        }
+        return errors
+    }
+
+    /**
+     * All color keys the toolbar may reference: builtin theme keys, builtin
+     * fallback keys, plus every color key defined by the package's color
+     * schemes.
+     */
+    fun knownColorKeys(sections: Map<String, Node.Mapping> = emptyMap()): Set<String> {
+        val known = mutableSetOf<String>()
+        ThemeColor.entries.forEach { known += it.key }
+        known += BuiltinFallbackColors.keys
+        sections["preset_color_schemes"]?.pairs?.forEach { (_, schemeNode) ->
+            val scheme = schemeNode.mapping ?: return@forEach
+            val palettes = mutableListOf<Node.Mapping>()
+            scheme["light"]?.mapping?.let { palettes += it }
+            scheme["dark"]?.mapping?.let { palettes += it }
+            if (palettes.isEmpty()) palettes += scheme
+            palettes.forEach { palette ->
+                palette.pairs.forEach { (keyNode, _) ->
+                    keyNode.string?.let { known += it }
+                }
+            }
+        }
+        sections["fallback_colors"]?.pairs?.forEach { (keyNode, _) ->
+            keyNode.string?.let { known += it }
+        }
+        return known
+    }
+
     private fun validateFallbackCycles(fallbackColors: Map<String, String>): List<String> {
         val errors = mutableListOf<String>()
         val visiting = mutableSetOf<String>()

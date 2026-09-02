@@ -338,6 +338,28 @@ class CommonKeyboardActionListener {
                 metaState: Int,
             ) {
                 if (ImePackageManager.isActivating()) return
+
+                // T9 disambiguation: observe T9 digit keys and Backspace so the
+                // controller keeps its own digit string (Rime's raw is not pure
+                // digits once a pinyin is confirmed). Digit keys are NOT
+                // consumed — they must still reach Rime's fold path. Backspace,
+                // when it would undo a confirmed pinyin, IS consumed.
+                if (keyEventCode in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 ||
+                    keyEventCode in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9
+                ) {
+                    val digit = when (keyEventCode) {
+                        in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 ->
+                            '0' + (keyEventCode - KeyEvent.KEYCODE_0)
+                        else -> '0' + (keyEventCode - KeyEvent.KEYCODE_NUMPAD_0)
+                    }
+                    keyboardWindow.t9Disambiguation.onDigitKey(digit)
+                } else if (keyEventCode == KeyEvent.KEYCODE_DEL) {
+                    if (keyboardWindow.t9Disambiguation.onBackspace()) {
+                        Timber.d("handleKey: t9 backspace intercepted (undo pinyin)")
+                        return
+                    }
+                }
+
                 val name = KeyCode.codeToKeyName(keyEventCode) ?: "VoidSymbol"
                 val value = RimeKeyEvent.getKeycodeByName(name)
                 val m = if (keyEventCode in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_EQUALS) {

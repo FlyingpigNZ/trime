@@ -4,6 +4,7 @@
 
 package com.osfans.trime.data.theme.component
 
+import com.osfans.trime.data.theme.DefinitionValidator
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
@@ -41,7 +42,18 @@ object ComponentThemeLoader {
                 "Invalid component theme:\n" + validationErrors.joinToString("\n"),
             )
         }
+        // Per-schema `<schemaId>.extended.yaml` files (app-owned directives).
         val sections = ComponentResolver(source).resolve(manifest)
+        val extendedErrors =
+            DefinitionValidator.validateExtendedFiles(
+                manifestFile.parentFile ?: File("."),
+                sections,
+            )
+        if (extendedErrors.isNotEmpty()) {
+            throw IllegalArgumentException(
+                "Invalid extended files:\n" + extendedErrors.joinToString("\n"),
+            )
+        }
         return Theme.decode(buildThemeNode(manifest, sections))
     }
 

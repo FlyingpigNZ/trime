@@ -198,6 +198,11 @@ class Rime(
         getRimeOption(option)
     }
 
+    override suspend fun setInput(input: String): Unit = withRimeContext {
+        setRimeInput(input)
+        emitResponse()
+    }
+
     override suspend fun setNullInputType(value: Boolean) = withRimeContext {
         isNullInputType = value
     }
@@ -513,6 +518,9 @@ class Rime(
 
         @JvmStatic
         external fun getRimeOption(option: String): Boolean
+
+        @JvmStatic
+        external fun setRimeInput(input: String)
 
         @JvmStatic
         external fun getRimeSchemaList(): Array<SchemaItem>

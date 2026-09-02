@@ -492,6 +492,11 @@ app/src/main/jni/boost/
 app/release/
 app/src/main/assets/prelude/
 sample_theme_schemas/rime.雾凇/
+# Unpacked IME package source dirs + the 420MB .gram model: the repo ships the
+# slim zip (0-byte gram placeholder) only, never the source tree or the real gram.
+sample_theme_schemas/wanxiang-lts-zh-hans.gram
+sample_theme_schemas/万象14键-nogram/
+sample_theme_schemas/测试-万象14键-nogram/
 __pycache__/
 *.pyc
 
@@ -499,3 +504,4 @@ __pycache__/
 .vscode/
 .gradle-home/
 .gradle-home-fix/
+.android-home/

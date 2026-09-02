@@ -170,6 +170,10 @@ class Rime {
     return rime->get_option(session(), key.data());
   }
 
+  void setInput(std::string_view input) {
+    rime->set_input(session(), input.data());
+  }
+
   std::string currentSchemaId() {
     char result[MAX_BUFFER_LENGTH];
     return rime->get_current_schema(session(), result, MAX_BUFFER_LENGTH)
@@ -403,6 +407,11 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_com_osfans_trime_core_Rime_getRimeOption(JNIEnv* env, jclass /* thiz */,
                                               jstring option) {
   return Rime::Instance().getOption(*CString(env, option));
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_osfans_trime_core_Rime_setRimeInput(
+    JNIEnv* env, jclass /* thiz */, jstring input) {
+  Rime::Instance().setInput(*CString(env, input));
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL

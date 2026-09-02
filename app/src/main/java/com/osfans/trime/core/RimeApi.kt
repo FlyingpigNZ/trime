@@ -81,6 +81,9 @@ interface RimeApi {
 
     suspend fun getRuntimeOption(option: String): Boolean
 
+    /** Set the composition raw input directly (triggers re-translation, no key side effects). */
+    suspend fun setInput(input: String)
+
     suspend fun setNullInputType(value: Boolean)
 
     suspend fun getCandidates(

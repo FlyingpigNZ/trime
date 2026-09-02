@@ -6,6 +6,7 @@
 package com.osfans.trime.data.theme.model
 
 import com.osfans.trime.util.yaml.Node
+import com.osfans.trime.util.yaml.boolean
 import com.osfans.trime.util.yaml.float
 import com.osfans.trime.util.yaml.int
 import com.osfans.trime.util.yaml.mapping
@@ -18,6 +19,13 @@ data class ToolBar(
     val buttonSpacing: Int = 18,
     val buttonFont: List<String> = emptyList(),
     val backStyle: String = "ic@arrow-left",
+    /**
+     * Per-schema override intent: true means this toolbar **replaces** the
+     * package `tool_bar` entirely; false (default) means it **merges** onto
+     * it. Only meaningful for toolbars decoded from `<schemaId>.extended.yaml`;
+     * the base package toolbar always has `replace = false`.
+     */
+    val replace: Boolean = false,
 ) {
 
     data class Button(
@@ -92,6 +100,9 @@ data class ToolBar(
     }
 
     companion object {
+        /** Custom intent key in `<schemaId>.extended.yaml`; handled by the caller. */
+        const val REPLACE_KEY = "__replace"
+
         fun decode(node: Node.Mapping?): ToolBar = ToolBar(
             primaryButton = node?.get("primary_button")?.mapping?.let { Button.decode(it) },
             buttons = node?.get("buttons")?.sequence?.map { Button.decode(it.mapping!!) } ?: emptyList(),
@@ -100,5 +111,23 @@ data class ToolBar(
                 ?.mapNotNull(Node::string) ?: emptyList(),
             backStyle = node?.get("back_style")?.string ?: "ic@arrow-left",
         )
+
+        /**
+         * Decode a per-schema `tool_bar` override from an `.extended.yaml`.
+         * Returns null when the section is absent; throws on a malformed
+         * `__replace` value so schema mistakes fail loudly (schema-first).
+         */
+        fun decodeExtended(node: Node.Mapping?): ToolBar? {
+            if (node == null) return null
+            val replace = when (val raw = node[REPLACE_KEY]) {
+                null -> false
+                else ->
+                    raw.boolean
+                        ?: throw IllegalArgumentException(
+                            "tool_bar.$REPLACE_KEY must be a boolean, got '${raw.string}'",
+                        )
+            }
+            return decode(node).copy(replace = replace)
+        }
     }
 }
