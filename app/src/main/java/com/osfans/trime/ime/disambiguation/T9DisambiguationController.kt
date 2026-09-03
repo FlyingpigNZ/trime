@@ -274,7 +274,8 @@ class T9DisambiguationController(
         // and advancing on it would mis-anchor the panel.
         val newConsumed = lastDigits.length - tail.length
         if (!lastDigits.endsWith(tail)) return
-        if (newConsumed <= consumedDigits || newConsumed >= lastDigits.length) return
+        // tail is non-empty here, so newConsumed < lastDigits.length holds.
+        if (newConsumed <= consumedDigits) return
         val gapDigits = lastDigits.substring(consumedDigits, newConsumed)
         if (gapDigits.isNotEmpty()) {
             confirmed.add(Confirmed(pinyin = "", code = gapDigits, consumed = gapDigits.length))

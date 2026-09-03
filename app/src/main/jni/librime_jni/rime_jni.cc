@@ -10,10 +10,10 @@
 #include <string>
 #include <vector>
 
-// librime C++ internals (read-only) for the composition-segment probe: the
-// public RimeContext only exposes the converted preedit, while the T9 panel
-// needs the raw input of the still-uncommitted trailing segment.
-#include <rime/candidate.h>
+// librime C++ headers (read-only, see CLAUDE.md rule #4) for the
+// composition-segment probe: the public RimeContext only exposes the converted
+// preedit, while the T9 panel needs the raw input of the still-uncommitted
+// trailing segment.
 #include <rime/composition.h>
 #include <rime/context.h>
 #include <rime/service.h>
@@ -219,9 +219,10 @@ class Rime {
   // does not fold back to the typed digits).
   //
   // Returns nullopt when there is no usable trailing segment (no session, no
-  // composition, or an out-of-range segment start). An empty string means the
-  // trailing segment starts at the end of the input (composition fully
-  // consumed and about to finish).
+  // composition, an out-of-range segment start, or the last segment is already
+  // selected/converted so its start is not a pending-input boundary). An empty
+  // string means the trailing segment starts at the end of the input
+  // (composition fully consumed and about to finish).
   std::optional<std::string> remainingInputTail() {
     auto id = session_ ? session_->id() : 0;
     if (id == 0) return std::nullopt;
@@ -231,6 +232,12 @@ class Rime {
     if (!ctx) return std::nullopt;
     const auto& composition = ctx->composition();
     if (composition.empty()) return std::nullopt;
+    // Only a still-uncommitted trailing segment marks where the consumed input
+    // ends. After a pick librime opens such a segment; if the last segment is
+    // selected/converted instead, its start is not a "remaining input"
+    // boundary, so report no tail and let the caller keep its current state.
+    if (composition.back().status >= rime::Segment::kSelected)
+      return std::nullopt;
     const auto& input = ctx->input();
     size_t start = composition.back().start;
     if (start > input.length()) return std::nullopt;

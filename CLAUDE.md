@@ -28,8 +28,15 @@ fix the data definition or the schema first.
      code we consume, not code we own.
    - Do not edit files inside a submodule to work around a problem; solve it
      in our own layer (`app/src/main/jni/librime_jni/` or the app code).
-   - This also means: no depending on librime internals — use the public
-     `rime_api.h` surface only.
+   - Consuming librime from our own layer (`librime_jni/`) may use the C++
+     headers librime ships (`src/rime/*.h`), read-only. Prefer the
+     ABI-stable public `rime_api.h` C surface whenever it suffices; where the
+     needed state only exists in librime's C++ model (e.g. raw segment
+     offsets of input the engine consumed), wrapping those exposed headers in
+     a small, isolated JNI accessor is acceptable. Never depend on `.cc`
+     implementation details that the headers do not declare, and never patch
+     the submodule — those headers carry no C ABI guarantee, so keep such use
+     minimal and re-verify it on librime upgrades.
    - If a fix genuinely belongs upstream, report/upstream it separately;
      never carry it in our tree.
 

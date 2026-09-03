@@ -110,7 +110,10 @@ wanxiang_t9:
 Rules (CLAUDE.md):
 - **schema-first**: if a definition can't be interpreted, fix the schema/data,
   not the consuming code. No hard-coded literals / magic numbers in code.
-- Don't touch the `librime*` submodules; use the public `rime_api.h` surface.
+- Don't touch the `librime*` submodules; consume them read-only. Prefer the
+  public `rime_api.h` C surface; librime's shipped C++ headers (`src/rime/*.h`)
+  may be wrapped in `librime_jni/` where the public C surface does not expose
+  the needed state (no C ABI guarantee — keep such use small and isolated).
 - Keep generated assets (zips) in sync with their sources.
 
 ---
@@ -337,7 +340,10 @@ Schema reading:
 
 1. No hard-coded literals / magic numbers to make a broken definition load.
    Fix the data/schema first.
-2. No editing the `librime*` upstream submodules; use the public `rime_api.h`.
+2. No editing the `librime*` upstream submodules. Consume them read-only:
+   prefer the public `rime_api.h` C surface; librime's shipped C++ headers
+   (`src/rime/*.h`) may be wrapped in `librime_jni/` when the public surface
+   lacks the needed state, kept minimal and isolated (no C ABI guarantee).
 3. Data inconsistency → normalize the data, don't loosen the parser.
 4. Keep generated assets (zips) consistent with their source schemas.
 5. Validate definitions early and fail loudly (schema-first).
