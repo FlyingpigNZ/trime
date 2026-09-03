@@ -172,8 +172,135 @@ class T9DisambiguationController(
         // e.g. a commit or a schema reset): drop all pending disambiguation.
         if (data.length <= 0) {
             resetState()
+        } else {
+            // External commits (picking a 词组 candidate from the Rime candidate
+            // window) do NOT shrink the engine raw input (librime Context::Select
+            // only converts the segment); the already-consumed prefix disappears
+            // from the composition's preedit instead. Re-anchor the owned digit
+            // string from that preedit when possible.
+            collapseToEngineRemaining(data)
         }
         refreshPanel()
+    }
+
+    /**
+     * After a candidate was picked from the Rime candidate window, the engine
+     * raw input still holds every typed digit, but the composition's preedit
+     * only spans the still-uncommitted tail — librime renders the converted
+     * prefix as its candidate text, then starts the [CompositionProto.selStart,
+     * selEnd] range at the remaining segment. Fold that tail's pinyin back to
+     * digits with our own syllable table (t9_code for FULL, flypy_t9_code for
+     * FLYPY); when the result is a strict suffix of the digits we still own,
+     * the prefix was consumed by the external pick — drop it so the panel
+     * resumes at the first syllable of the remainder.
+     *
+     * Every step is guarded: anything that does not parse cleanly or does not
+     * match the owned tail leaves the state untouched.
+     */
+    private fun collapseToEngineRemaining(data: CompositionProto) {
+        if (!isActive() || confirmed.isNotEmpty()) return
+        val ext = extension ?: return
+        val preedit = data.preedit ?: return
+        val selStart = data.selStart
+        val selEnd = data.selEnd
+        if (selStart <= 0 || selEnd <= selStart || selEnd > preedit.length) return
+        val tail = preedit.substring(selStart, selEnd)
+        val syllables = ext.syllables
+        val pinyinToCode: (String) -> String? =
+            when (ext.inputMethod) {
+                SchemaExtension.T9Disambiguation.InputMethod.FULL ->
+                    { p: String -> syllables.firstOrNull { it.pinyin == p }?.t9Code }
+                SchemaExtension.T9Disambiguation.InputMethod.FLYPY ->
+                    { p: String -> syllables.firstOrNull { it.pinyin == p }?.flypyT9Code }
+            }
+        val pinyinSet = syllables.map { it.pinyin }.toSet()
+        val suffixDigits = pinyinTailToDigits(tail, pinyinSet, pinyinToCode) ?: run {
+            Timber.d("t9diag: preedit tail '$tail' did not parse to syllables; not collapsing")
+            return
+        }
+        if (suffixDigits.isEmpty()) return
+        if (!lastDigits.endsWith(suffixDigits)) {
+            Timber.d("t9diag: folded tail '$tail' -> '$suffixDigits' is not a suffix of owned '$lastDigits'; not collapsing")
+            return
+        }
+        if (suffixDigits.length >= lastDigits.length) return
+        Timber.d("t9diag: external pick collapsed owned '$lastDigits' -> tail '$suffixDigits' (preedit '$preedit' sel $selStart..$selEnd)")
+        lastDigits = suffixDigits
+        confirmed.clear()
+        leadingSegments = emptyList()
+    }
+
+    /**
+     * Split the pinyin display of the remaining segment into its syllable
+     * codes. Handles both space-separated pinyin (`yang ren`) and runs without
+     * separators (segmented against the syllable table), after stripping tone
+     * marks. Returns null when any part fails to parse.
+     */
+    private fun pinyinTailToDigits(
+        text: String,
+        pinyinSet: Set<String>,
+        codeFor: (String) -> String?,
+    ): String? {
+        val plain = stripToneMarks(text)
+        val spaceTokens = plain.split(' ').filter { it.isNotEmpty() }
+        val tokens =
+            if (spaceTokens.isNotEmpty() && spaceTokens.all { it in pinyinSet }) {
+                spaceTokens
+            } else {
+                segmentPinyin(plain, pinyinSet) ?: return null
+            }
+        val result = StringBuilder()
+        for (token in tokens) {
+            val code = codeFor(token) ?: return null
+            result.append(code)
+        }
+        return result.toString()
+    }
+
+    /** Strip pinyin tone marks, keeping plain letters/ü (as v). */
+    private fun stripToneMarks(text: String): String {
+        val plain = StringBuilder()
+        for (ch in text) {
+            plain.append(
+                when (ch) {
+                    'ā', 'á', 'ǎ', 'à' -> 'a'
+                    'ē', 'é', 'ě', 'è' -> 'e'
+                    'ī', 'í', 'ǐ', 'ì' -> 'i'
+                    'ō', 'ó', 'ǒ', 'ò' -> 'o'
+                    'ū', 'ú', 'ǔ', 'ù' -> 'u'
+                    'ǖ', 'ǘ', 'ǚ', 'ǜ', 'ü' -> 'v'
+                    'ń', 'ň', 'ǹ' -> 'n'
+                    'ḿ' -> 'm'
+                    in 'a'..'z', ' ' -> ch
+                    else -> continue
+                },
+            )
+        }
+        return plain.toString()
+    }
+
+    /** Greedy-segment a separator-free pinyin run against the syllable table. */
+    private fun segmentPinyin(
+        text: String,
+        pinyinSet: Set<String>,
+    ): List<String>? {
+        val result = mutableListOf<String>()
+        var i = 0
+        while (i < text.length) {
+            var matched: String? = null
+            for (len in 6 downTo 1) {
+                if (i + len > text.length) continue
+                val cand = text.substring(i, i + len)
+                if (cand in pinyinSet) {
+                    matched = cand
+                    break
+                }
+            }
+            if (matched == null) return null
+            result.add(matched)
+            i += matched.length
+        }
+        return result
     }
 
     /**
