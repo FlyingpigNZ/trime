@@ -186,6 +186,10 @@ class Rime(
         getRimeRawInput()
     }
 
+    override suspend fun remainingInputTail(): String? = withRimeContext {
+        getRimeRemainingInputTail()
+    }
+
     override suspend fun setRuntimeOption(
         option: String,
         value: Boolean,
@@ -199,6 +203,12 @@ class Rime(
     }
 
     override suspend fun setInput(input: String): Unit = withRimeContext {
+        setRimeInput(input)
+        emitResponse()
+    }
+
+    override suspend fun clearAndSetInput(input: String) = withRimeContext {
+        clearRimeComposition()
         setRimeInput(input)
         emitResponse()
     }
@@ -544,6 +554,9 @@ class Rime(
 
         @JvmStatic
         external fun getRimeRawInput(): String
+
+        @JvmStatic
+        external fun getRimeRemainingInputTail(): String?
 
         @JvmStatic
         external fun setRimeCaretPos(caretPos: Int)

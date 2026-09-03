@@ -6,8 +6,17 @@
 
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
+
+// librime C++ internals (read-only) for the composition-segment probe: the
+// public RimeContext only exposes the converted preedit, while the T9 panel
+// needs the raw input of the still-uncommitted trailing segment.
+#include <rime/candidate.h>
+#include <rime/composition.h>
+#include <rime/context.h>
+#include <rime/service.h>
 
 #include "frontend.h"
 #include "jni-utils.h"
@@ -198,6 +207,34 @@ class Rime {
   std::string rawInput() {
     auto cStr = rime->get_input(session());
     return cStr ? cStr : "";
+  }
+
+  // Raw input of the composition's still-uncommitted trailing segment. After
+  // a candidate pick librime converts the leading segments (marking them
+  // selected) and opens a new trailing segment at the consumed offset, so this
+  // suffix is exactly the input that remains to be disambiguated — for the T9
+  // digit flow it is the pure-digit remainder of what the user typed, which
+  // the display preedit cannot reliably reproduce (the Lua preedit conversion
+  // renders the top candidate's code, which may be a completion/LM guess that
+  // does not fold back to the typed digits).
+  //
+  // Returns nullopt when there is no usable trailing segment (no session, no
+  // composition, or an out-of-range segment start). An empty string means the
+  // trailing segment starts at the end of the input (composition fully
+  // consumed and about to finish).
+  std::optional<std::string> remainingInputTail() {
+    auto id = session_ ? session_->id() : 0;
+    if (id == 0) return std::nullopt;
+    auto rimeSession = rime::Service::instance().GetSession(id);
+    if (!rimeSession) return std::nullopt;
+    auto* ctx = rimeSession->context();
+    if (!ctx) return std::nullopt;
+    const auto& composition = ctx->composition();
+    if (composition.empty()) return std::nullopt;
+    const auto& input = ctx->input();
+    size_t start = composition.back().start;
+    if (start > input.length()) return std::nullopt;
+    return input.substr(start);
   }
 
   void setCaretPosition(size_t caretPos) {
@@ -446,6 +483,13 @@ Java_com_osfans_trime_core_Rime_getRimeRawInput(JNIEnv* env,
                                                 jclass /* thiz */) {
   const std::string input = Rime::Instance().rawInput();
   return NewUtf8String(env, input.data(), input.size());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_osfans_trime_core_Rime_getRimeRemainingInputTail(JNIEnv* env,
+                                                          jclass /* thiz */) {
+  auto tail = Rime::Instance().remainingInputTail();
+  return tail ? NewUtf8String(env, tail->data(), tail->size()) : nullptr;
 }
 
 extern "C" JNIEXPORT void JNICALL

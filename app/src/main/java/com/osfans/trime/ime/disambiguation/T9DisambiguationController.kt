@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.FrameLayout
 import androidx.core.view.children
 import com.osfans.trime.core.CompositionProto
+import com.osfans.trime.core.RimeApi
 import com.osfans.trime.core.SchemaItem
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
@@ -18,7 +19,8 @@ import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
 import com.osfans.trime.ime.keyboard.Keyboard
 import com.osfans.trime.ime.keyboard.KeyboardView
-import timber.log.Timber
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Owns the T9 pinyin disambiguation panel (feature ②).
@@ -72,6 +74,11 @@ class T9DisambiguationController(
      * 小鹤双拼 code for FLYPY, e.g. `ia`). The two differ only in flypy mode:
      * the panel shows the readable pinyin but Rime's dictionary is indexed by
      * the 双拼 code. `consumed` accumulates into the panel's leading offset.
+     *
+     * An **opaque** entry records an external 词组 pick that went beyond the
+     * panel-confirmed syllables: [pinyin] is empty and [code] is the typed-digit
+     * run the pick consumed (its folded spelling). Backspace pops it to roll the
+     * pick back ([onBackspace] distinguishes it by `pinyin.isEmpty()`).
      */
     private data class Confirmed(val pinyin: String, val code: String, val consumed: Int)
 
@@ -113,7 +120,6 @@ class T9DisambiguationController(
                 )
             }
         panel = created
-        Timber.d("t9diag: attach done, schema=${rime.uiState.value.schemaId} eligible=${isEligibleKeyboard()} enabled=${extension?.enabled}")
         val schemaId = rime.uiState.value.schemaId
         if (schemaId.isNotEmpty() && schemaId != currentSchemaId) {
             currentSchemaId = schemaId
@@ -127,14 +133,13 @@ class T9DisambiguationController(
         val current = rime.uiState.value.composition
         if (current.length <= 0) {
             resetState()
+            refreshPanel()
         } else {
-            collapseToEngineRemaining(current)
+            reconcileFromEngine()
         }
-        refreshPanel()
     }
 
     fun detach() {
-        Timber.d("t9diag: detach, panel=${panel != null}")
         keyboard?.pinyinOverlayVisible = false
         panel?.let { (it.parent as? FrameLayout)?.removeView(it) }
         panel = null
@@ -169,7 +174,6 @@ class T9DisambiguationController(
     private fun reloadForSchema(schemaId: String) {
         val ext = SchemaExtensionResolver.loadForSchema(schemaId)
         extension = ext?.t9Disambiguation
-        Timber.d("t9diag: reloadForSchema '$schemaId' ext=${ext != null} t9=${ext?.t9Disambiguation != null} enabled=${ext?.t9Disambiguation?.enabled}")
         decoder = extension?.let { T9PinyinDecoder(it) }
         lastDigits = ""
         confirmed.clear()
@@ -183,135 +187,99 @@ class T9DisambiguationController(
         // e.g. a commit or a schema reset): drop all pending disambiguation.
         if (data.length <= 0) {
             resetState()
+            refreshPanel()
         } else {
-            // External commits (picking a 词组 candidate from the Rime candidate
-            // window) do NOT shrink the engine raw input (librime Context::Select
-            // only converts the segment); the already-consumed prefix disappears
-            // from the composition's preedit instead. Re-anchor the owned digit
-            // string from that preedit when possible.
-            collapseToEngineRemaining(data)
+            // External picks (a 词组 candidate from the Rime candidate window) do
+            // NOT shrink the engine raw input (librime Context::Select only
+            // converts a segment); librime re-anchors itself by marking the
+            // consumed segments selected and opening a new trailing segment.
+            // Ask the engine where that trailing segment actually starts and
+            // re-anchor the owned state there.
+            reconcileFromEngine()
         }
-        refreshPanel()
     }
 
     /**
-     * After a candidate was picked from the Rime candidate window, the engine
-     * raw input still holds every typed digit, but the composition's preedit
-     * only spans the still-uncommitted tail — librime renders the converted
-     * prefix as its candidate text, then starts the [CompositionProto.selStart,
-     * selEnd] range at the remaining segment. Fold that tail's pinyin back to
-     * digits with our own syllable table (t9_code for FULL, flypy_t9_code for
-     * FLYPY); when the result is a strict suffix of the digits we still own,
-     * the prefix was consumed by the external pick — drop it so the panel
-     * resumes at the first syllable of the remainder.
+     * Re-anchor the owned state to the engine's true remaining input.
      *
-     * Every step is guarded: anything that does not parse cleanly or does not
-     * match the owned tail leaves the state untouched.
+     * librime never shrinks the raw input after an external candidate pick
+     * (Context::Select only converts a segment); instead the composition marks
+     * the consumed leading segments selected and librime opens a new trailing
+     * segment at the consumed offset. With the tone digits removed from the
+     * /9jian fold, that trailing segment's raw is exactly the typed digits the
+     * pick left behind (letters only ever appear in the already-consumed head
+     * of a mixed feed), so the consumed span, in typed digits, is
+     * `lastDigits.length - tail.length`. Raw-character arithmetic is not used:
+     * a feed head mixes confirmed letter codes (`vi` = two letters plus one
+     * delimiter) with digits, so raw characters do not map 1:1 to typed digits
+     * and counting them re-counts previously consumed syllables (diag: with
+     * `vi'2856…` already consumed as 治不了, raw-char pairing advanced the panel
+     * past 洋人 digits that were never picked).
+     *
+     * This also covers the case the old code skipped entirely: a picked 词组
+     * that covers syllables beyond the panel-confirmed ones ([confirmed]
+     * non-empty), e.g. "confirm zhi from the panel, then pick 治不了".
+     *
+     * Every step is guarded: nothing changes unless the composition preedit
+     * shows selected candidate text (non-ASCII) before the trailing segment,
+     * the engine reports a pure-digit remainder that is a true suffix of the
+     * owned digits, and the implied consumption is larger than what we already
+     * track. The digits consumed beyond the panel-confirmed pinyin are
+     * appended to [confirmed] as an opaque entry whose code is the typed-digit
+     * run itself: it is the folded spelling the engine matched, so re-feeding
+     * it verbatim keeps the composition narrowed, and Backspace pops it to
+     * roll the pick back.
      */
-    private fun collapseToEngineRemaining(data: CompositionProto) {
-        if (!isActive() || confirmed.isNotEmpty()) return
-        val ext = extension ?: return
-        val preedit = data.preedit ?: return
-        val selStart = data.selStart
-        val selEnd = data.selEnd
-        if (selStart <= 0 || selEnd <= selStart || selEnd > preedit.length) return
-        val tail = preedit.substring(selStart, selEnd)
-        val syllables = ext.syllables
-        val pinyinToCode: (String) -> String? =
-            when (ext.inputMethod) {
-                SchemaExtension.T9Disambiguation.InputMethod.FULL ->
-                    { p: String -> syllables.firstOrNull { it.pinyin == p }?.t9Code }
-                SchemaExtension.T9Disambiguation.InputMethod.FLYPY ->
-                    { p: String -> syllables.firstOrNull { it.pinyin == p }?.flypyT9Code }
-            }
-        val pinyinSet = syllables.map { it.pinyin }.toSet()
-        val suffixDigits = pinyinTailToDigits(tail, pinyinSet, pinyinToCode) ?: run {
-            Timber.d("t9diag: preedit tail '$tail' did not parse to syllables; not collapsing")
-            return
-        }
-        if (suffixDigits.isEmpty()) return
-        if (!lastDigits.endsWith(suffixDigits)) {
-            Timber.d("t9diag: folded tail '$tail' -> '$suffixDigits' is not a suffix of owned '$lastDigits'; not collapsing")
-            return
-        }
-        if (suffixDigits.length >= lastDigits.length) return
-        Timber.d("t9diag: external pick collapsed owned '$lastDigits' -> tail '$suffixDigits' (preedit '$preedit' sel $selStart..$selEnd)")
-        lastDigits = suffixDigits
-        confirmed.clear()
-        leadingSegments = emptyList()
-    }
-
-    /**
-     * Split the pinyin display of the remaining segment into its syllable
-     * codes. Handles both space-separated pinyin (`yang ren`) and runs without
-     * separators (segmented against the syllable table), after stripping tone
-     * marks. Returns null when any part fails to parse.
-     */
-    private fun pinyinTailToDigits(
-        text: String,
-        pinyinSet: Set<String>,
-        codeFor: (String) -> String?,
-    ): String? {
-        val plain = stripToneMarks(text)
-        val spaceTokens = plain.split(' ').filter { it.isNotEmpty() }
-        val tokens =
-            if (spaceTokens.isNotEmpty() && spaceTokens.all { it in pinyinSet }) {
-                spaceTokens
-            } else {
-                segmentPinyin(plain, pinyinSet) ?: return null
-            }
-        val result = StringBuilder()
-        for (token in tokens) {
-            val code = codeFor(token) ?: return null
-            result.append(code)
-        }
-        return result.toString()
-    }
-
-    /** Strip pinyin tone marks, keeping plain letters/ü (as v). */
-    private fun stripToneMarks(text: String): String {
-        val plain = StringBuilder()
-        for (ch in text) {
-            plain.append(
-                when (ch) {
-                    'ā', 'á', 'ǎ', 'à' -> 'a'
-                    'ē', 'é', 'ě', 'è' -> 'e'
-                    'ī', 'í', 'ǐ', 'ì' -> 'i'
-                    'ō', 'ó', 'ǒ', 'ò' -> 'o'
-                    'ū', 'ú', 'ǔ', 'ù' -> 'u'
-                    'ǖ', 'ǘ', 'ǚ', 'ǜ', 'ü' -> 'v'
-                    'ń', 'ň', 'ǹ' -> 'n'
-                    'ḿ' -> 'm'
-                    in 'a'..'z', ' ' -> ch
-                    else -> continue
-                },
-            )
-        }
-        return plain.toString()
-    }
-
-    /** Greedy-segment a separator-free pinyin run against the syllable table. */
-    private fun segmentPinyin(
-        text: String,
-        pinyinSet: Set<String>,
-    ): List<String>? {
-        val result = mutableListOf<String>()
-        var i = 0
-        while (i < text.length) {
-            var matched: String? = null
-            for (len in 6 downTo 1) {
-                if (i + len > text.length) continue
-                val cand = text.substring(i, i + len)
-                if (cand in pinyinSet) {
-                    matched = cand
-                    break
+    private fun reconcileFromEngine() {
+        if (!isActive()) return
+        rime.launchOnReady { api ->
+            // launchOnReady resumes on the daemon's background dispatcher, but
+            // everything here mutates owned state and drives the panel view
+            // (RecyclerView / keyboard overlay), so the whole reconcile must
+            // run on the main thread. The RimeApi calls inside are suspend and
+            // hop to the rime dispatcher on their own.
+            withContext(Dispatchers.Main.immediate) {
+                val composition = rime.uiState.value.composition
+                val preedit = composition.preedit ?: ""
+                if (composition.length <= 0) {
+                    // A commit / schema reset cleared the composition: drop all
+                    // pending disambiguation.
+                    resetState()
+                } else {
+                    advanceOwnedFromEngineTail(api, composition, preedit)
                 }
+                refreshPanel()
             }
-            if (matched == null) return null
-            result.add(matched)
-            i += matched.length
         }
-        return result
+    }
+
+    private suspend fun advanceOwnedFromEngineTail(
+        api: RimeApi,
+        composition: CompositionProto,
+        preedit: String,
+    ) {
+        // Only an external pick turns the preedit prefix into selected
+        // candidate text. A pre-pick auto-segmentation renders raw digits
+        // there instead; never advance on that.
+        val selStart = composition.selStart.coerceIn(0, preedit.length)
+        val selectedText = preedit.substring(0, selStart)
+        if (selectedText.none { it.code > 127 }) return
+        val tail = api.remainingInputTail()
+        if (tail == null || tail.isEmpty()) return
+        if (!tail.all { it.isDigit() }) return
+        // The trailing segment starts right after the consumed part, so the
+        // consumed span in typed digits is lastDigits minus the tail. The tail
+        // must be a true suffix of what the user typed: anything else means the
+        // engine's remainder is not our digit string (e.g. a swallowed digit),
+        // and advancing on it would mis-anchor the panel.
+        val newConsumed = lastDigits.length - tail.length
+        if (!lastDigits.endsWith(tail)) return
+        if (newConsumed <= consumedDigits || newConsumed >= lastDigits.length) return
+        val gapDigits = lastDigits.substring(consumedDigits, newConsumed)
+        if (gapDigits.isNotEmpty()) {
+            confirmed.add(Confirmed(pinyin = "", code = gapDigits, consumed = gapDigits.length))
+        }
+        leadingSegments = emptyList()
     }
 
     /**
@@ -339,9 +307,24 @@ class T9DisambiguationController(
     fun onBackspace(): Boolean {
         if (!isActive()) return false
         if (confirmed.isNotEmpty()) {
-            val last = confirmed.removeAt(confirmed.size - 1)
-            Timber.d("t9diag: undo pick '${last.pinyin}' (consumed=${last.consumed})")
-            feedMixedComposition()
+            val popped = confirmed.removeAt(confirmed.size - 1)
+            if (popped.pinyin.isEmpty()) {
+                // Opaque entry (an external 词组 pick recorded as the typed-digit
+                // run it consumed). Its code is pure digits, so popping it can
+                // rebuild a feed that is byte-identical to the engine's current
+                // raw input (external picks never rewrite the input, they only
+                // mark segments selected). librime's Segmentation::Reset keeps
+                // every segment whose end is not past the diff position, so an
+                // identical re-feed leaves the already-selected 词组 segment
+                // alive and reconcile would immediately re-advance — the undo
+                // would be undone. clearAndSetInput aborts the composition
+                // (no commit) and re-parses the pre-pick standard input from an
+                // empty composition in one step: the fresh segments are
+                // unselected, so reconcile no longer re-advances.
+                rime.launchOnReady { api -> api.clearAndSetInput(buildFeed()) }
+            } else {
+                feedMixedComposition()
+            }
             refreshPanel()
             return true
         }
@@ -367,24 +350,18 @@ class T9DisambiguationController(
 
     private fun refreshPanel() {
         val panel = panel ?: return
-        val extension = extension ?: run {
-            Timber.d("t9diag: refreshPanel no extension")
-            return
-        }
+        val extension = extension ?: return
         val decoder = decoder ?: run {
             hidePanel(panel)
-            Timber.d("t9diag: refreshPanel no decoder")
             return
         }
         if (!extension.enabled || !isEligibleKeyboard()) {
-            Timber.d("t9diag: refreshPanel hidden, enabled=${extension.enabled} eligible=${isEligibleKeyboard()}")
             hidePanel(panel)
             return
         }
         val digits = lastDigits.substring(minOf(consumedDigits, lastDigits.length))
         val segments = decoder.decodeLeading(digits)
         leadingSegments = segments
-        Timber.d("t9diag: refreshPanel raw='$lastDigits' consumed=$consumedDigits digits='$digits' segments=${segments.map { it.pinyin[0] to it.consumed }}")
         if (segments.isEmpty()) {
             hidePanel(panel)
             return
@@ -410,34 +387,30 @@ class T9DisambiguationController(
     }
 
     /**
-     * Assemble and feed the mixed composition to Rime so the candidate window
-     * resolves the confirmed pinyin segment (via pinyin index) and the
-     * remaining digit segment (via the folded index), in ONE schema.
-     *
-     * Form: `hao'de'33` — confirmed syllables `'`-joined, then the remaining
-     * un-confirmed digits. No confirmed syllables ⇒ nothing to feed (stay on
-     * the pure-digit fold path).
+     * The input string that encodes everything confirmed so far + the trailing
+     * un-confirmed digits: confirmed codes `'`-joined, then the remaining typed
+     * digits. Form: `hao'de'33` — confirmed syllables (full pinyin for FULL,
+     * 小鹤双拼 code for FLYPY — the form Rime's dictionary is indexed by), then
+     * the digit tail through the folded index. With no confirmed entries the
+     * pure-digit string is returned (stay on the fold path).
      */
-    private fun feedMixedComposition() {
-        // Join the Rime-facing *codes* (full pinyin for FULL, 小鹤双拼 code for
-        // FLYPY) — this is what Rime's dictionary is indexed by, not the display
-        // pinyin. For FLYPY `cha` must feed as `ia`, or Rime splits it into the
-        // stray `ch`+`a` and mis-resolves the candidates.
+    private fun buildFeed(): String {
         val codePart = confirmed.joinToString("'") { it.code }
         val digitsPart = lastDigits.substring(minOf(consumedDigits, lastDigits.length))
-        val feed =
-            if (codePart.isEmpty()) {
-                // No confirmed syllable: restore the pure-digit composition so
-                // Rime re-translates the T9 fold path (undo of the whole pick).
-                lastDigits
-            } else {
-                buildString {
-                    append(codePart)
-                    append('\'')
-                    append(digitsPart)
-                }
-            }
-        Timber.d("t9diag: feed mixed composition '$feed' (display='${confirmed.joinToString("'") { it.pinyin }}')")
+        return if (codePart.isEmpty()) {
+            lastDigits
+        } else if (digitsPart.isEmpty()) {
+            // Everything is confirmed: no trailing delimiter — a dangling "'"
+            // would leave librime waiting for another syllable and can corrupt
+            // the terminal composition (Backspace after full confirm broke).
+            codePart
+        } else {
+            "$codePart'$digitsPart"
+        }
+    }
+
+    private fun feedMixedComposition() {
+        val feed = buildFeed()
         if (feed.isNotEmpty()) {
             rime.launchOnReady { it.setInput(feed) }
         }
@@ -478,10 +451,8 @@ class T9DisambiguationController(
      * `de` yields the pinyin part `hao'de`.
      */
     private fun onPick(pinyin: String) {
-        Timber.d("T9 disambiguation pick: $pinyin")
         val segment = leadingSegments.firstOrNull { it.pinyin[0] == pinyin } ?: return
         confirmed.add(Confirmed(segment.pinyin[0], segment.code, segment.consumed))
-        Timber.d("t9diag: confirmed='${confirmed.joinToString("'") { it.code }}' display='${confirmed.joinToString("'") { it.pinyin }}' consumed=$consumedDigits")
         feedMixedComposition()
         refreshPanel()
     }

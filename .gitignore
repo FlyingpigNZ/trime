@@ -505,3 +505,14 @@ __pycache__/
 .gradle-home/
 .gradle-home-fix/
 .android-home/
+
+# Session/process artifacts (handoffs, code-review notes, probes, scratch) — never commit
+/HANDOFF-*.md
+/CODE_REVIEW-*.md
+/doc/CODE_REVIEW-*.md
+/TECH_DEBT_PLAN.md
+/PACKAGE_IMPORT_EXPORT_DESIGN.md
+/t9_probe.png
+/.migrate-work/
+/.pkgcheck/
+/flat/
