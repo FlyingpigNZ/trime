@@ -92,10 +92,20 @@ class T9DisambiguationPanel(
         background = null
     }
 
-    /** Submit a new list of pinyin parses. Empty input hides the panel. */
+    /**
+     * Submit a new list of pinyin parses. Empty input hides the panel.
+     *
+     * Every new submit restarts the list at the top: after a pick the panel
+     * re-decodes the remaining digits, and the next candidate batch must start
+     * at the first row rather than staying at the previously scrolled/selected
+     * position.
+     */
     fun submitSequences(sequences: List<String>) {
         adapter.submitList(sequences)
         visibility = if (sequences.isEmpty()) View.GONE else View.VISIBLE
+        if (sequences.isNotEmpty()) {
+            list.scrollToPosition(0)
+        }
     }
 
     fun hide() {
