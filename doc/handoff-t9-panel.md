@@ -43,35 +43,46 @@ full `…9264736`），问题只出在 **unrolled 路径**。
 - 排序（已合 main，`5161f335`）：decodeLeading 候选按**全拼字符串长度降序、等长按拼音
   升序**（原按 consumed 位数；flypy 每音节固定 2 位导致退化成纯字母序，用户不满）。
 
-## 3. unrolled 为什么不行（进展与假设）
+## 3. unrolled 为什么不行（最新结论 2026-09-03 19:22 日志）
 
 - unrolled 候选窗会**顶掉键盘窗**：`KeyboardWindow.onDetached → controller.detach()`
   （拆面板但保留 owned 状态）→ 选词产生的 composition 更新到不了控制器 →
   回到键盘窗 `attach()` 时补做 collapse 是本轮已合入的修法（f53d95bf），但**实测仍不生效**。
-- 新日志（**注意：以下来自诊断分支，main 上没有**）：
-
-  诊断分支 `fix/t9-diagnose-unrolled`（本地有提交 `68f19cb9`，含两行附加日志：
-  attach 时打 preedit/sel/owned + 异步打 engine raw）。**尚未让用户用这版出包复测**。
-  上一版（无日志）日志显示：
+- 诊断日志（分支 `fix/t9-diagnose-unrolled` @ `68f19cb9`，已让用户复测）：
 
   ```
-  folded tail 'geng feng fu cha lian meng' -> '443438425664' is not a suffix of owned
-  '84285694734384285664'; not collapsing
+  attach done, schema=wanxiang_flypy_t9
+  attach reconcile: preedit='治不了geng feng fu cha lian meng‸' sel=3..29 len=30
+                     owned='84285694734384285664'
+  attach engine raw='84285694734384285664'      ← raw 仍是全串，没缩短！
+  folded tail 'geng feng fu cha lian meng' -> '443438425664'
+                  is not a suffix of owned '84285694734384285664'; not collapsing
   refreshPanel raw='84285694734384285664' … segments=[(shang,2)…]
   ```
 
-  即：unrolled 选词后，preedit 剩余尾巴折出的数字 **不是** 我们 owned 数字串的后缀
-  → collapse 保护拒绝执行 → 面板停留在最开头。**这与 compact（剩余=后缀）行为不同**。
+- **结论**：
+  1. **假设 (a) 排除**：unrolled 和 compact 一样是流体式选中，`engine raw` **不缩短**，
+     仍是完整数字串。所以「直接采纳 engine raw」行不通。
+  2. **新现象（关键）**：剩余拼音 `geng feng fu cha lian meng` 折出的
+     `443438425664` 与 owned `84285694734384285664` **既非后缀也不是子串**——
+     unrolled 选词后引擎的剩余 composition 已不再由我们记录的数字串（尾部）产生。
+     而 compact 场景里剩余恰为 owned 的后缀。差异原因待查：可能 unrolled 的候选覆盖
+     的不是"从头开始的整段"，或引擎在 pick 后按自己方式重新排了剩余码。
 
-- 两条候选假设（需诊断日志判定，**别盲改**）：
-  a) unrolled 点选是「真上屏」：引擎 raw 缩短为剩余纯数字 → 那就该在 attach 时
-     **直接采纳 engine raw**（若纯数字且≠owned），而不是折叠 preedit 拼音；
-  b) 引擎 raw 仍全串、composition 结构更复杂（如剩余段不在末尾 / sel 只框住最后一个段）
-     → 需再研究 GetPreedit 多段结构。
-  请新 session 先让用户用 `68f19cb9`（fix/t9-diagnose-unrolled）构建 debug，复现
-  unrolled 点选，抓这两行：
-  `adb logcat -d | grep -E "t9diag: attach|t9diag: engine raw"`，
-  看 `attach engine raw='…'` 是缩短还是全串，再按 a/b 定方案。
+- **下一步建议（新 session）**：
+  - 先别改 collapse；需要弄清 unrolled pick 后引擎 composition 的内部结构
+    （librime `context.cc / composition.cc`，**只读参考，勿改子模块**）：打印/推演
+    该 pick 后各 segment 的 start/end、是否只有尾巴未选中、sel 是否只框住最后一段。
+  - 或试最小实验：在 unrolled pick 后直接把 `owned` 置为「preedit 剩余折出的数字串」
+    （即使非后缀），再观察面板/候选是否正确——判断剩余数字到底该从哪来。
+  - 复测用 debug 包 + `adb logcat -d | grep t9diag`。
+
+## 3b. 已排除 / 已回退（勿重复）
+
+- 「读 getRawInput() 比对采纳 raw」两版方案：**从原理上不可行**（raw 不缩短），
+  曾引起 RecyclerView 崩溃，已回退。不要在 raw 上做文章。
+- notifyDataSetChanged 崩溃：已用 ListAdapter+DiffUtil + 主线程 post 根治。
+
 
 ## 4. 相关代码索引
 
