@@ -119,6 +119,17 @@ class T9DisambiguationController(
             currentSchemaId = schemaId
             reloadForSchema(schemaId)
         }
+        // The keyboard window (and this panel) is detached while the unrolled
+        // candidate window replaces it, so composition updates that happen
+        // there (e.g. a 词组 pick) never reach onCompositionUpdate. On
+        // re-attach, reconcile the owned state from the engine's latest
+        // composition before drawing, exactly like onCompositionUpdate would.
+        val current = rime.uiState.value.composition
+        if (current.length <= 0) {
+            resetState()
+        } else {
+            collapseToEngineRemaining(current)
+        }
         refreshPanel()
     }
 
