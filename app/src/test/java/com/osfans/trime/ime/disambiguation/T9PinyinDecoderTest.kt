@@ -148,4 +148,20 @@ class T9PinyinDecoderTest :
             val flypySample = listOf(syl("gao", "426", "62", "gc"))
             flypy(flypySample).decodeLeading("4266").map { it.pinyin[0] } shouldBe emptyList()
         }
+
+        "decodeLeading flypy: orders by full-pinyin length, not by code/digits" {
+            // All these 双拼 codes fold to the same two digits `84`, so every
+            // candidate consumes the same digits; the list must still be
+            // longest-full-pinyin first (shang > zheng > tang > shi > ti), with
+            // equal lengths in pinyin order.
+            val flypySample = listOf(
+                syl("shi", "744", "84", "ui"),
+                syl("shang", "74264", "84", "uh"),
+                syl("tang", "8264", "84", "th"),
+                syl("zheng", "94364", "84", "vg"),
+                syl("ti", "84", "84", "ti"),
+            )
+            flypy(flypySample).decodeLeading("84").map { it.pinyin[0] } shouldContainExactly
+                listOf("shang", "zheng", "tang", "shi", "ti")
+        }
     })

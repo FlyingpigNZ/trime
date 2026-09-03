@@ -92,15 +92,20 @@ class T9PinyinDecoder(
             }
         }
         // Keep the shortest consumed length for each distinct pinyin, then
-        // present them longest-first (the syllable consuming the most leading
-        // digits first, e.g. `hao`/`gao` before `ga`/`ha` and the bare initials
-        // `g`/`h`), so the panel lists the "complete syllable" candidates before
-        // the partial/initial ones.
+        // present them longest-first by the FULL-pinyin spelling the candidate
+        // represents (`wang`/`yang` before `wan`/`yan` before `wa` before `w`;
+        // in 双拼 every candidate consumes the same two digits, so ordering by
+        // digit length there is meaningless — ordering by full-pinyin length
+        // makes FULL and FLYPY behave alike). Equal lengths fall back to
+        // alphabetical pinyin order.
         return merged.entries
             .map { (pinyin, codeAndConsumed) ->
                 Segment(codeAndConsumed.second, listOf(pinyin), codeAndConsumed.first)
             }
-            .sortedWith(compareByDescending<Segment> { it.consumed }.thenBy { it.pinyin[0] })
+            .sortedWith(
+                compareByDescending<Segment> { it.pinyin[0].length }
+                    .thenBy { it.pinyin[0] },
+            )
     }
 
     private fun addCandidate(
