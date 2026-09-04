@@ -267,6 +267,28 @@ Data:
   `wanxiang_flypy_t9` have `t9=true`. This is where the "is this a T9 scheme"
   flag lives in the Lua layer.
 
+### 5.1 排查提示：奇怪 T9 拼音问题 → 先查"声调数字(7890)泄漏"
+
+万象带调词库用数字 `7/8/9/0` 表 1–4 声（`xlit/①②③④/7890`，26 键带调输入用）。
+9 键没有声调通道，但各双拼 base 里 `derive/^(.).+(\d)$/$1$2/` 仍会为每个
+音节派生出"声母+调号"码（买 mǎi → `m9`、好 hǎo → `h9`）。若这类派生码漏过
+9 键折叠，会折成与真实音节撞码的 2 位数字码，症状是**候选/悬浮拼音出现与
+按键明显不符的字，但多数候选正常**：
+
+- `m9` → `69`，撞 `没/妹/每/美(mei→mw)` 与 `某(mou→mz)` → 输入 `69` 混入"买"；
+- `h9` → `49`，撞 `够(gou→gz)` → 输入 `2849`(不够) 拼出"不好"(bu+hao)。
+
+处理（在 万象14键-nogram.zip 的 `rime/wanxiang_algebra.yaml` `/9jian` 预设）：
+- `xform/^([a-z]{2,})[7890]$/$1/` —— ≥2 字母完整音节剥末尾调号（原有）；
+- `xform/^([a-z])[7890]$//` —— 单字母+调号派生码(m9/h9/g0…)整码删除，不可
+  剥成裸声母（会制造 1 位拼写）。
+
+覆盖范围：包内只有 `wanxiang_flypy_t9`（`/base/小鹤双拼`+`/9jian`）与
+`wanxiang_t9`（仅 `/9jian`）两条 9 键链，`/9jian` 都排在 algebra patch 末尾；
+12 份双拼变体里的同类派生码统一被这两条规则清理（含 `;` 辅码形式）。
+**新增 9 键方案务必让折叠链以 `/9jian` 收尾**，否则需自带同类清理。
+改数据后必须删包重装（prism 重建）才生效。
+
 ### How pinyin is rendered/displayed for T9 today
 
 - `super_comment_preedit.lua` `convert_t9_syllable`: for a single digit it
