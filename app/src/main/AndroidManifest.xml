@@ -81,6 +81,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
             android:theme="@style/Theme.DialogTheme"
             android:windowSoftInputMode="stateAlwaysVisible|adjustPan" />
 
+        <activity
+            android:name=".ui.main.settings.theme.KeyboardBackgroundEditorActivity"
+            android:exported="false"
+            android:label="@string/keyboard_background_editor"
+            android:parentActivityName=".ui.main.MainActivity"
+            android:theme="@style/Theme.Trime.KeyboardBackgroundEditor" />
+
         <!-- Using an activity alias to disable/enable the app icon in the launcher -->
         <activity-alias
             android:name="com.osfans.trime.MainLauncherAlias"

@@ -22,6 +22,23 @@
     <string name="selected_ime_summary">选择自包含输入法包</string>
     <string name="normal_mode_color">配色</string>
     <string name="normal_mode_color_summary">选取配色</string>
+    <string name="keyboard_background_editor">键盘背景</string>
+    <string name="keyboard_background_editor_summary">更换或恢复当前配色的键盘背景图片</string>
+    <string name="keyboard_background_mode_light">日间</string>
+    <string name="keyboard_background_mode_dark">夜间</string>
+    <string name="keyboard_background_change">选取</string>
+    <string name="keyboard_background_default">缺省</string>
+    <string name="keyboard_background_crop">裁剪</string>
+    <string name="keyboard_background_reset">复位</string>
+    <string name="keyboard_background_apply">应用</string>
+    <string name="keyboard_background_no_scheme">未找到配色方案</string>
+    <string name="keyboard_background_decode_failed">无法读取所选图片</string>
+    <!-- 编辑器预览候选栏内展示的示例候选词 -->
+    <string-array name="keyboard_background_preview_candidates">
+        <item>同文</item>
+        <item>输入法</item>
+        <item>打字</item>
+    </string-array>
     <string name="sound_on_keypress">按键声音</string>
     <string name="sound_volume">按键音量</string>
     <string name="vibrate_on_key_press">按键时振动</string>

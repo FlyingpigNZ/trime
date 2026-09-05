@@ -4,6 +4,18 @@ These rules are binding when working in this repository. If a data definition
 cannot be interpreted by the code, do not patch the code around the data —
 fix the data definition or the schema first.
 
+## Before starting work (mandatory for every new session)
+
+Before touching any code or data, read **in order**:
+
+1. `doc/handoff.md` — the latest handoff: current feature state, decisions,
+   verified commands, and the agreed next steps.
+2. `doc/repo-knowledge.md` — repository architecture and domain knowledge.
+
+If either file changed since you last read it (or you are unsure whether it
+did), re-read it. Any handoff/design document referenced from those files must
+also be read before implementing the corresponding area.
+
 ## Rules
 
 1. **Never use specific literals in code to fix a data definition problem.**

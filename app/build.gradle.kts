@@ -41,8 +41,8 @@ android {
         applicationId = "com.osfans.trime"
         minSdk = 21
         targetSdk = 36
-        versionCode = 20260901
-        versionName = "3.4.1"
+        versionCode = 20260905
+        versionName = "3.4.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         multiDexEnabled = true
@@ -154,6 +154,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.appcompat)
+    implementation("com.google.android.material:material:1.4.0")
     implementation(libs.androidx.autofill)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core.ktx)

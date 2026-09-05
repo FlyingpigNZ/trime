@@ -19,6 +19,7 @@ package is **proved correct** at input time.
 | Color literal validator | `DefinitionValidator.validateColorLiterals` | Only wired into component theme load; not CLI/in-app/install |
 | In-app validator | Profile settings | Now validates component manifests when a local file path is available |
 | Theme load | `ComponentThemeLoader` | Now runs full `ComponentValidator` before returning `Theme` |
+| App-owned `customization.yaml` overlay | `ThemeCustomization` merge + `DefinitionValidator.validateCustomization` in `ComponentThemeLoader` | Not exposed through the CLI / per-file in-app validator; referenced image file existence is not checked |
 | Package install | `ImePackageManager.activate` | Validates/extracts package zip, component manifest, and Rime files |
 
 ## 2. What a complete schema must cover
@@ -72,6 +73,17 @@ Already partially defined in `doc/component-schema.json`.
 
 - `resources` list of strings
 - Each path must exist in the package
+
+### 2.7 `customization.yaml` (app-owned overlay, never shipped in the package zip)
+
+- Lives at the workspace root next to the component manifest
+- First-version shape: `color_schemes.<schemeId>.light/.dark` partial palette
+  overrides (scheme ids may contain `/`)
+- Scheme must exist in the resolved theme; only known palette / theme / fallback
+  keys may be overridden; drawable keys accept image file names, other keys
+  must be hex literals
+- Merged after component resolution, before `Theme.decode`
+  (`ThemeCustomization` + `DefinitionValidator.validateCustomization`)
 
 ## 3. What a complete validator must check
 

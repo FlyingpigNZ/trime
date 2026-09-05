@@ -17,6 +17,14 @@ data class DefaultKeyboardRegistry(
 ) {
     fun defaultKeyboardFor(schemaId: String): String? = bindings[schemaId]
 
+    /**
+     * The manifest `default_keyboard` when the active package declares exactly
+     * one schema binding (the current manifest shape). Unlike reaching into
+     * [bindings] with `firstOrNull()`, this stays unambiguous if a package
+     * ever declares several schema → keyboard bindings.
+     */
+    fun singleDefaultKeyboard(): String? = bindings.values.singleOrNull()
+
     fun isEmpty(): Boolean = bindings.isEmpty()
 
     operator fun plus(other: DefaultKeyboardRegistry): DefaultKeyboardRegistry = DefaultKeyboardRegistry(

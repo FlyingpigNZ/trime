@@ -23,6 +23,23 @@
     <string name="selected_ime_summary">選擇自包含輸入法包</string>
     <string name="normal_mode_color">配色</string>
     <string name="normal_mode_color_summary">選取想要的配色</string>
+    <string name="keyboard_background_editor">鍵盤背景</string>
+    <string name="keyboard_background_editor_summary">更換或還原目前配色的鍵盤背景圖片</string>
+    <string name="keyboard_background_mode_light">日間</string>
+    <string name="keyboard_background_mode_dark">夜間</string>
+    <string name="keyboard_background_change">選取</string>
+    <string name="keyboard_background_default">缺省</string>
+    <string name="keyboard_background_crop">裁剪</string>
+    <string name="keyboard_background_reset">重設</string>
+    <string name="keyboard_background_apply">套用</string>
+    <string name="keyboard_background_no_scheme">找不到配色方案</string>
+    <string name="keyboard_background_decode_failed">無法讀取所選圖片</string>
+    <!-- 編輯器預覽候選欄內展示的範例候選詞 -->
+    <string-array name="keyboard_background_preview_candidates">
+        <item>同文</item>
+        <item>輸入法</item>
+        <item>打字</item>
+    </string-array>
     <string name="reset">回廠</string>
     <string name="reset_hint">使用預設的內建設置覆蓋共享資料夾下相同檔案</string>
     <string name="sound_on_keypress">按鍵聲音</string>

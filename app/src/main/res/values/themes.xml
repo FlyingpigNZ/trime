@@ -14,5 +14,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <item name="android:colorAccent" >@color/colorAccent</item>
     </style>
 
+    <!-- Materialized theme for the keyboard-background editor (preview phase). -->
+    <style name="Theme.Trime.KeyboardBackgroundEditor" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryVariant">@color/colorPrimaryDark</item>
+        <item name="colorSecondary">@color/colorAccent</item>
+        <item name="colorSecondaryVariant">@color/colorAccent</item>
+        <item name="android:colorAccent">@color/colorAccent</item>
+    </style>
+
     <style name="Theme.DialogTheme" parent="@android:style/Theme.DeviceDefault.Light.Dialog" />
 </resources>

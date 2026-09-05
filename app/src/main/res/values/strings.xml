@@ -23,6 +23,23 @@
     <string name="selected_ime_summary">Select self-contained IME package</string>
     <string name="normal_mode_color">Colors</string>
     <string name="normal_mode_color_summary">Select desired color</string>
+    <string name="keyboard_background_editor">Keyboard background</string>
+    <string name="keyboard_background_editor_summary">Change or restore the background image of the current color scheme</string>
+    <string name="keyboard_background_mode_light">Light</string>
+    <string name="keyboard_background_mode_dark">Dark</string>
+    <string name="keyboard_background_change">Pick</string>
+    <string name="keyboard_background_default">Default</string>
+    <string name="keyboard_background_crop">Crop</string>
+    <string name="keyboard_background_reset">Reset</string>
+    <string name="keyboard_background_apply">Apply</string>
+    <string name="keyboard_background_no_scheme">No color scheme found</string>
+    <string name="keyboard_background_decode_failed">Failed to read the selected image</string>
+    <!-- Sample candidate copy painted in the editor preview's candidate strip -->
+    <string-array name="keyboard_background_preview_candidates">
+        <item>Trime</item>
+        <item>rime</item>
+        <item>type</item>
+    </string-array>
     <string name="reset">Reset</string>
     <string name="reset_hint">Overwrite the same files in shared directory with default built-in assets</string>
     <string name="sound_on_keypress">Sound on key press</string>

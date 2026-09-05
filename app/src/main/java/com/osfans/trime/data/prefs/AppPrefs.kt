@@ -37,6 +37,7 @@ class AppPrefs(
     }
 
     val internal = Internal(shared)
+    val session = Session(shared)
     val general = General(shared).register()
     val profile = Profile(shared).register()
     val keyboard = Keyboard(shared).register()
@@ -82,6 +83,24 @@ class AppPrefs(
         }
 
         val pid = int(PID, 0)
+    }
+
+    /**
+     * Unregistered, UI-less session state (same pattern as [Internal]).
+     *
+     * Holds the last keyboard the IME resolved, so the settings UI (which can
+     * run without a live Rime session) shows the same keyboard the user last
+     * typed on — including after a schema switch — instead of guessing from
+     * the package manifest alone.
+     */
+    class Session(
+        shared: SharedPreferences,
+    ) : PreferenceDelegateOwner(shared) {
+        companion object {
+            const val LAST_KEYBOARD = "session_last_keyboard"
+        }
+
+        val lastKeyboard = string(LAST_KEYBOARD, "")
     }
 
     class General(
