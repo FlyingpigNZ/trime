@@ -481,3 +481,38 @@ app/src/main/jni/boost/
 # kotlin
 .kotlin
 
+
+# local tooling (plugin install helpers, sandbox-only)
+.npm-global/
+.npm-cache/
+.dsh-routing-suite/
+
+# Local sandbox / generated artifacts (not part of the repo)
+.gradle-test-home/
+app/release/
+app/src/main/assets/prelude/
+sample_theme_schemas/rime.雾凇/
+# Unpacked IME package source dirs + the 420MB .gram model: the repo ships the
+# slim zip (0-byte gram placeholder) only, never the source tree or the real gram.
+sample_theme_schemas/wanxiang-lts-zh-hans.gram
+sample_theme_schemas/万象14键-nogram/
+sample_theme_schemas/测试-万象14键-nogram/
+__pycache__/
+*.pyc
+
+# Local VSCode workspace settings
+.vscode/
+.gradle-home/
+.gradle-home-fix/
+.android-home/
+
+# Session/process artifacts (handoffs, code-review notes, probes, scratch) — never commit
+/HANDOFF-*.md
+/CODE_REVIEW-*.md
+/doc/CODE_REVIEW-*.md
+/TECH_DEBT_PLAN.md
+/PACKAGE_IMPORT_EXPORT_DESIGN.md
+/t9_probe.png
+/.migrate-work/
+/.pkgcheck/
+/flat/

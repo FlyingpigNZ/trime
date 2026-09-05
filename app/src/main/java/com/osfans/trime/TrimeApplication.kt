@@ -5,18 +5,22 @@
 
 package com.osfans.trime
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Process
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.db.ClipboardHelper
 import com.osfans.trime.data.db.CollectionHelper
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.receiver.RimeIntentReceiver
 import com.osfans.trime.ui.main.LogActivity
@@ -59,7 +63,13 @@ class TrimeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         if (!BuildConfig.DEBUG) {
+            // Do NOT delegate to the platform uncaught-exception handler: on
+            // Android that is KillApplicationHandler, which terminates the
+            // process, making the crash screen and crash-loop guard below dead
+            // code. Log explicitly instead so logcat still records the crash.
+            @SuppressLint("DefaultUncaughtExceptionDelegation")
             Thread.setDefaultUncaughtExceptionHandler { _, e ->
+                Timber.e(e, "Uncaught exception")
                 val crashTime = System.currentTimeMillis()
                 val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
                 val lastCrashTimePrefKey = "last_crash_time"
@@ -91,6 +101,11 @@ class TrimeApplication : Application() {
             }
         }
         instance = this
+        // The :compile process only deploys a package workspace: it must not
+        // run the one-time user-data migration (which would race the main
+        // process on the same files) or start clipboard/collection/broadcast/
+        // WorkManager machinery.
+        val isCompileProcess = currentProcessName()?.endsWith(":compile") == true
         try {
             if (BuildConfig.DEBUG) {
                 Timber.plant(
@@ -129,6 +144,9 @@ class TrimeApplication : Application() {
             }
             val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
             val appPrefs = AppPrefs.initDefault(sharedPreferences)
+            if (!isCompileProcess) {
+                DataManager.migrateLegacyUserDataIfNeeded()
+            }
             // record last pid for crash logs
             appPrefs.internal.pid.apply {
                 val currentPid = Process.myPid()
@@ -136,10 +154,20 @@ class TrimeApplication : Application() {
                 Timber.d("Last pid is $lastPid. Set it to current pid: $currentPid")
                 setValue(currentPid)
             }
-            ClipboardHelper.init(applicationContext)
-            CollectionHelper.init(applicationContext)
-            registerBroadcastReceiver()
-            startWorkManager()
+            if (!isCompileProcess) {
+                ClipboardHelper.init(applicationContext)
+                CollectionHelper.init(applicationContext)
+                registerBroadcastReceiver()
+                startWorkManager()
+                // Compile the startup workspace (Default on a fresh install)
+                // via the isolated :compile process before the engine's first
+                // start; the engine start is gated on it so the main process
+                // never runs a full workspace deploy itself.
+                coroutineScope.launch {
+                    runCatching { ImePackageManager.ensureStartupWorkspaceReady() }
+                        .onFailure { t -> Timber.e(t, "Startup workspace bootstrap failed") }
+                }
+            }
         } catch (e: Exception) {
             e.fillInStackTrace()
             return
@@ -168,6 +196,15 @@ class TrimeApplication : Application() {
         fun getInstance() = instance ?: throw IllegalStateException("Trime application is not created!")
 
         fun getLastPid() = lastPid
+
+        /** Best-effort current process name (API 33+; /proc/self/cmdline fallback). */
+        private fun currentProcessName(): String? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Process.myProcessName()
+        } else {
+            runCatching {
+                java.io.File("/proc/self/cmdline").readText().trim('\u0000').trim()
+            }.getOrNull()
+        }
 
         private const val MAX_STACKTRACE_SIZE = 128000
 

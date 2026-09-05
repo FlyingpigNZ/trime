@@ -5,8 +5,9 @@
 package com.osfans.trime.util
 
 fun String.removeRegexSet(regexSet: Set<Regex>): String {
-    regexSet.forEach { replace(it, String.EMPTY) }
-    return this
+    var result = this
+    regexSet.forEach { result = result.replace(it, "") }
+    return result
 }
 
 fun String.matchesAny(regexSet: Set<Regex>): Boolean = regexSet.any { it.matches(this) }

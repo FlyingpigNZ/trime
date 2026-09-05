@@ -9,7 +9,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.annotation.Keep
 import com.osfans.trime.R
-import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.ime.candidates.compact.CompactCandidateMode
 import com.osfans.trime.ime.candidates.popup.PopupCandidatesLayout
 import com.osfans.trime.ime.candidates.popup.PopupCandidatesMode
@@ -25,8 +24,6 @@ import java.lang.ref.WeakReference
 class AppPrefs(
     private val shared: SharedPreferences,
 ) {
-    private val applicationContext: WeakReference<Context> = WeakReference(appContext)
-
     private val providers = mutableListOf<PreferenceDelegateProvider>()
 
     fun <T : PreferenceDelegateProvider> registerProvider(providerF: (SharedPreferences) -> T): T {
@@ -121,6 +118,7 @@ class AppPrefs(
         companion object {
             const val LANDSCAPE_MODE = "keyboard_landscape_mode"
             const val SPLIT_SPACE_PERCENT = "keyboard_split_space"
+            const val HEIGHT_SCALE = "keyboard_height_scale"
 
             const val USE_SOFT_CURSOR = "use_soft_cursor"
             const val HIDE_INPUT_BAR = "hide_input_bar"
@@ -176,6 +174,16 @@ class AppPrefs(
             "%",
         )
 
+        val heightScale = int(
+            R.string.keyboard_height_scale,
+            HEIGHT_SCALE,
+            100,
+            50,
+            150,
+            "%",
+            5,
+        )
+
         val useSoftCursor = switch(R.string.use_soft_cursor, USE_SOFT_CURSOR, true)
 
         val hideInputBar = switch(R.string.hide_input_bar, HIDE_INPUT_BAR, false)
@@ -188,7 +196,6 @@ class AppPrefs(
             0,
             100,
             "%",
-            defaultLabel = R.string.system_default,
         ) { soundOnKeyPress.getValue() }
 
         val useCustomSoundEffect = switch(
@@ -364,7 +371,6 @@ class AppPrefs(
             const val LAST_BACKGROUND_SYNC_TIME = "last_background_sync_time"
         }
 
-        val userDataDir = string(USER_DATA_DIR, DataManager.defaultDataDir.path)
         val periodicBackgroundSync = bool(PERIODIC_BACKGROUND_SYNC, false)
         val periodicBackgroundSyncInterval = int(PERIODIC_BACKGROUND_SYNC_INTERVAL, 30)
         val lastBackgroundSyncStatus = bool(LAST_BACKGROUND_SYNC_STATUS, false)

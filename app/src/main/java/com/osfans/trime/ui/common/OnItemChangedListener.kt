@@ -20,7 +20,12 @@ interface OnItemChangedListener<T> {
 
     fun onItemAddedBatch(items: List<T>) {}
 
-    fun onItemRemovedBatch(items: List<T>) {}
+    /**
+     * Batch removal with each item's original index, so an undo can restore
+     * items at their previous positions (order = enabled-schema priority)
+     * instead of appending at the end.
+     */
+    fun onItemRemovedBatch(items: List<Pair<Int, T>>) {}
 
     companion object {
         /**
@@ -51,7 +56,7 @@ interface OnItemChangedListener<T> {
                 l2.onItemAddedBatch(items)
             }
 
-            override fun onItemRemovedBatch(items: List<T>) {
+            override fun onItemRemovedBatch(items: List<Pair<Int, T>>) {
                 l1.onItemRemovedBatch(items)
                 l2.onItemRemovedBatch(items)
             }

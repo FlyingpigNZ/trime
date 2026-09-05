@@ -4,30 +4,33 @@
 
 package com.osfans.trime.daemon
 
-import android.app.PendingIntent
-import android.content.Intent
-import android.graphics.Color
-import androidx.core.app.NotificationCompat
-import com.osfans.trime.R
+import com.osfans.trime.BuildConfig
 import com.osfans.trime.TrimeApplication
+import com.osfans.trime.core.InlinePreeditStyle
+import com.osfans.trime.core.InputOptions
 import com.osfans.trime.core.Rime
 import com.osfans.trime.core.RimeApi
+import com.osfans.trime.core.RimeEnvironment
 import com.osfans.trime.core.RimeLifecycle
-import com.osfans.trime.core.RimeMessage
+import com.osfans.trime.core.awaitReadyOrFailed
 import com.osfans.trime.core.lifecycleScope
 import com.osfans.trime.core.whenReady
-import com.osfans.trime.ui.main.LogActivity
+import com.osfans.trime.core.whenReadyOrFailed
+import com.osfans.trime.data.base.DataManager
+import com.osfans.trime.data.opencc.OpenCCDictManager
+import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.ImePackageManager
+import com.osfans.trime.ime.core.InlinePreeditMode
 import com.osfans.trime.util.appContext
-import com.osfans.trime.util.createNotificationChannel
-import com.osfans.trime.util.readText
-import com.osfans.trime.util.subprocess
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import splitties.systemservices.notificationManager
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -46,13 +49,82 @@ import kotlin.concurrent.withLock
  * Adapted from [fcitx5-android/FcitxDaemon.kt](https://github.com/fcitx5-android/fcitx5-android/blob/364afb44dcf0d9e3db3d43a21a32601b2190cbdf/app/src/main/java/org/fcitx/fcitx5/android/daemon/FcitxDaemon.kt)
  */
 object RimeDaemon {
-    private val realRime by lazy { Rime() }
+    private val realRime by lazy {
+        val prefs = AppPrefs.defaultInstance()
+        Rime(
+            inputOptions =
+            object : InputOptions {
+                override val inlinePreeditMode: InlinePreeditStyle
+                    get() =
+                        when (prefs.general.inlinePreeditMode.getValue()) {
+                            InlinePreeditMode.DISABLE -> InlinePreeditStyle.DISABLE
+                            InlinePreeditMode.COMPOSING_TEXT -> InlinePreeditStyle.COMPOSING_TEXT
+                            InlinePreeditMode.COMMIT_TEXT_PREVIEW -> InlinePreeditStyle.COMMIT_TEXT_PREVIEW
+                        }
+
+                override val asciiSwitchTips: Boolean
+                    get() = prefs.general.asciiSwitchTips.getValue()
+            },
+            environment = {
+                RimeEnvironment(
+                    sharedDataDir = DataManager.sharedDataDir.absolutePath,
+                    userDataDir = DataManager.userDataDir.absolutePath,
+                    versionName = BuildConfig.BUILD_VERSION_NAME,
+                )
+            },
+            onBeforeStart = {
+                // Sync shared assets first so Default.zip exists, then install
+                // the bundled package. installBundledDefaultPackage() writes
+                // default.custom.yaml itself after extraction.
+                DataManager.sync()
+                ImePackageManager.installBundledDefaultPackage()
+            },
+            onDeployStart = { OpenCCDictManager.buildOpenCCDict() },
+        )
+    }
 
     private val rimeImpl by lazy { object : RimeApi by realRime {} }
 
     private val sessions = mutableMapOf<String, RimeSession>()
 
     private val lock = ReentrantLock()
+
+    /**
+     * Gate for the engine's first start. Completed once the workspace the
+     * engine will start against (the active package, or Default on a fresh
+     * install) has been compiled by the isolated `:compile` process, so the
+     * main process never runs a full workspace deploy itself. A fresh-install
+     * Default deploy therefore happens in the `:compile` process, not in the
+     * main-process engine.
+     */
+    private val startupWorkspaceGate = CompletableDeferred<Unit>()
+
+    /** Release the first-start gate; safe to call more than once. */
+    fun markStartupWorkspaceReady() {
+        if (!startupWorkspaceGate.isCompleted) startupWorkspaceGate.complete(Unit)
+    }
+
+    /**
+     * Set while the engine is STARTING: a restart was requested but cannot run
+     * until the current deploy completes ([onRimeStateChanged] consumes it).
+     * Guards against package activation being silently dropped during the
+     * initial deploy (previously `finalize()` skipped because not READY).
+     *
+     * When a caller is waiting for a deferred restart, [pendingRestartResult]
+     * propagates the outcome of the actual redeploy; without it, a STARTING
+     * restart would resolve on the *current* deploy's READY before the
+     * deferred restart has even begun.
+     */
+    private var pendingRestart = false
+    private var pendingRestartResult: CompletableDeferred<Boolean>? = null
+
+    /** Android UI: deploy/restart progress notifications. */
+    private val deployNotifier = DeployNotifier(appContext, TrimeApplication.getInstance().coroutineScope)
+
+    init {
+        deployNotifier.start(realRime.messageFlow)
+        realRime.lifecycle.addObserver(::onRimeStateChanged)
+    }
 
     private fun establish(name: String) = object : RimeSession {
         private inline fun <T> ensureEstablished(block: () -> T) = if (name in sessions) {
@@ -61,12 +133,25 @@ object RimeDaemon {
             throw IllegalStateException("Session $name is not established")
         }
 
+        override val uiState
+            get() = realRime.uiState
+
+        override val isReady: Boolean
+            get() = realRime.isReady
+
+        override val messageFlow
+            get() = realRime.messageFlow
+
         override fun <T> run(block: suspend RimeApi.() -> T): T = ensureEstablished {
             runBlocking { block(rimeImpl) }
         }
 
         override suspend fun <T> runOnReady(block: suspend RimeApi.() -> T): T = ensureEstablished {
             realRime.lifecycle.whenReady { block(rimeImpl) }
+        }
+
+        override suspend fun <T> runOnReadyOrFailed(block: suspend RimeApi.() -> T): T = ensureEstablished {
+            realRime.lifecycle.whenReadyOrFailed { block(rimeImpl) }
         }
 
         override fun runIfReady(block: suspend RimeApi.() -> Unit) {
@@ -87,8 +172,29 @@ object RimeDaemon {
         if (name in sessions) {
             return@withLock sessions.getValue(name)
         }
-        if (realRime.lifecycle.currentState == RimeLifecycle.State.STOPPED) {
-            realRime.startup()
+        when (realRime.lifecycle.currentState) {
+            RimeLifecycle.State.STOPPED -> {
+                if (startupWorkspaceGate.isCompleted) {
+                    realRime.startup()
+                } else {
+                    // First engine start: never deploy the startup workspace
+                    // in-process in the main process. The isolated :compile
+                    // process compiles it first (see
+                    // PackageActivator.ensureStartupWorkspaceReady); the
+                    // engine starts once that is done.
+                    realRime.lifecycle.lifecycleScope.launch {
+                        startupWorkspaceGate.await()
+                        lock.withLock { if (sessions.isNotEmpty()) realRime.startup() }
+                    }
+                }
+            }
+            RimeLifecycle.State.FAILED -> {
+                // The previous deploy failed; tear the engine down and retry
+                // on the next session instead of leaving it wedged.
+                realRime.finalize()
+                realRime.startup()
+            }
+            else -> {}
         }
         val session = establish(name)
         sessions[name] = session
@@ -110,114 +216,147 @@ object RimeDaemon {
      */
     fun getFirstSessionOrNull() = sessions.firstNotNullOfOrNull { it.value }
 
-    private const val CHANNEL_ID = "rime-daemon"
-    private const val MESSAGE_ID = 2331
-    private var restartId = 0
+    /**
+     * Restart Rime so it re-deploys the current workspace (e.g. after package
+     * activation). Suspends until the engine is READY again; returns false
+     * when the deploy failed ([RimeLifecycle.State.FAILED]).
+     *
+     * While the engine is STARTING the restart is deferred and applied once
+     * the current deploy completes — the activation must not be dropped. The
+     * engine teardown itself runs off the calling thread (finalize's
+     * `runBlocking` must never block the main thread), so this function is
+     * suspend and safe to call from the UI.
+     */
+    suspend fun restartRime(fullCheck: Boolean = false): Boolean {
+        val restartId = if (fullCheck) null else deployNotifier.notifyRestartStarted()
+        val result = restartInternal(fullCheck)
+        if (restartId != null) {
+            deployNotifier.notifyRestartFinished(restartId)
+        }
+        return result
+    }
 
-    init {
-        createNotificationChannel(
-            CHANNEL_ID,
-            appContext.getString(R.string.rime_daemon),
-        )
-        TrimeApplication.getInstance().coroutineScope.launch {
-            realRime.messageFlow.collect {
-                handleRimeMessage(it)
+    private suspend fun restartInternal(fullCheck: Boolean): Boolean {
+        val action =
+            lock.withLock {
+                when (realRime.lifecycle.currentState) {
+                    RimeLifecycle.State.READY -> RestartAction.Restart
+                    RimeLifecycle.State.STARTING -> {
+                        pendingRestart = true
+                        RestartAction.Wait
+                    }
+                    RimeLifecycle.State.FAILED -> RestartAction.Retry
+                    RimeLifecycle.State.STOPPED -> RestartAction.Start
+                    RimeLifecycle.State.STOPPING -> RestartAction.WaitForStopped
+                }
             }
+        return when (action) {
+            RestartAction.Restart,
+            RestartAction.Retry,
+            -> {
+                // Serialize the state transition under a coroutine mutex (a
+                // ReentrantLock critical section cannot contain the
+                // withContext suspension point): a concurrent
+                // restartRime/createSession must not observe STOPPED twice and
+                // double-startup. Waiting for READY happens outside the lock.
+                transitionMutex.withLock {
+                    withContext(Dispatchers.IO) {
+                        realRime.finalize()
+                        realRime.startup(fullCheck)
+                    }
+                }
+                realRime.lifecycle.awaitReadyOrFailed()
+            }
+            RestartAction.Start -> {
+                transitionMutex.withLock {
+                    withContext(Dispatchers.IO) { realRime.startup(fullCheck) }
+                }
+                realRime.lifecycle.awaitReadyOrFailed()
+            }
+            RestartAction.Wait -> {
+                // The restart is deferred until the in-flight deploy settles;
+                // await the outcome of the actual redeploy (shared between
+                // concurrent waiters) instead of the current deploy's READY.
+                val result =
+                    lock.withLock {
+                        if (!pendingRestart) {
+                            pendingRestart = true
+                            pendingRestartResult = CompletableDeferred()
+                        }
+                        pendingRestartResult!!
+                    }
+                result.await()
+            }
+            RestartAction.WaitForStopped -> {
+                // A restart landing in the STOPPING window must not be
+                // silently dropped: wait for the teardown to finish (the
+                // engine settles on STOPPED), then retry.
+                while (realRime.lifecycle.currentState == RimeLifecycle.State.STOPPING) {
+                    delay(50)
+                }
+                restartInternal(fullCheck)
+            }
+            RestartAction.None -> false
         }
     }
 
-    private inline fun sendNotification(
-        id: Int,
-        buildAction: NotificationCompat.Builder.() -> Unit,
-    ) {
-        val builder =
-            NotificationCompat
-                .Builder(appContext, CHANNEL_ID)
-                .setContentTitle(appContext.getString(R.string.rime_daemon))
-        builder.buildAction()
-        builder.build().let { notificationManager.notify(id, it) }
-    }
+    private enum class RestartAction { Restart, Retry, Start, Wait, WaitForStopped, None }
 
     /**
-     * Restart Rime instance to deploy while keep the session
+     * Consume a deferred restart ([pendingRestart]) once the engine settles.
+     * READY/FAILED observers may fire on the librime notification thread or a
+     * lifecycle-scope thread; the restart (finalize's `runBlocking` on the
+     * dispatcher mutex) must never run there, so it hops to the app scope on
+     * IO.
      */
-    fun restartRime(fullCheck: Boolean = false) = lock.withLock {
-        val id = restartId++
-        if (!fullCheck) {
-            sendNotification(id) {
-                setSmallIcon(R.drawable.ic_baseline_sync_24)
-                setContentTitle(appContext.getString(R.string.rime_daemon))
-                setContentText(appContext.getString(R.string.restarting_rime))
-                setOngoing(true)
-                setProgress(100, 0, true)
-                setPriority(NotificationCompat.PRIORITY_HIGH)
+    private fun onRimeStateChanged(state: RimeLifecycle.State) {
+        if (state == RimeLifecycle.State.FAILED) {
+            // A live session whose deploy failed gets one automatic retry;
+            // repeated failures are left to the user (the deploy-failure
+            // notification) to avoid a retry loop on persistent environment
+            // problems. Skip it when a deferred restart is already pending —
+            // the deferred restart will redeploy anyway, and running both
+            // would cause a redundant second restart.
+            val (hasSessions, hasPendingRestart) =
+                lock.withLock {
+                    sessions.isNotEmpty() to pendingRestart
+                }
+            if (hasSessions && !hasPendingRestart && failedAutoRetried.compareAndSet(false, true)) {
+                TrimeApplication.getInstance().coroutineScope.launch(Dispatchers.IO) {
+                    delay(FAILED_RETRY_DELAY_MS)
+                    runCatching { restartRime() }
+                }
             }
+        } else if (state == RimeLifecycle.State.READY) {
+            failedAutoRetried.set(false)
         }
-        realRime.finalize()
-        realRime.startup()
-        TrimeApplication.getInstance().coroutineScope.launch {
-            realRime.lifecycle.whenReady {
-                notificationManager.cancel(id)
+        if (state != RimeLifecycle.State.READY && state != RimeLifecycle.State.FAILED) return
+        val deferred =
+            lock.withLock {
+                if (!pendingRestart) return
+                pendingRestart = false
+                pendingRestartResult.also { pendingRestartResult = null }
             }
+        TrimeApplication.getInstance().coroutineScope.launch(Dispatchers.IO) {
+            val ok =
+                runCatching {
+                    transitionMutex.withLock {
+                        withContext(Dispatchers.IO) {
+                            realRime.finalize()
+                            realRime.startup()
+                        }
+                    }
+                    realRime.lifecycle.awaitReadyOrFailed()
+                }.getOrDefault(false)
+            deferred?.complete(ok)
         }
     }
 
-    private suspend fun handleRimeMessage(it: RimeMessage<*>) {
-        if (it is RimeMessage.DeployMessage) {
-            val buildNotification: NotificationCompat.Builder.() -> Unit
-            when (it.data) {
-                RimeMessage.DeployMessage.State.Start -> {
-                    buildNotification = {
-                        setSmallIcon(R.drawable.ic_baseline_refresh_reversed_24)
-                        setContentText(appContext.getString(R.string.deploy_progress))
-                        setProgress(0, 0, true)
-                        setOngoing(true)
-                        setAutoCancel(false)
-                        setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    }
-                    withContext(Dispatchers.IO) { subprocess("logcat", "--clear") }
-                }
-                RimeMessage.DeployMessage.State.Success -> {
-                    buildNotification = {
-                        setSmallIcon(R.drawable.ic_baseline_refresh_reversed_24)
-                        setColor(Color.GREEN)
-                        setContentText(appContext.getString(R.string.deploy_finish))
-                        setOngoing(false)
-                        setTimeoutAfter(3000L)
-                        setAutoCancel(true)
-                        setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    }
-                }
-                RimeMessage.DeployMessage.State.Failure -> {
-                    val intent =
-                        Intent(appContext, LogActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                            val log =
-                                subprocess("logcat", "-v", "brief", "-s", "rime.trime:W", "-d")
-                                    .readText()
-                            putExtra(LogActivity.FROM_DEPLOY, true)
-                            putExtra(LogActivity.DEPLOY_FAILURE_TRACE, log)
-                        }
-                    buildNotification = {
-                        setSmallIcon(R.drawable.ic_baseline_warning_24)
-                        setColor(Color.YELLOW)
-                        setContentText(appContext.getString(R.string.view_deploy_failure_log))
-                        setContentIntent(
-                            PendingIntent.getActivity(
-                                appContext,
-                                0,
-                                intent,
-                                PendingIntent.FLAG_ONE_SHOT or
-                                    PendingIntent.FLAG_IMMUTABLE,
-                            ),
-                        )
-                        setOngoing(false)
-                        setAutoCancel(true)
-                        setPriority(NotificationCompat.PRIORITY_HIGH)
-                    }
-                }
-            }
-            sendNotification(MESSAGE_ID, buildNotification)
-        }
-    }
+    /** Serializes engine start/stop transitions across all restart paths. */
+    private val transitionMutex = Mutex()
+
+    private val failedAutoRetried = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Delay before the single automatic retry after a failed deploy. */
+    private const val FAILED_RETRY_DELAY_MS = 3_000L
 }

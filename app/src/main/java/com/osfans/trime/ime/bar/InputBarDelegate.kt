@@ -40,6 +40,7 @@ import com.osfans.trime.ime.dependency.InputDependencyManager
 import com.osfans.trime.ime.keyboard.CommonKeyboardActionListener
 import com.osfans.trime.ime.keyboard.KeyBehavior
 import com.osfans.trime.ime.keyboard.KeyboardWindow
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.ime.switches.SwitchOptionWindow
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.BoardWindowManager
@@ -69,7 +70,14 @@ class InputBarDelegate : InputBroadcastReceiver {
     private val candidate: CompactCandidateDelegate by di.instance()
     private val rime: RimeSession by di.instance()
 
-    val themedHeight = theme.generalStyle.run { candidateViewHeight + commentHeight }
+    /**
+     * Bar height in px, scaled with the keyboard height. Read at layout time
+     * (not captured at construction): [UiScale.factor] is written by
+     * [com.osfans.trime.ime.keyboard.Keyboard] only after this delegate is
+     * constructed, so an eager read would see the stale/default factor.
+     */
+    val themedHeight: Int
+        get() = (theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt()
 
     private val prefs = AppPrefs.defaultInstance()
 
@@ -143,7 +151,7 @@ class InputBarDelegate : InputBroadcastReceiver {
             clipboardUi.suggestionView.apply {
                 setOnClickListener {
                     val content = ClipboardHelper.lastBean?.text
-                    content?.let { service.commitText(it) }
+                    content?.let { service.editor.commitText(it) }
                     dismissClipboardSuggestion()
                 }
                 setOnLongClickListener {
@@ -186,6 +194,11 @@ class InputBarDelegate : InputBroadcastReceiver {
     val unrollButtonStateMachine =
         UnrollButtonStateMachine.new {
             when (it) {
+                UnrollButtonStateMachine.State.AboutToAttachWindow -> {
+                    setUnrollButtonToDetach()
+                    setUnrollButtonEnabled(true)
+                    windowManager.attachWindow(FlexboxUnrolledCandidateWindow())
+                }
                 UnrollButtonStateMachine.State.ClickToAttachWindow -> {
                     setUnrollButtonToAttach()
                     setUnrollButtonEnabled(true)
@@ -193,7 +206,6 @@ class InputBarDelegate : InputBroadcastReceiver {
                 UnrollButtonStateMachine.State.ClickToDetachWindow -> {
                     setUnrollButtonToDetach()
                     setUnrollButtonEnabled(true)
-                    setUnrollWindowToAttach()
                 }
                 UnrollButtonStateMachine.State.Hidden -> {
                     setUnrollButtonEnabled(false)
@@ -217,15 +229,6 @@ class InputBarDelegate : InputBroadcastReceiver {
 
     private fun setUnrollButtonEnabled(enabled: Boolean) {
         candidateUi.unrollButton.visibility = if (enabled) View.VISIBLE else View.INVISIBLE
-    }
-
-    private fun setUnrollWindowToAttach() {
-        unrollButtonStateMachine.getBooleanState(
-            UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesHighlighted,
-        )?.let {
-            if (!it) return@let
-            windowManager.attachWindow(FlexboxUnrolledCandidateWindow())
-        }
     }
 
     override fun onCandidateListUpdate(data: Candidates.Bulk) {
@@ -267,6 +270,11 @@ class InputBarDelegate : InputBroadcastReceiver {
             add(tabUi.root, lParams(matchParent, matchParent))
 
             evalAlwaysUiState()
+            // Not unregistered on teardown by design: ClipboardHelper keeps
+            // listeners in a WeakHashSet, so a discarded delegate (theme
+            // rebuild replaces the whole DI graph) is collected and its entry
+            // disappears — no hard leak. A stale callback that fires in the
+            // meantime only touches the delegate's detached views.
             ClipboardHelper.addOnUpdateListener(onClipboardUpdateListener)
             syncToolbarOptionStates()
         }

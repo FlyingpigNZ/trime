@@ -28,11 +28,6 @@ data class DatabaseBean(
             val str = clipData.getItemAt(0).text?.toString() ?: return null
             return DatabaseBean(text = str)
         }
-
-        fun fromInputConnection(inputConnection: InputConnection): DatabaseBean? {
-            val str = inputConnection.getExtractedText(ExtractedTextRequest(), 0)?.text?.toString() ?: return null
-            return DatabaseBean(text = str)
-        }
     }
 
     enum class BeanType {
@@ -45,6 +40,6 @@ data class DatabaseBean(
         fun beanTypeToInt(beanType: BeanType?): Int? = beanType?.ordinal
 
         @TypeConverter
-        fun intToBeanType(ordinal: Int?): BeanType? = ordinal?.let { BeanType.entries[it] }
+        fun intToBeanType(ordinal: Int?): BeanType? = ordinal?.let { BeanType.entries.getOrNull(it) }
     }
 }

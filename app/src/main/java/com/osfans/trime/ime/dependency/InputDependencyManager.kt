@@ -7,6 +7,7 @@ package com.osfans.trime.ime.dependency
 
 import android.content.Context
 import com.osfans.trime.daemon.RimeSession
+import com.osfans.trime.data.schema.DefaultKeyboardRegistry
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.bar.InputBarDelegate
 import com.osfans.trime.ime.broadcast.EnterKeyDisplayDelegate
@@ -17,6 +18,7 @@ import com.osfans.trime.ime.composition.PreeditDelegate
 import com.osfans.trime.ime.core.InputView
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.keyboard.CommonKeyboardActionListener
+import com.osfans.trime.ime.keyboard.KeyboardSwitcher
 import com.osfans.trime.ime.keyboard.KeyboardWindow
 import com.osfans.trime.ime.popup.PopupDelegate
 import com.osfans.trime.ime.symbol.LiquidWindow
@@ -32,6 +34,7 @@ class InputDependencyManager(
     theme: Theme,
     service: TrimeInputMethodService,
     rime: RimeSession,
+    defaultKeyboards: DefaultKeyboardRegistry = DefaultKeyboardRegistry.Empty,
 ) {
     val inputModule = DI.Module("input") {
         bindSingleton { inputView }
@@ -44,6 +47,7 @@ class InputDependencyManager(
         bindSingleton { EnterKeyDisplayDelegate() }
         bindSingleton { PreeditDelegate() }
         bindSingleton { CommonKeyboardActionListener() }
+        bindSingleton { KeyboardSwitcher(context, theme, rime, service, defaultKeyboards) }
         bindSingleton { BoardWindowManager() }
         bindSingleton { InputBarDelegate() }
         bindSingleton { CompactCandidateDelegate() }
@@ -64,9 +68,17 @@ class InputDependencyManager(
 
     fun stop() {
         broadcaster.clear()
+        // Release the static reference so the whole UI graph (service, views,
+        // theme, DI delegates) can be collected when the IME closes, instead
+        // of leaking to process death (K-M4/G-M5/CB-M2). Guard against
+        // clearing a newer instance (theme-change replacement races).
+        if (instance === this) {
+            instance = null
+        }
     }
 
     companion object Factory {
+        @Volatile
         private var instance: InputDependencyManager? = null
 
         fun initialize(
@@ -75,7 +87,8 @@ class InputDependencyManager(
             theme: Theme,
             service: TrimeInputMethodService,
             rime: RimeSession,
-        ): InputDependencyManager = InputDependencyManager(inputView, context, theme, service, rime).also {
+            defaultKeyboards: DefaultKeyboardRegistry = DefaultKeyboardRegistry.Empty,
+        ): InputDependencyManager = InputDependencyManager(inputView, context, theme, service, rime, defaultKeyboards).also {
             instance = it
         }
 

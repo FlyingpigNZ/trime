@@ -15,6 +15,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.core.AutoScaleTextView
 import com.osfans.trime.ime.keyboard.GestureFrame
 import splitties.dimensions.dp
@@ -72,7 +73,7 @@ class SwitchOptionEntryUi(
         textView {
             textSize = 12f
             gravity = gravityCenter
-            setTextColor(ColorManager.getColor("key_text_color"))
+            setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
         }
 
     override val root =
@@ -119,13 +120,13 @@ class SwitchOptionEntryUi(
             icon.visibility = View.VISIBLE
             textIcon.visibility = View.GONE
             icon.imageDrawable = ctx.drawable(entry.icon)!!.apply {
-                setTint(ColorManager.getColor("key_text_color"))
+                setTint(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
             }
         } else {
             icon.visibility = View.GONE
             textIcon.visibility = View.VISIBLE
             textIcon.text = getFirstCharacter(entry.label)
-            textIcon.setTextColor(ColorManager.getColor("key_text_color"))
+            textIcon.setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
         }
         label.text = entry.label
     }

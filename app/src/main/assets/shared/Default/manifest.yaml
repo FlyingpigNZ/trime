@@ -1,0 +1,45 @@
+# Component manifest for the tongwenfeng default IME package.
+#
+# The package is self-contained: all definition YAMLs live at the package
+# root (keyboard.yaml, behavior.yaml, color.yaml, style.yaml,
+# liquid_keyboard.yaml, chrome.yaml).
+
+name: 同文风
+author: 风花絮
+version: "1.0"
+
+schema_id: luna_pinyin
+default_keyboard: default
+
+components:
+  - keyboard:
+      file: keyboard.yaml
+  - behavior:
+      file: behavior.yaml
+  - color:
+      file: color.yaml
+  - style:
+      file: style.yaml
+  - style:
+      file: liquid_keyboard.yaml
+  - style:
+      file: chrome.yaml
+
+# Built-in Rime schemas and resources that make this the default IME package.
+# They live locally under rime/ inside this source folder; package_schema.py
+# packages this whole folder into Default.zip.
+rime_files:
+  - rime/default.yaml
+  - rime/key_bindings.yaml
+  - rime/punctuation.yaml
+  - rime/symbols.yaml
+  - rime/essay.txt
+  - rime/pinyin.yaml
+  - rime/luna_pinyin.schema.yaml
+  - rime/luna_pinyin.dict.yaml
+  - rime/luna_pinyin_fluency.schema.yaml
+  - rime/luna_pinyin_simp.schema.yaml
+  - rime/luna_pinyin_tw.schema.yaml
+  - rime/luna_quanpin.schema.yaml
+  - rime/stroke.schema.yaml
+  - rime/stroke.dict.yaml

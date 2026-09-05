@@ -63,6 +63,14 @@ class CandidatesView(
     private val anchorPosition = RectF()
     private val parentSize = floatArrayOf(0f, 0f)
 
+    /**
+     * Whether the composing text at the caret is RTL. Determined from the
+     * [CursorAnchorInfo] in the service (the text's own direction), not the
+     * IME window's layout direction, so FOLLOW positioning mirrors correctly
+     * even when the device locale and the text direction differ.
+     */
+    private var followRtl = false
+
     private var shouldUpdatePosition = false
 
     /**
@@ -129,11 +137,8 @@ class CandidatesView(
     private fun updateUi() {
         preeditUi.update(composition)
         preeditUi.root.visibility = if (preeditUi.visible) VISIBLE else GONE
-        // if CandidatesView can be shown, rime engine is ready most of the time,
-        // so it should be safety to get option immediately
-        val isHorizontalLayout = rime.run {
-            getRuntimeOption("_linear") || getRuntimeOption("_horizontal")
-        }
+        val options = rime.uiState.value.options
+        val isHorizontalLayout = options["_linear"] == true || options["_horizontal"] == true
         candidatesUi.update(candidates, isHorizontalLayout, layout)
         if (evaluateVisibility()) {
             visibility = VISIBLE
@@ -183,15 +188,26 @@ class CandidatesView(
                 y = maxY
             }
             PopupPosition.FOLLOW -> {
-                x =
-                    if (layoutDirection == LAYOUT_DIRECTION_RTL) {
-                        val rtlOffset = parentWidth - horizontal
-                        if (rtlOffset + selfWidth > parentWidth) selfWidth - parentWidth else -rtlOffset
+                // Mirror the caret position for RTL: the popup's right edge
+                // aligns with the caret (which is reported at bounds.right).
+                // Always clamp into the visible area on both axes.
+                val targetX =
+                    if (followRtl) {
+                        horizontal - selfWidth
                     } else {
-                        if (horizontal + selfWidth > parentWidth) parentWidth - selfWidth else horizontal
+                        horizontal
+                    }
+                x =
+                    if (minX <= maxX) {
+                        targetX.coerceIn(minX, maxX)
+                    } else {
+                        // Narrow split-screen/multi-window: the popup is wider
+                        // than the content area; coerceIn(min, max) would throw.
+                        minX
                     }
                 val bottomLimit = parentHeight - bottomInsets - spacingDp
-                y = if (bottom + selfHeight > bottomLimit) top - selfHeight - spacingDp else bottom + spacingDp
+                y = (if (bottom + selfHeight > bottomLimit) top - selfHeight - spacingDp else bottom + spacingDp)
+                    .coerceAtLeast(minY)
             }
         }
         translationX = x
@@ -204,7 +220,9 @@ class CandidatesView(
     fun updateCursorAnchor(
         anchorPosition: RectF,
         @Size(2) parent: FloatArray,
+        isRtl: Boolean = false,
     ) {
+        followRtl = isRtl
         this.anchorPosition.set(anchorPosition)
         val (parentWidth, parentHeight) = parent
         parentSize[0] = parentWidth

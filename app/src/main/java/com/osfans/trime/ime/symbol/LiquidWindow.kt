@@ -7,6 +7,7 @@ package com.osfans.trime.ime.symbol
 
 import android.view.View
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager
@@ -21,6 +22,7 @@ import com.osfans.trime.ime.keyboard.KeyboardWindow
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.BoardWindowManager
 import com.osfans.trime.ime.window.ResidentWindow
+import kotlinx.coroutines.launch
 import org.kodein.di.instance
 
 class LiquidWindow :
@@ -46,13 +48,17 @@ class LiquidWindow :
                 LiquidData.Type.TABS -> {
                     val realPosition = LiquidData.getTagList()
                         .indexOfFirst { it.label == this.text }
-                    setDataByIndex(realPosition)
+                    if (realPosition >= 0) {
+                        setDataByIndex(realPosition)
+                    }
                 }
                 else -> {
-                    service.commitText(this.text)
+                    service.editor.commitText(this.text)
                     if (currentDataType != LiquidData.Type.HISTORY) {
                         symbolHistory.insert(this.text)
-                        symbolHistory.save()
+                        // Persist off the main thread; the map was already
+                        // updated synchronously above.
+                        service.lifecycleScope.launch { symbolHistory.save() }
                     }
                 }
             }
@@ -92,13 +98,19 @@ class LiquidWindow :
     override fun onDetached() {}
 
     fun setDataByIndex(i: Int) {
-        val tag = LiquidData.getTagList()[i]
+        val tags = LiquidData.getTagList()
+        // Guard against an empty tag list (theme without liquid keyboards) and
+        // a -1 index from a failed label lookup.
+        if (i !in tags.indices) return
+        val tag = tags[i]
         currentDataType = tag.type
         liquidLayout.tabsUi.activateTab(i)
         when (tag.type) {
             LiquidData.Type.HISTORY -> {
-                symbolHistory.load()
-                submitData(symbolHistory.toOrderedList().map { LiquidKeyboard.KeyItem(it) })
+                service.lifecycleScope.launch {
+                    symbolHistory.load()
+                    submitData(symbolHistory.toOrderedList().map { LiquidKeyboard.KeyItem(it) })
+                }
             }
             else -> {
                 val data = LiquidData.getDataByIndex(i)
@@ -113,7 +125,7 @@ class LiquidWindow :
 
     private fun triggerSymbolInput(symbol: String) {
         rime.launchOnReady {
-            val (isAsciiMode, isAsciiPunch) = it.statusCached.run { isAsciiMode to isAsciiPunct }
+            val (isAsciiMode, isAsciiPunch) = it.uiState.value.status.run { isAsciiMode to isAsciiPunct }
             if (isAsciiMode) it.setRuntimeOption("ascii_mode", false)
             if (isAsciiPunch) it.setRuntimeOption("ascii_punch", false)
             it.clearComposition()

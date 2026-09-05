@@ -16,10 +16,12 @@ import android.graphics.drawable.GradientDrawable
 import android.view.KeyEvent
 import com.mikepenz.iconics.IconicsDrawable
 import com.mikepenz.iconics.utils.sizeDp
-import com.osfans.trime.daemon.RimeDaemon
+import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
+import com.osfans.trime.data.theme.ThemeColor
+import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.popup.PopupAction
 import com.osfans.trime.ime.popup.PopupDelegate
@@ -34,6 +36,7 @@ class KeyView(
     private val keyboard: Keyboard,
     private val keyboardView: KeyboardView,
     private val keyboardActionListener: KeyboardActionListener,
+    private val rime: RimeSession,
 ) : GestureFrame(context) {
 
     private val service: TrimeInputMethodService
@@ -41,8 +44,6 @@ class KeyView(
 
     private val popup: PopupDelegate
         get() = keyboardView.popup
-
-    private val rime get() = RimeDaemon.getFirstSessionOrNull()!!
 
     private val hookShiftArrow: Boolean by lazy {
         AppPrefs.defaultInstance().keyboard.hookShiftArrow.getValue()
@@ -102,7 +103,7 @@ class KeyView(
                     val triggerAction = PopupAction.TriggerAction(id)
                     popup.listener.onPopupAction(triggerAction)
                     triggerAction.outAction?.let { action ->
-                        keyboardActionListener.onAction(KeyAction(action))
+                        keyboardActionListener.onAction(KeyAction(action, ThemeManager.activeTheme.presetKeys))
                         dismissPopupPreview()
                     }
                     setPressedState(false)
@@ -137,8 +138,8 @@ class KeyView(
         onSlide = { delta, _, _ ->
             if (isSlideCursor) {
                 when {
-                    delta > 0 -> keyboardActionListener?.onAction(KeyAction("Right"))
-                    delta < 0 -> keyboardActionListener?.onAction(KeyAction("Left"))
+                    delta > 0 -> keyboardActionListener.onAction(KeyAction("Right", ThemeManager.activeTheme.presetKeys))
+                    delta < 0 -> keyboardActionListener.onAction(KeyAction("Left", ThemeManager.activeTheme.presetKeys))
                 }
             } else if (isSlideDelete) {
                 val ic = service.currentInputConnection
@@ -203,7 +204,7 @@ class KeyView(
 
         if (action.isModifierKey) {
             keyboard.clickModifierKey(
-                action.isShiftLock xor (behavior == KeyBehavior.LONG_CLICK),
+                action.isShiftLock(rime.uiState.value) xor (behavior == KeyBehavior.LONG_CLICK),
                 action.modifierKeyOnMask,
             )
             keyboardView.invalidateAllKeys()
@@ -275,6 +276,16 @@ class KeyView(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
+        // When the T9 pinyin-disambiguation panel overlays the keyboard's first
+        // (punctuation) column, that column must not show through behind the
+        // transparent panel at all: neither the labels/symbols/hints (previous
+        // change) nor the button itself. The panel covers the column and
+        // intercepts touches, so the covered keys are unreachable while the
+        // overlay is up — draw nothing for them (background included) and the
+        // strip shows the plain keyboard backdrop behind the pinyin list.
+        val overlaySuppressesColumn = keyboard.pinyinOverlayVisible && key.column == 0
+        if (overlaySuppressesColumn) return
+
         drawBackground(canvas, key)
 
         val label = key.getLabel().let {
@@ -301,7 +312,7 @@ class KeyView(
 
         if (bg is GradientDrawable) {
             (k.roundCorner ?: keyboard.roundCorner).takeIf { it > 0f }?.let { bg.cornerRadius = dp(it) }
-            (k.keyBorder ?: keyboard.keyBorder).takeIf { it > 0 }?.let { bg.setStroke(dp(it), ColorManager.getColor("key_border_color")) }
+            (k.keyBorder ?: keyboard.keyBorder).takeIf { it > 0 }?.let { bg.setStroke(dp(it), ColorManager.getColor(ThemeColor.KEY_BORDER_COLOR)) }
         }
 
         bg.setBounds(
@@ -315,7 +326,9 @@ class KeyView(
 
     private fun drawLabel(canvas: Canvas, label: String) {
         val textColor = key.getTextColor()
-        val textSize = sp(key.keyTextSize.takeIf { it > 0 } ?: if (label.length > 1) keyboardView.keyLongTextSize else keyboardView.keyTextSize)
+        val textSize =
+            sp(key.keyTextSize.takeIf { it > 0 } ?: if (label.length > 1) keyboardView.keyLongTextSize else keyboardView.keyTextSize) *
+                keyboardView.heightScaleFactor
 
         if (label.isIconFont) {
             drawIcon(canvas, label, textSize.toInt(), textColor, key.keyTextOffsetX, key.keyTextOffsetY)
@@ -332,7 +345,12 @@ class KeyView(
             val fontMetrics = textPaint.fontMetrics
             val adjustmentY = -(fontMetrics.ascent + fontMetrics.descent) / 2f
 
-            canvas.drawText(label, centerX + sp(key.keyTextOffsetX), centerY + adjustmentY + sp(key.keyTextOffsetY), textPaint)
+            canvas.drawText(
+                label,
+                centerX + sp(key.keyTextOffsetX * keyboardView.heightScaleFactor),
+                centerY + adjustmentY + sp(key.keyTextOffsetY * keyboardView.heightScaleFactor),
+                textPaint,
+            )
         }
     }
 
@@ -361,12 +379,12 @@ class KeyView(
 
         icon.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
 
-        val centerX = (width - paddingLeft - paddingRight) / 2f + paddingLeft + sp(offsetX)
+        val centerX = (width - paddingLeft - paddingRight) / 2f + paddingLeft + sp(offsetX * keyboardView.heightScaleFactor)
 
         val centerY = when (isTop) {
-            true -> paddingTop + halfSize + sp(offsetY)
-            false -> height - paddingBottom - size + sp(offsetY)
-            null -> (height - paddingTop - paddingBottom) / 2f + paddingTop + sp(offsetY)
+            true -> paddingTop + halfSize + sp(offsetY * keyboardView.heightScaleFactor)
+            false -> height - paddingBottom - size + sp(offsetY * keyboardView.heightScaleFactor)
+            null -> (height - paddingTop - paddingBottom) / 2f + paddingTop + sp(offsetY * keyboardView.heightScaleFactor)
         }
 
         icon.setBounds(
@@ -379,14 +397,17 @@ class KeyView(
     }
 
     private fun drawSymbol(canvas: Canvas, text: String, isTop: Boolean = true) {
-        val showSymbol = rime.run { !getRuntimeOption("_hide_key_symbol") }
-        val showHint = rime.run { !getRuntimeOption("_hide_key_hint") }
+        val options = rime.uiState.value.options
+        val showSymbol = !(options["_hide_key_symbol"] ?: false)
+        val showHint = !(options["_hide_key_hint"] ?: false)
 
         if (isTop && !showSymbol) return
         if (!isTop && !showHint) return
 
         val textColor = key.getSymbolColor()
-        val textSize = sp(key.symbolTextSize.takeIf { it > 0f } ?: keyboardView.symbolTextSize)
+        val textSize =
+            sp(key.symbolTextSize.takeIf { it > 0f } ?: keyboardView.symbolTextSize) *
+                keyboardView.heightScaleFactor
         val offsetX = if (isTop) key.keySymbolOffsetX else key.keyHintOffsetX
         val offsetY = if (isTop) key.keySymbolOffsetY else key.keyHintOffsetY
 
@@ -404,11 +425,11 @@ class KeyView(
             val lineHeight = fontMetrics.descent - fontMetrics.ascent
             val totalHeight = lineHeight * lines.size
 
-            val centerX = (width - paddingLeft - paddingRight) / 2f + paddingLeft + sp(offsetX)
+            val centerX = (width - paddingLeft - paddingRight) / 2f + paddingLeft + sp(offsetX * keyboardView.heightScaleFactor)
             val startY = if (isTop) {
-                paddingTop - fontMetrics.top + sp(offsetY) - (totalHeight - lineHeight) / 2
+                paddingTop - fontMetrics.top + sp(offsetY * keyboardView.heightScaleFactor) - (totalHeight - lineHeight) / 2
             } else {
-                height - paddingBottom - fontMetrics.bottom + sp(offsetY) - (totalHeight - lineHeight) / 2
+                height - paddingBottom - fontMetrics.bottom + sp(offsetY * keyboardView.heightScaleFactor) - (totalHeight - lineHeight) / 2
             }
 
             for (i in lines.indices) {

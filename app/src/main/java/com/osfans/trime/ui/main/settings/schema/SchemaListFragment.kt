@@ -8,6 +8,7 @@ package com.osfans.trime.ui.main.settings.schema
 import android.view.View
 import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.core.SchemaItem
+import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.ui.common.OnItemChangedListener
 import com.osfans.trime.ui.main.settings.ProgressFragment
@@ -97,8 +98,8 @@ class SchemaListFragment :
         items.forEach { dustman.addOrUpdate(it.toString(), it) }
     }
 
-    override fun onItemRemovedBatch(items: List<SchemaItem>) {
-        items.forEach { dustman.remove(it.toString()) }
+    override fun onItemRemovedBatch(items: List<Pair<Int, SchemaItem>>) {
+        items.forEach { (_, item) -> dustman.remove(item.toString()) }
     }
 
     private fun persistSchemaList() {
@@ -106,7 +107,9 @@ class SchemaListFragment :
         resetDustman()
         updateSchemaState()
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) { rime.runOnReady { deploy() } }
+            // Re-deploy through the daemon so the lifecycle observes the
+            // outcome (the old RimeApi.deploy bypassed the state machine).
+            withContext(Dispatchers.IO) { rime.runOnReady { RimeDaemon.restartRime(fullCheck = true) } }
         }
     }
 

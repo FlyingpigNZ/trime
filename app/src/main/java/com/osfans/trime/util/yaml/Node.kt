@@ -77,27 +77,11 @@ val Node.mapping: Node.Mapping?
 val Node.sequence: Node.Sequence?
     get() = this as? Node.Sequence
 
-val Node.alias: Node.Alias?
-    get() = this as? Node.Alias
-
 val Node.string: String?
     get() = scalar?.string
 
 val Node.int: Int?
     get() = scalar?.parseToIntLikeOrNull(String::toIntOrNull)
-
-val Node.long: Long?
-    get() = scalar?.parseToIntLikeOrNull(String::toLongOrNull)
-
-val Node.double: Double?
-    get() {
-        return when (val string = scalar?.string) {
-            ".inf", ".Inf", ".INF" -> Double.POSITIVE_INFINITY
-            "-.inf", "-.Inf", "-.INF" -> Double.NEGATIVE_INFINITY
-            ".nan", ".NaN", ".NAN" -> Double.NaN
-            else -> string?.toDoubleOrNull()
-        }
-    }
 
 val Node.float: Float?
     get() {

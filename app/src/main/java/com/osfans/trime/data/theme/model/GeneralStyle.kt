@@ -5,7 +5,6 @@
 
 package com.osfans.trime.data.theme.model
 
-import android.os.Parcelable
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.boolean
 import com.osfans.trime.util.yaml.enum
@@ -14,9 +13,7 @@ import com.osfans.trime.util.yaml.get
 import com.osfans.trime.util.yaml.int
 import com.osfans.trime.util.yaml.sequence
 import com.osfans.trime.util.yaml.string
-import kotlinx.parcelize.Parcelize
 
-@Parcelize
 data class GeneralStyle(
     val autoCaps: Boolean,
     val candidateBorder: Int,
@@ -76,14 +73,13 @@ data class GeneralStyle(
     val backgroundFolder: String,
     val enterLabelMode: Int,
     val enterLabel: EnterLabel,
-) : Parcelable {
+) {
     enum class CommentPosition {
         RIGHT,
         TOP,
         OVERLAY,
     }
 
-    @Parcelize
     data class EnterLabel(
         val go: String = "go",
         val done: String = "done",
@@ -92,7 +88,7 @@ data class GeneralStyle(
         val search: String = "search",
         val send: String = "send",
         val default: String = "default",
-    ) : Parcelable {
+    ) {
         companion object {
             fun decode(node: Node?): EnterLabel = EnterLabel(
                 go = node?.get("go")?.string ?: "go",

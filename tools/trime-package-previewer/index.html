@@ -1,0 +1,1262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trime YAML Attribute Reference &amp; Package Keyboard Previewer</title>
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7fb;
+    --panel: #ffffff;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --border: #e2e5ee;
+    --accent: #3b6cf6;
+    --accent-soft: #eaf0ff;
+    --key-bg: #ffffff;
+    --key-text: #1f2430;
+    --key-border: #c9cedb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: linear-gradient(135deg, #2b3b6e, #3b6cf6);
+    color: #fff;
+    padding: 18px 24px;
+  }
+  header h1 { margin: 0 0 4px; font-size: 20px; }
+  header p { margin: 0; opacity: .85; font-size: 13px; }
+  nav {
+    display: flex;
+    gap: 8px;
+    padding: 10px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  nav button {
+    border: 1px solid var(--border);
+    background: transparent;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 24px 60px; }
+  section.page { display: none; }
+  section.page.active { display: block; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+  }
+  .card h2 { margin: 0 0 6px; font-size: 20px; line-height: 1.3; }
+  .card h3 { margin: 22px 0 8px; font-size: 15px; }
+  .muted { color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .table-wrap {
+    overflow-x: auto;
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    table-layout: fixed;
+  }
+  th:nth-child(1), td:nth-child(1) { width: 28%; }
+  th:nth-child(2), td:nth-child(2) { width: 12%; }
+  th:nth-child(3), td:nth-child(3) { width: 14%; }
+  th:nth-child(4), td:nth-child(4) { width: 46%; }
+  thead th {
+    background: #f4f6fb;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: .05em;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    overflow-wrap: break-word;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: #fafbfd; }
+  tbody tr:hover { background: #f2f6ff; }
+  td code {
+    display: inline-block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  code {
+    background: #eef1f7;
+    border-radius: 5px;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: #26324a;
+  }
+  .tag {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+  }
+  .preview-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    user-select: none;
+  }
+  .switch input { display: none; }
+  .switch .slider {
+    width: 44px;
+    height: 24px;
+    background: #cbd2df;
+    border-radius: 999px;
+    position: relative;
+    transition: background .2s ease;
+    flex: none;
+  }
+  .switch .slider::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(20px); }
+  .btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  select, input[type=text] {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .status { font-size: 13px; color: var(--muted); min-height: 18px; }
+  .status.error { color: #d33; }
+  #phone-frame {
+    max-width: 420px;
+    margin: 16px auto;
+    border-radius: 24px;
+    border: 1px solid #222;
+    background: #111;
+    padding: 12px;
+  }
+  #screen {
+    background: var(--keyboard-bg, #f2f3f5);
+    border-radius: 18px;
+    overflow: hidden;
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    font-family: system-ui, sans-serif;
+  }
+  #preview-candidate {
+    padding: 6px 10px;
+    background: var(--candidate-bg, #ffffff);
+    border-bottom: 1px solid rgba(0,0,0,.08);
+  }
+  #preview-preedit {
+    font-size: var(--preedit-font-size, 16px);
+    padding: 4px 2px;
+    color: var(--candidate-text, #222);
+    min-height: 22px;
+  }
+  #preview-candidates {
+    display: flex;
+    gap: 10px;
+    padding: 2px 2px 4px;
+    color: var(--candidate-text, #222);
+    font-size: 13px;
+  }
+  #preview-candidates span.hl { color: var(--hilited-candidate-text, #111); background: var(--hilited-candidate-back, #dbe4ff); border-radius: 4px; padding: 0 4px; }
+  #preview-keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--vertical-gap, 6px);
+    padding: var(--keyboard-padding, 6px);
+    background: var(--keyboard-bg, #e9ebf0);
+    flex: 1;
+  }
+  .kb-row {
+    display: flex;
+    gap: var(--horizontal-gap, 4px);
+    flex: 1;
+  }
+  .key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--round-corner, 6px);
+    border: 1px solid var(--key-border-color, #c9cedb);
+    background: var(--key-back-color, #ffffff);
+    color: var(--key-text-color, #1f2430);
+    font-size: var(--key-text-size, 16px);
+    font-weight: 500;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    user-select: none;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .08s ease, color .08s ease;
+  }
+  .key.pressed {
+    background: var(--hl-key-back-color, var(--key-back-color));
+    color: var(--hl-key-text-color, var(--key-text-color));
+  }
+  .key.spacer { background: transparent; border-color: transparent; }
+  .key-spacer { background: transparent; border: none; }
+  .docs-grid { display: block; }
+  .color-swatch { display:inline-block; width: 10px; height: 10px; border-radius: 3px; border: 1px solid rgba(0,0,0,.2); margin-right: 4px; }
+  @media (max-width: 700px) {
+    nav { flex-wrap: wrap; }
+    main { padding: 14px; }
+    .card { padding: 18px; }
+    th, td { padding: 8px 10px; }
+    thead th { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Trime YAML Attribute Reference &amp; Package Keyboard Previewer</h1>
+  <p>Attributes consumed by the Trime app UI from self-contained IME package YAML files (Rime engine fields excluded).</p>
+</header>
+
+<nav>
+  <button class="active" data-page="docs">📚 Attribute Reference</button>
+  <button data-page="preview">⌨️ Package Preview</button>
+</nav>
+
+<main>
+  <section id="page-docs" class="page active">
+    <div class="card">
+      <h2>How to read this reference</h2>
+      <p class="muted">
+        This is generated from the current Trime Android codebase: <code>Theme</code>, <code>GeneralStyle</code>,
+        <code>TextKeyboard</code>, <code>PresetKey</code>, <code>ToolBar</code>, <code>LiquidKeyboard</code>,
+        <code>ColorManager</code>, and the component resolver/loader. Fields listed here are actually read by the app.
+        Unknown YAML keys are ignored unless they are dynamic palette color keys. Rime schema/dictionary/Lua/OpenCC
+        attributes are intentionally excluded. Sections parsed by the resolver but not currently consumed by the
+        UI (<code>switches</code>, <code>keyboard_switch_policy</code>, <code>resources</code>) are also excluded.
+      </p>
+      <div id="docs-summary" class="muted"></div>
+    </div>
+    <div id="docs-container" class="docs-grid"></div>
+  </section>
+
+  <section id="page-preview" class="page">
+    <div class="card">
+      <h2>Load a package</h2>
+      <p class="muted">
+        Select a package folder (containing <code>manifest.yaml</code>) or a package <code>.zip</code>.
+        The previewer resolves component composition and renders the default keyboard with the chosen color scheme.
+      </p>
+      <div class="preview-toolbar">
+        <input type="file" id="folder-input" webkitdirectory directory multiple hidden />
+        <button class="btn primary" id="load-folder-btn">📁 Load package folder</button>
+        <input type="file" id="zip-input" accept=".zip,application/zip" hidden />
+        <button class="btn" id="load-zip-btn">📦 Load package zip</button>
+        <label>Keyboard
+          <select id="keyboard-select"></select>
+        </label>
+        <label>Color scheme
+          <select id="scheme-select"></select>
+        </label>
+        <label class="switch" title="Toggle light/dark palette">
+          <span id="mode-label">Light</span>
+          <input type="checkbox" id="mode-switch" />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div id="load-status" class="status"></div>
+    </div>
+    <div class="card">
+      <h2 id="package-title">No package loaded</h2>
+      <p id="package-meta" class="muted"></p>
+      <div id="phone-frame">
+        <div id="screen">
+          <div id="preview-candidate">
+            <div id="preview-preedit">你好</div>
+            <div id="preview-candidates"><span class="hl">你好</span><span>妮好</span><span>拟好</span></div>
+          </div>
+          <div id="preview-keyboard"><div class="muted" style="padding:20px">Load a package to preview the keyboard</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ */
+/* Documentation data                                                   */
+/* ------------------------------------------------------------------ */
+
+const BUILTIN_COLOR_KEYS = [
+  "back_color", "text_color", "candidate_text_color", "comment_text_color",
+  "candidate_separator_color", "hilited_text_color", "hilited_back_color",
+  "hilited_candidate_text_color", "hilited_candidate_back_color",
+  "hilited_candidate_button_color", "hilited_label_color", "hilited_comment_text_color",
+  "hilited_key_back_color", "hilited_key_text_color", "hilited_key_symbol_color",
+  "hilited_off_key_back_color", "hilited_on_key_back_color", "hilited_off_key_text_color",
+  "hilited_on_key_text_color", "key_back_color", "key_border_color", "key_text_color",
+  "key_symbol_color", "label_color", "off_key_back_color", "off_key_text_color",
+  "on_key_back_color", "on_key_text_color", "popup_back_color", "popup_text_color",
+  "hilited_popup_back_color", "hilited_popup_text_color", "shadow_color",
+  "root_background", "candidate_background", "keyboard_back_color", "keyboard_background",
+  "liquid_keyboard_background", "text_back_color", "long_text_color", "long_text_back_color",
+];
+
+const DOCS = [
+  {
+    id: "manifest",
+    title: "Package &amp; manifest",
+    desc: "Top-level package metadata and component composition. Rime schema files are loaded by the package manager, not the UI previewer.",
+    items: [
+      { name: "name", type: "string", def: "—", desc: "Package / theme display name." },
+      { name: "author", type: "string", def: "—", desc: "Author display name." },
+      { name: "version", type: "string", def: "—", desc: "Package version string." },
+      { name: "schema_id", type: "string", def: "file name", desc: "Rime schema id used for the active package; also used as the imported zip file name." },
+      { name: "default_keyboard", type: "string", def: "first keyboard", desc: "Keyboard id selected by default." },
+      { name: "rime_files", type: "list[string]", def: "[]", desc: "Rime data files inside the package. Not UI attributes, but part of package loading." },
+      { name: "components", type: "list", def: "required", desc: "Ordered component composition entries: string directory references or single-key mappings (`schema`, `keyboard`, `behavior`, `color`, `style`, `resources`)." },
+      { name: "component: file/files", type: "string | list[string]", def: "—", desc: "Loads YAML file(s) into the matching section." },
+      { name: "component: add/override/remove", type: "mapping/list", def: "—", desc: "Composition operations. `add` requires a new id, `override` requires an existing id, `remove` requires an existing id." },
+    ],
+  },
+  {
+    id: "keyboard",
+    title: "Keyboard layout (`preset_keyboards` &amp; per-key fields)",
+    desc: "Each named keyboard is a mapping under `preset_keyboards`. `__include` supports inheritance from another keyboard.",
+    items: [
+      { name: "name", type: "string", def: "\"\"", desc: "Keyboard display name." },
+      { name: "author", type: "string", def: "\"\"", desc: "Keyboard author." },
+      { name: "width", type: "float", def: "0", desc: "Default key width weight for keys without explicit width (out of 100 per row)." },
+      { name: "height", type: "float", def: "0", desc: "Default key height in dp; falls back to `style.key_height`." },
+      { name: "keyboard_height", type: "int", def: "0", desc: "Keyboard height override in dp." },
+      { name: "keyboard_height_land", type: "int", def: "0", desc: "Landscape keyboard height override." },
+      { name: "auto_height_index", type: "int", def: "-1", desc: "Index of a row whose height is auto-sized." },
+      { name: "horizontal_gap", type: "int", def: "0", desc: "Horizontal gap override in dp." },
+      { name: "vertical_gap", type: "int", def: "0", desc: "Vertical gap override in dp." },
+      { name: "round_corner", type: "float", def: "-1", desc: "Key corner radius override; -1 means use `style.round_corner`." },
+      { name: "key_border", type: "int", def: "-1", desc: "Key border width override; -1 means use `style.key_border`." },
+      { name: "columns", type: "int", def: "30", desc: "Maximum number of clickable keys per row before wrapping." },
+      { name: "ascii_mode", type: "int", def: "1", desc: "1 = starts in ASCII mode, 0 = starts in native mode." },
+      { name: "reset_ascii_mode", type: "bool", def: "false", desc: "Reset ASCII mode when the keyboard is recreated." },
+      { name: "label_transform", type: "enum", def: "NONE", desc: "`NONE` or `UPPERCASE`." },
+      { name: "lock", type: "bool", def: "false", desc: "Remember this keyboard across app/schema switches." },
+      { name: "ascii_keyboard", type: "string", def: "\"\"", desc: "Keyboard id to switch to in ASCII mode." },
+      { name: "landscape_keyboard", type: "string", def: "\"\"", desc: "Keyboard id to switch to in landscape." },
+      { name: "landscape_split_percent", type: "int", def: "0", desc: "Split keyboard gap percentage in landscape." },
+      { name: "key_text_offset_x/y", type: "float", def: "0", desc: "Per-keyboard label text offset." },
+      { name: "key_symbol_offset_x/y", type: "float", def: "0", desc: "Per-keyboard symbol offset." },
+      { name: "key_hint_offset_x/y", type: "float", def: "0", desc: "Per-keyboard hint offset." },
+      { name: "key_press_offset_x/y", type: "float", def: "0", desc: "Per-keyboard pressed-label offset." },
+      { name: "keys", type: "list[mapping]", def: "[]", desc: "Ordered key definitions; rows wrap at total width 100 / `columns`." },
+    ],
+  },
+  {
+    id: "key",
+    title: "Key fields (inside `preset_keyboards.*.keys`)",
+    desc: "A key is a mapping. Behavior names (`click`, `long_click`, `swipe_up`, etc.) accept a preset-key id string or an inline `{commit, text, label}` mapping.",
+    items: [
+      { name: "width", type: "float", def: "0", desc: "Width weight out of 100. 0 means use the keyboard/theme default width." },
+      { name: "height", type: "float", def: "0", desc: "Row height override for this key." },
+      { name: "round_corner", type: "float", def: "-1", desc: "Per-key corner radius; -1 means keyboard/theme default." },
+      { name: "key_border", type: "int", def: "-1", desc: "Per-key border width; -1 means default." },
+      { name: "label", type: "string", def: "\"\"", desc: "Static label shown on the key." },
+      { name: "label_symbol", type: "string", def: "\"\"", desc: "Symbol label (often used for return/space icons)." },
+      { name: "hint", type: "string", def: "\"\"", desc: "Small hint text (usually shown on long-press popup)." },
+      { name: "send_bindings", type: "bool", def: "true", desc: "Whether the key sends its bound behavior events." },
+      { name: "key_text_size", type: "float", def: "0", desc: "Per-key text size override." },
+      { name: "symbol_text_size", type: "float", def: "0", desc: "Per-key symbol text size override." },
+      { name: "key_text_offset_x/y", type: "float", def: "0", desc: "Per-key text offset." },
+      { name: "key_symbol_offset_x/y", type: "float", def: "0", desc: "Per-key symbol offset." },
+      { name: "key_hint_offset_x/y", type: "float", def: "0", desc: "Per-key hint offset." },
+      { name: "key_press_offset_x/y", type: "float", def: "0", desc: "Per-key pressed offset." },
+      { name: "key_text_color", type: "color-key", def: "\"\"", desc: "Text color key or hex value." },
+      { name: "key_back_color", type: "color-key", def: "\"\"", desc: "Key background color key or hex value." },
+      { name: "key_symbol_color", type: "color-key", def: "\"\"", desc: "Symbol color key or hex value." },
+      { name: "hilited_key_text_color", type: "color-key", def: "\"\"", desc: "Highlighted text color." },
+      { name: "hilited_key_back_color", type: "color-key", def: "\"\"", desc: "Highlighted background color." },
+      { name: "hilited_key_symbol_color", type: "color-key", def: "\"\"", desc: "Highlighted symbol color." },
+      { name: "popup", type: "list[string]", def: "[]", desc: "Keys shown in the long-press popup." },
+      { name: "click / long_click / double_click / composing / swipe_up / swipe_down / swipe_left / swipe_right / extra / ...", type: "string | mapping", def: "—", desc: "Key behaviors bound to gestures. Values are preset-key ids or inline `{commit, text, label}`." },
+    ],
+  },
+  {
+    id: "behavior",
+    title: "Preset key behavior (`preset_keys`)",
+    desc: "Named behavior definitions referenced from keys (e.g. `click: BackSpace` or `click: Mode_switch`).",
+    items: [
+      { name: "command", type: "string", def: "\"\"", desc: "Typed command name: `liquid_keyboard`, `menu_keyboard`, `clipboard_window`, `set_color_scheme`, `broadcast`, `clipboard`, `commit`, `date`, `run`, `apply`, `share_text`, `select_candidate`, or an intent/unknown command." },
+      { name: "option", type: "string", def: "\"\"", desc: "Rime option name for toggle/switch commands." },
+      { name: "select", type: "string", def: "\"\"", desc: "Candidate selection target." },
+      { name: "toggle", type: "string", def: "\"\"", desc: "Rime option toggled by the key; used with `states` for labels." },
+      { name: "label", type: "string", def: "\"\"", desc: "Key label." },
+      { name: "preview", type: "string", def: "null", desc: "Preview text shown in the composing/preedit area." },
+      { name: "shift_lock", type: "string", def: "\"\"", desc: "`long`, `click`, or `ascii_long` shift-lock behavior." },
+      { name: "commit", type: "string", def: "\"\"", desc: "Text committed when the key is pressed." },
+      { name: "text", type: "string", def: "\"\"", desc: "Text sent instead of a keycode." },
+      { name: "sticky", type: "bool", def: "false", desc: "Sticky modifier behavior." },
+      { name: "repeatable", type: "bool", def: "false", desc: "Key repeats while held." },
+      { name: "slide_cursor", type: "bool", def: "false", desc: "Sliding on the key moves the cursor." },
+      { name: "slide_delete", type: "bool", def: "false", desc: "Sliding on the key deletes." },
+      { name: "functional", type: "bool", def: "false", desc: "Marks the key as a function key (not a modifier)." },
+      { name: "states", type: "list[string]", def: "[]", desc: "Two-state labels used with `toggle`, e.g. `[中, 英]`." },
+      { name: "send", type: "string", def: "\"\"", desc: "Keycode or key sequence, e.g. `BackSpace`, `Control+a`, `Return`." },
+    ],
+  },
+  {
+    id: "style",
+    title: "Style / general appearance (`style`)",
+    desc: "Global style values decoded by `GeneralStyle`.",
+    items: [
+      { name: "auto_caps", type: "bool", def: "false", desc: "Automatic capitalization." },
+      { name: "candidate_border", type: "int", def: "0", desc: "Candidate border width." },
+      { name: "candidate_border_round", type: "float", def: "0", desc: "Candidate border corner radius." },
+      { name: "candidate_font", type: "list[string]", def: "[]", desc: "Candidate font stack." },
+      { name: "candidate_padding", type: "int", def: "0", desc: "Candidate area padding." },
+      { name: "candidate_spacing", type: "float", def: "0", desc: "Spacing between candidates." },
+      { name: "candidate_text_size", type: "float", def: "15", desc: "Candidate text size." },
+      { name: "candidate_text_vertical_bias", type: "float", def: "1", desc: "Vertical bias of candidate text." },
+      { name: "candidate_view_height", type: "int", def: "28", desc: "Candidate bar height." },
+      { name: "candidate_corner_radius", type: "float", def: "5", desc: "Candidate bar corner radius." },
+      { name: "comment_font", type: "list[string]", def: "[]", desc: "Comment font stack." },
+      { name: "comment_height", type: "int", def: "12", desc: "Comment line height." },
+      { name: "comment_position", type: "enum", def: "RIGHT", desc: "`RIGHT`, `TOP`, or `OVERLAY`." },
+      { name: "comment_text_size", type: "float", def: "10", desc: "Comment text size." },
+      { name: "comment_vertical_bias", type: "float", def: "0", desc: "Comment vertical bias." },
+      { name: "hanb_font", type: "list[string]", def: "[]", desc: "Hanb font stack." },
+      { name: "horizontal_gap", type: "int", def: "0", desc: "Horizontal gap between keys." },
+      { name: "keyboard_padding", type: "int", def: "0", desc: "Keyboard outer padding." },
+      { name: "keyboard_padding_left/right/bottom", type: "int", def: "0", desc: "Per-side keyboard padding." },
+      { name: "keyboard_padding_land", type: "int", def: "0", desc: "Landscape keyboard padding." },
+      { name: "keyboard_padding_land_bottom", type: "int", def: "0", desc: "Landscape bottom padding." },
+      { name: "key_font", type: "list[string]", def: "[]", desc: "Key label font stack." },
+      { name: "key_border", type: "int", def: "0", desc: "Default key border width." },
+      { name: "key_height", type: "int", def: "0", desc: "Default key height in dp." },
+      { name: "key_long_text_size", type: "float", def: "15", desc: "Long-press popup text size." },
+      { name: "key_text_size", type: "float", def: "15", desc: "Default key text size." },
+      { name: "key_text_offset_x/y", type: "float", def: "0", desc: "Default key text offset." },
+      { name: "key_symbol_offset_x/y", type: "float", def: "0", desc: "Default key symbol offset." },
+      { name: "key_hint_offset_x/y", type: "float", def: "0", desc: "Default key hint offset." },
+      { name: "key_press_offset_x/y", type: "float", def: "0", desc: "Default pressed key offset." },
+      { name: "key_width", type: "float", def: "0", desc: "Default key width percentage (out of 100)." },
+      { name: "label_text_size", type: "float", def: "0", desc: "Label text size." },
+      { name: "label_font", type: "list[string]", def: "[]", desc: "Label font stack." },
+      { name: "latin_font", type: "list[string]", def: "[]", desc: "Latin font stack." },
+      { name: "keyboard_height", type: "int", def: "0", desc: "Keyboard height in dp." },
+      { name: "keyboard_height_land", type: "int", def: "0", desc: "Landscape keyboard height." },
+      { name: "popup_bottom_margin", type: "int", def: "0", desc: "Popup bottom margin." },
+      { name: "popup_width/height/key_height", type: "int", def: "0", desc: "Popup geometry." },
+      { name: "popup_font", type: "list[string]", def: "[]", desc: "Popup font stack." },
+      { name: "popup_text_size", type: "float", def: "0", desc: "Popup text size." },
+      { name: "reset_ascii_mode_on_focus_change", type: "bool", def: "false", desc: "Reset ASCII mode when input focus changes." },
+      { name: "round_corner", type: "float", def: "0", desc: "Default key corner radius." },
+      { name: "shadow_radius", type: "float", def: "0", desc: "Key shadow radius." },
+      { name: "symbol_font", type: "list[string]", def: "[]", desc: "Symbol font stack." },
+      { name: "symbol_text_size", type: "float", def: "0", desc: "Symbol text size." },
+      { name: "text_font", type: "list[string]", def: "[]", desc: "General text font stack." },
+      { name: "vertical_gap", type: "int", def: "0", desc: "Vertical gap between rows." },
+      { name: "background_folder", type: "string", def: "backgrounds", desc: "Folder name for background images." },
+      { name: "enter_label_mode", type: "int", def: "0", desc: "Mode for choosing the enter key label." },
+      { name: "enter_labels", type: "mapping", def: "defaults", desc: "Labels for enter key actions: `go`, `done`, `next`, `pre`, `search`, `send`, `default`." },
+    ],
+  },
+  {
+    id: "preedit",
+    title: "Preedit / composing area (`preedit`)",
+    desc: "Styles the inline preedit shown above the keyboard.",
+    items: [
+      { name: "horizontal_padding", type: "int", def: "8", desc: "Horizontal padding of the preedit area." },
+      { name: "top_end_radius", type: "float", def: "0", desc: "Top-end corner radius." },
+      { name: "alpha", type: "float", def: "0.8", desc: "Preedit area opacity." },
+      { name: "foreground.font_size", type: "float", def: "16", desc: "Preedit text size." },
+    ],
+  },
+  {
+    id: "window",
+    title: "Candidate window (`window`)",
+    desc: "Styles the candidate window / popup.",
+    items: [
+      { name: "insets.vertical/horizontal", type: "int", def: "4/4", desc: "Candidate window insets." },
+      { name: "item_padding.vertical/horizontal", type: "int", def: "2/4", desc: "Candidate item padding." },
+      { name: "min_width", type: "int", def: "0", desc: "Minimum candidate window width." },
+      { name: "corner_radius", type: "float", def: "0", desc: "Window corner radius." },
+      { name: "border", type: "int", def: "0", desc: "Window border width." },
+      { name: "shadow", type: "float", def: "0", desc: "Window elevation/shadow." },
+      { name: "alpha", type: "float", def: "1", desc: "Window opacity." },
+      { name: "foreground.label_font_size", type: "float", def: "20", desc: "Candidate label font size." },
+      { name: "foreground.text_font_size", type: "float", def: "20", desc: "Candidate text font size." },
+      { name: "foreground.comment_font_size", type: "float", def: "20", desc: "Candidate comment font size." },
+    ],
+  },
+  {
+    id: "toolbar",
+    title: "Toolbar (`tool_bar`)",
+    desc: "Top toolbar buttons rendered in the input bar.",
+    items: [
+      { name: "primary_button", type: "button", def: "—", desc: "Primary toolbar button definition." },
+      { name: "buttons", type: "list[button]", def: "[]", desc: "Additional toolbar buttons." },
+      { name: "button_spacing", type: "int", def: "18", desc: "Spacing between toolbar buttons." },
+      { name: "button_font", type: "list[string]", def: "[]", desc: "Toolbar button font stack." },
+      { name: "back_style", type: "string", def: "ic@arrow-left", desc: "Icon style for the back button." },
+      { name: "button.action", type: "string", def: "\"\"", desc: "Action triggered by the button." },
+      { name: "button.long_press_action", type: "string", def: "\"\"", desc: "Long-press action." },
+      { name: "button.size", type: "list[int]", def: "[]", desc: "Button size [width, height]." },
+      { name: "button.background.type", type: "enum", def: "RECTANGLE", desc: "`RECTANGLE` or `CIRCLE`." },
+      { name: "button.background.corner_radius", type: "float", def: "10", desc: "Button background corner radius." },
+      { name: "button.background.normal/highlight", type: "color-key", def: "\"\"", desc: "Button background colors." },
+      { name: "button.background.vertical_inset/horizontal_inset", type: "int", def: "4/4", desc: "Button background insets." },
+      { name: "button.foreground.style", type: "string", def: "\"\"", desc: "Icon/text style, e.g. `ic@emoji`." },
+      { name: "button.foreground.option_styles", type: "list[string]", def: "[]", desc: "Two-state option styles for toggle buttons." },
+      { name: "button.foreground.normal/highlight", type: "color-key", def: "\"\"", desc: "Button foreground colors." },
+      { name: "button.foreground.font_size", type: "float", def: "18", desc: "Button text size." },
+      { name: "button.foreground.padding", type: "int", def: "4", desc: "Button text padding." },
+    ],
+  },
+  {
+    id: "color",
+    title: "Color system (`colors`, `color_schemes`, `preset_color_schemes`, `fallback_colors`)",
+    desc: "Flat palettes plus named scheme pairs. Palette keys are dynamic; the app resolves them through the active scheme and builtin fallback table.",
+    items: [
+      { name: "colors.<palette>", type: "mapping", def: "—", desc: "A named palette mapping color-key → color value." },
+      { name: "colors.<palette>.name", type: "string", def: "—", desc: "Palette display name." },
+      { name: "color_schemes.<id>.light", type: "string", def: "required", desc: "Palette name used for light/day mode." },
+      { name: "color_schemes.<id>.dark", type: "string", def: "light", desc: "Palette name used for dark/night mode; omitted means same as light." },
+      { name: "color_schemes.<id>.name/author", type: "string", def: "—", desc: "Scheme metadata." },
+      { name: "preset_color_schemes.<id>", type: "mapping", def: "—", desc: "Legacy inline scheme shape: `light`/`dark` palette mappings or palette names, plus `name`/`author`." },
+      { name: "fallback_colors.<key>", type: "color-key", def: "—", desc: "Fallback alias: a key that resolves to another color key or a hex value." },
+    ],
+    colorKeys: BUILTIN_COLOR_KEYS,
+  },
+  {
+    id: "liquid",
+    title: "Liquid keyboard (`liquid_keyboard`)",
+    desc: "The symbol/emoji liquid keyboard.",
+    items: [
+      { name: "single_width", type: "int", def: "0", desc: "Width of single-character keys." },
+      { name: "key_height", type: "int", def: "0", desc: "Liquid key height." },
+      { name: "margin_x", type: "float", def: "0", desc: "Horizontal margin." },
+      { name: "fixed_key_bar.position", type: "enum", def: "BOTTOM", desc: "`TOP`, `LEFT`, `BOTTOM`, or `RIGHT`." },
+      { name: "fixed_key_bar.keys", type: "list[string]", def: "[]", desc: "Preset-key ids pinned to the fixed key bar." },
+      { name: "keyboards", type: "list[string]", def: "[]", desc: "Ordered liquid keyboard ids; each id has a sibling mapping." },
+      { name: "<id>.type", type: "enum", def: "required", desc: "Liquid data type, e.g. `SINGLE`, `TABS`, `HISTORY`." },
+      { name: "<id>.name", type: "string", def: "id", desc: "Liquid keyboard display name." },
+      { name: "<id>.keys", type: "string | list", def: "\"\"", desc: "Keys as a scalar string, a list of scalars, or mappings with `click`/`label`." },
+    ],
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/* Resolver (mirrors ComponentResolver + Theme decode)                 */
+/* ------------------------------------------------------------------ */
+
+function deepClone(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function deepMerge(base, override) {
+  const out = deepClone(base || {});
+  for (const [k, v] of Object.entries(override || {})) {
+    if (v && typeof v === "object" && !Array.isArray(v) && out[k] && typeof out[k] === "object" && !Array.isArray(out[k])) {
+      out[k] = deepMerge(out[k], v);
+    } else {
+      out[k] = deepClone(v);
+    }
+  }
+  return out;
+}
+
+function normalizePath(p) {
+  return String(p).replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function resolveColorSchemes(data) {
+  if (!data || typeof data !== "object" || !data.colors) return data;
+  // Legacy preset_color_schemes may reference palettes by name from `colors`.
+  if (data.preset_color_schemes && typeof data.preset_color_schemes === "object") {
+    const preset = {};
+    for (const [id, scheme] of Object.entries(data.preset_color_schemes)) {
+      if (!scheme || typeof scheme !== "object") { preset[id] = scheme; continue; }
+      const s = { ...scheme };
+      if (typeof s.light === "string" && data.colors[s.light]) s.light = data.colors[s.light];
+      if (typeof s.dark === "string" && data.colors[s.dark]) s.dark = data.colors[s.dark];
+      preset[id] = s;
+    }
+    data = { ...data, preset_color_schemes: preset };
+  }
+  if (!data.color_schemes) return data;
+  const colors = data.colors;
+  const schemes = data.color_schemes;
+  const resolved = {};
+  for (const [id, pair] of Object.entries(schemes)) {
+    if (!pair || typeof pair !== "object") throw new Error(`color_schemes.${id}: must be a mapping`);
+    const lightName = pair.light;
+    if (typeof lightName !== "string" || !(lightName in colors)) {
+      throw new Error(`color_schemes.${id}: unknown light palette '${lightName}'`);
+    }
+    const darkName = pair.dark || lightName;
+    if (!(darkName in colors)) throw new Error(`color_schemes.${id}: unknown dark palette '${darkName}'`);
+    const scheme = { light: colors[lightName], dark: colors[darkName] };
+    if (pair.name !== undefined) scheme.name = pair.name;
+    if (pair.author !== undefined) scheme.author = pair.author;
+    resolved[id] = scheme;
+  }
+  return { ...data, preset_color_schemes: resolved };
+}
+
+const SECTION_NAMES = [
+  "preset_keys", "preset_keyboards", "preset_color_schemes", "switches",
+  "keyboard_switch_policy", "style", "preedit", "window", "tool_bar",
+  "liquid_keyboard", "fallback_colors", "resources",
+];
+const NAMED_SECTIONS = new Set(["preset_keys", "preset_keyboards", "preset_color_schemes"]);
+
+function createSections() {
+  const s = {};
+  for (const name of SECTION_NAMES) s[name] = {};
+  return s;
+}
+
+function applyComponentData(sections, data) {
+  data = resolveColorSchemes(data || {});
+  for (const section of SECTION_NAMES) {
+    const value = data[section];
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    if (NAMED_SECTIONS.has(section)) {
+      sections[section] = { ...(sections[section] || {}), ...deepClone(value) };
+    } else {
+      sections[section] = deepMerge(sections[section], value);
+    }
+  }
+}
+
+function applyOperations(sections, section, spec, context) {
+  if (!spec || typeof spec !== "object") return;
+  const target = sections[section] || (sections[section] = {});
+  for (const [name, value] of Object.entries(spec.add || {})) {
+    if (name in target) throw new Error(`${context}.add: '${name}' already exists; use override`);
+    target[name] = deepClone(value);
+  }
+  for (const [name, value] of Object.entries(spec.override || {})) {
+    if (!(name in target)) throw new Error(`${context}.override: '${name}' does not exist; use add`);
+    target[name] = deepClone(value);
+  }
+  for (const name of spec.remove || []) {
+    if (!(name in target)) throw new Error(`${context}.remove: '${name}' does not exist`);
+    delete target[name];
+  }
+}
+
+function resolveComponentEntry(load, sections, entry) {
+  if (typeof entry === "string") {
+    const dir = entry.replace(/\/+$/, "");
+    for (const file of ["keyboard.yaml", "behavior.yaml", "color.yaml", "style.yaml"]) {
+      try {
+        applyComponentData(sections, load(`${dir}/${file}`));
+      } catch (_) { /* optional files may be missing */ }
+    }
+    return;
+  }
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    throw new Error("Component entry must be a string or single-key mapping");
+  }
+  const keys = Object.keys(entry);
+  if (keys.length !== 1) throw new Error("Component entry must have exactly one key");
+  const kind = keys[0];
+  const spec = entry[kind];
+  if (kind === "schema") return;
+  if (kind === "resources") return;
+  if (typeof spec === "string") {
+    const data = load(spec);
+    if (kind === "style") applyComponentData(sections, data);
+    else if (kind === "keyboard") applyComponentData(sections, data);
+    else if (kind === "behavior") applyComponentData(sections, data);
+    else if (kind === "color") applyComponentData(sections, data);
+    return;
+  }
+  if (!spec || typeof spec !== "object") throw new Error(`invalid '${kind}' component spec`);
+  const files = spec.files || (spec.file ? [spec.file] : []);
+  for (const file of files) applyComponentData(sections, load(file));
+  const sectionMap = {
+    keyboard: "preset_keyboards",
+    behavior: "preset_keys",
+    color: "preset_color_schemes",
+  };
+  if (kind === "style") {
+    if (spec.override) sections.style = deepMerge(sections.style, spec.override);
+  } else if (sectionMap[kind]) {
+    applyOperations(sections, sectionMap[kind], spec, kind);
+  }
+}
+
+function resolvePackage(files) {
+  const load = (path) => {
+    const p = normalizePath(path);
+    const text = files[p] ?? files[files.root ? `${files.root}/${p}` : p];
+    if (text === undefined) throw new Error(`Component file not found: ${path}`);
+    return jsyaml.load(text);
+  };
+  const manifest = load("manifest.yaml");
+  if (!manifest || typeof manifest !== "object" || !Array.isArray(manifest.components)) {
+    throw new Error("manifest.yaml must contain a 'components' list");
+  }
+  const sections = createSections();
+  for (const entry of manifest.components) {
+    resolveComponentEntry(load, sections, entry);
+  }
+  return { manifest, sections };
+}
+
+/* ------------------------------------------------------------------ */
+/* Theme helpers                                                        */
+/* ------------------------------------------------------------------ */
+
+function resolveKeyboardIncludes(raw) {
+  const out = {};
+  const resolve = (name, stack) => {
+    const node = raw[name];
+    if (!node) return {};
+    if (typeof node.__include !== "string") return deepClone(node);
+    const target = node.__include.split("/").pop();
+    if (!target) return deepClone(node);
+    if (stack.includes(target)) throw new Error(`Circular __include: ${[...stack, target].join(" -> ")}`);
+    const base = resolve(target, [...stack, name]);
+    const merged = { ...base };
+    for (const [k, v] of Object.entries(node)) {
+      if (k !== "__include") merged[k] = deepClone(v);
+    }
+    return merged;
+  };
+  for (const name of Object.keys(raw)) out[name] = resolve(name, []);
+  return out;
+}
+
+function decodeColorSchemes(sections) {
+  const schemes = [];
+  const preset = sections.preset_color_schemes || {};
+  for (const [id, node] of Object.entries(preset)) {
+    if (!node || typeof node !== "object") continue;
+    let light = node.light && typeof node.light === "object" ? node.light : {};
+    let dark = node.dark && typeof node.dark === "object" ? node.dark : light;
+    if (typeof node.light === "string") light = {};
+    if (typeof node.dark === "string") dark = light;
+    const name = node.name;
+    if (name) { light = { ...light, name }; dark = { ...dark, name }; }
+    schemes.push({ id, colors: light, darkColors: dark, displayName: name || id });
+  }
+  return schemes;
+}
+
+const BUILTIN_FALLBACK = {
+  candidate_text_color: "text_color",
+  comment_text_color: "candidate_text_color",
+  border_color: "back_color",
+  candidate_separator_color: "border_color",
+  hilited_text_color: "text_color",
+  hilited_back_color: "back_color",
+  hilited_candidate_text_color: "hilited_text_color",
+  hilited_candidate_back_color: "hilited_back_color",
+  hilited_candidate_button_color: "hilited_candidate_back_color",
+  hilited_label_color: "hilited_candidate_text_color",
+  hilited_comment_text_color: "comment_text_color",
+  hilited_key_back_color: "hilited_candidate_back_color",
+  hilited_key_text_color: "hilited_candidate_text_color",
+  hilited_key_symbol_color: "hilited_comment_text_color",
+  hilited_off_key_back_color: "hilited_key_back_color",
+  hilited_on_key_back_color: "hilited_key_back_color",
+  hilited_off_key_text_color: "hilited_key_text_color",
+  hilited_on_key_text_color: "hilited_key_text_color",
+  key_back_color: "back_color",
+  key_border_color: "border_color",
+  key_text_color: "candidate_text_color",
+  key_symbol_color: "comment_text_color",
+  label_color: "candidate_text_color",
+  off_key_back_color: "key_back_color",
+  off_key_text_color: "key_text_color",
+  on_key_back_color: "hilited_key_back_color",
+  on_key_text_color: "hilited_key_text_color",
+  popup_back_color: "key_back_color",
+  popup_text_color: "key_text_color",
+  hilited_popup_back_color: "hilited_key_back_color",
+  hilited_popup_text_color: "hilited_key_text_color",
+  shadow_color: "border_color",
+  root_background: "back_color",
+  candidate_background: "back_color",
+  keyboard_back_color: "border_color",
+  keyboard_background: "keyboard_back_color",
+  liquid_keyboard_background: "keyboard_back_color",
+  text_back_color: "back_color",
+  long_text_color: "key_text_color",
+  long_text_back_color: "key_back_color",
+};
+
+function normalizeColor(value) {
+  if (typeof value !== "string") return value;
+  let v = value.trim();
+  if (v.startsWith("#")) return v;
+  if (/^0x/i.test(v)) {
+    v = v.slice(2);
+  } else {
+    return v;
+  }
+  // Trime colors are AARRGGBB; CSS 8-digit hex is #RRGGBBAA, so swap alpha.
+  if (/^[0-9a-f]{8}$/i.test(v)) return "#" + v.slice(2) + v.slice(0, 2);
+  if (/^[0-9a-f]{6}$/i.test(v)) return "#" + v;
+  if (/^[0-9a-f]{3}$/i.test(v)) return "#" + v;
+  if (/^[0-9a-f]{1,2}$/i.test(v)) return "#00000000";
+  return "#" + v;
+}
+
+function buildColorResolver(scheme, fallbackColors, mode = "light") {
+  const darkPalette = scheme?.darkColors && Object.keys(scheme.darkColors).length ? scheme.darkColors : null;
+  const palette = mode === "dark" && darkPalette ? darkPalette : (scheme?.colors || {});
+  const fallback = { ...BUILTIN_FALLBACK, ...(fallbackColors || {}) };
+  const cache = new Map();
+  function resolve(key, stack = []) {
+    if (cache.has(key)) return cache.get(key);
+    if (stack.includes(key)) return "#000000";
+    const direct = palette[key];
+    if (direct && typeof direct === "string") {
+      const color = normalizeColor(direct);
+      cache.set(key, color);
+      return color;
+    }
+    const next = fallback[key];
+    if (next && typeof next === "string") {
+      const color = resolve(next, [...stack, key]);
+      cache.set(key, color);
+      return color;
+    }
+    return null;
+  }
+  return resolve;
+}
+
+/* ------------------------------------------------------------------ */
+/* Preview rendering                                                    */
+/* ------------------------------------------------------------------ */
+
+let loadedState = null;
+let typedText = "";
+
+function updateCandidateDisplay() {
+  const preedit = document.getElementById("preview-preedit");
+  const candidates = document.getElementById("preview-candidates");
+  preedit.textContent = typedText;
+  candidates.textContent = "";
+  if (typedText) {
+    const hl = document.createElement("span");
+    hl.className = "hl";
+    hl.textContent = typedText;
+    candidates.appendChild(hl);
+  }
+}
+
+function keyOutputText(key, presetKeys) {
+  const click = key.click;
+  if (typeof click !== "string") return click == null ? "" : String(click);
+  const preset = presetKeys[click];
+  if (preset) {
+    if (preset.commit !== undefined && preset.commit !== null && preset.commit !== "") return String(preset.commit);
+    if (preset.text !== undefined && preset.text !== null && preset.text !== "") return String(preset.text);
+    if (preset.send !== undefined && preset.send !== null && preset.send !== "") {
+      const send = String(preset.send);
+      if (send === "space") return " ";
+      if (send === "Return" || send === "Return1" || send === "Return2") return "\n";
+      if (/^[a-zA-Z0-9]$/.test(send)) return send;
+    }
+    if (preset.label !== undefined && preset.label !== null && preset.label !== "" && preset.label !== "enter_labels") {
+      return String(preset.label);
+    }
+  }
+  if (click === "space") return " ";
+  if (click === "Return" || click === "Return1" || click === "Return2") return "\n";
+  if (/^[\s\S]$/u.test(click)) return click;
+  return "";
+}
+
+function handleKeyClick(key, presetKeys) {
+  const click = key.click;
+  if (click === "BackSpace" || click === "BackSpace2") {
+    typedText = typedText.slice(0, -1);
+  } else if (click === "Escape") {
+    typedText = "";
+  } else {
+    typedText += keyOutputText(key, presetKeys);
+  }
+  updateCandidateDisplay();
+}
+
+function renderDocs() {
+  const summary = document.getElementById("docs-summary");
+  summary.textContent = `${DOCS.reduce((n, c) => n + c.items.length, 0)} documented attributes across ${DOCS.length} categories.`;
+  const container = document.getElementById("docs-container");
+  container.innerHTML = "";
+  for (const category of DOCS) {
+    const card = document.createElement("div");
+    card.className = "card";
+    let html = `<h2>${category.title}</h2><p class="muted">${category.desc}</p><div class="table-wrap"><table><thead><tr><th>Attribute</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>`;
+    for (const item of category.items) {
+      html += `<tr><td><code>${item.name}</code></td><td>${item.type}</td><td>${item.def}</td><td>${item.desc}</td></tr>`;
+    }
+    html += "</tbody></table></div>";
+    if (category.colorKeys) {
+      html += `<h3>Built-in color keys accepted by palettes / fallback_colors</h3><p>`;
+      html += category.colorKeys.map(k => `<code>${k}</code>`).join(" ");
+      html += `</p>`;
+    }
+    card.innerHTML = html;
+    container.appendChild(card);
+  }
+}
+
+function setStatus(message, isError = false) {
+  const el = document.getElementById("load-status");
+  el.textContent = message;
+  el.className = "status" + (isError ? " error" : "");
+}
+
+function fillKeyboardSelect() {
+  const select = document.getElementById("keyboard-select");
+  select.innerHTML = "";
+  if (!loadedState) return;
+  const keyboards = loadedState.theme.presetKeyboards;
+  for (const id of Object.keys(keyboards)) {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = keyboards[id].name || id;
+    select.appendChild(opt);
+  }
+  const preferred = loadedState.manifest.default_keyboard;
+  if (preferred && keyboards[preferred]) select.value = preferred;
+}
+
+function fillSchemeSelect() {
+  const select = document.getElementById("scheme-select");
+  select.innerHTML = "";
+  if (!loadedState) return;
+  for (const scheme of loadedState.theme.colorSchemes) {
+    const opt = document.createElement("option");
+    opt.value = scheme.id;
+    opt.textContent = scheme.displayName || scheme.id;
+    select.appendChild(opt);
+  }
+}
+
+function keyLabel(key, presetKeys) {
+  if (key.label !== undefined && key.label !== null && key.label !== "") return String(key.label);
+  const click = key.click;
+  if (typeof click === "string") {
+    const preset = presetKeys[click];
+    if (preset) {
+      // `enter_labels` is a special marker resolved from the editor action at
+      // runtime; in the static preview we show the familiar return symbol.
+      if (preset.label === "enter_labels") return "↵";
+      if (preset.label !== undefined && preset.label !== null && preset.label !== "") {
+        return String(preset.label);
+      }
+    }
+    if (/^[\s\S]$/u.test(click)) return click;
+    if (click === "space") return "空格";
+    if (click === "Return" || click === "Return1" || click === "Return2") return "↵";
+    if (click === "BackSpace" || click === "BackSpace2") return "⌫";
+    if (click === "Shift_L" || click === "Shift_R") return "⇧";
+    if (click === "Mode_switch") return "中/英";
+    return click;
+  }
+  return "";
+}
+
+function renderPreview() {
+  const title = document.getElementById("package-title");
+  const meta = document.getElementById("package-meta");
+  const kbContainer = document.getElementById("preview-keyboard");
+  if (!loadedState) {
+    title.textContent = "No package loaded";
+    meta.textContent = "";
+    kbContainer.innerHTML = `<div class="muted" style="padding:20px">Load a package to preview the keyboard</div>`;
+    return;
+  }
+  const { manifest, theme } = loadedState;
+  title.textContent = manifest.name || "Unnamed package";
+  meta.textContent = [manifest.author, manifest.version].filter(Boolean).join(" · ");
+
+  const keyboardId = document.getElementById("keyboard-select").value;
+  const schemeId = document.getElementById("scheme-select").value;
+  const keyboard = theme.presetKeyboards[keyboardId] || {};
+  const scheme = theme.colorSchemes.find(s => s.id === schemeId) || theme.colorSchemes[0] || { colors: {}, darkColors: {} };
+  const mode = document.getElementById("mode-switch").checked ? "dark" : "light";
+  const resolveColor = buildColorResolver(scheme, theme.fallbackColors, mode);
+
+  const style = theme.style || {};
+  const defaultWidth = keyboard.width || style.key_width || 10;
+  const keyHeight = keyboard.height || style.key_height || 48;
+  const hGap = keyboard.horizontal_gap || style.horizontal_gap || 4;
+  const vGap = keyboard.vertical_gap || style.vertical_gap || 6;
+  const roundCorner = (keyboard.round_corner != null && keyboard.round_corner >= 0) ? keyboard.round_corner : (style.round_corner || 6);
+  const keyBorder = (keyboard.key_border != null && keyboard.key_border >= 0) ? keyboard.key_border : (style.key_border || 1);
+  const keyTextSize = style.key_text_size || 16;
+  const keyboardBg = resolveColor("keyboard_background") || resolveColor("keyboard_back_color") || resolveColor("back_color") || "#e9ebf0";
+  const keyBack = resolveColor("key_back_color") || "#ffffff";
+  const keyText = resolveColor("key_text_color") || "#1f2430";
+  const keyBorderColor = resolveColor("key_border_color") || "#c9cedb";
+  const candidateBg = resolveColor("candidate_background") || resolveColor("back_color") || "#ffffff";
+  const candidateText = resolveColor("candidate_text_color") || "#222222";
+  const hlText = resolveColor("hilited_candidate_text_color") || "#111111";
+  const hlBack = resolveColor("hilited_candidate_back_color") || "#dbe4ff";
+  const preeditFont = theme.preedit?.foreground?.font_size || 16;
+
+  const screen = document.getElementById("screen");
+  screen.style.setProperty("--keyboard-bg", keyboardBg);
+  screen.style.setProperty("--candidate-bg", candidateBg);
+  screen.style.setProperty("--candidate-text", candidateText);
+  screen.style.setProperty("--hilited-candidate-text", hlText);
+  screen.style.setProperty("--hilited-candidate-back", hlBack);
+  screen.style.setProperty("--preedit-font-size", preeditFont + "px");
+  screen.style.setProperty("--keyboard-padding", (style.keyboard_padding || 6) + "px");
+  screen.style.setProperty("--vertical-gap", vGap + "px");
+  screen.style.setProperty("--horizontal-gap", hGap + "px");
+  screen.style.setProperty("--round-corner", roundCorner + "px");
+  screen.style.setProperty("--key-border-color", keyBorderColor);
+  screen.style.setProperty("--key-back-color", keyBack);
+  screen.style.setProperty("--key-text-color", keyText);
+  screen.style.setProperty("--key-text-size", keyTextSize + "px");
+
+  const rows = [];
+  let row = [];
+  let rowWeight = 0;
+  const maxColumns = keyboard.columns == null ? 30 : keyboard.columns;
+  let clickableInRow = 0;
+  for (const key of (keyboard.keys || [])) {
+    const hasClick = key.click !== undefined && key.click !== null;
+    const width = key.width || (hasClick ? defaultWidth : key.width || 0);
+    const weight = Number(width) || 0;
+    if ((clickableInRow >= maxColumns || rowWeight + weight > 100.001) && row.length > 0) {
+      rows.push(row);
+      row = [];
+      rowWeight = 0;
+      clickableInRow = 0;
+    }
+    row.push(key);
+    rowWeight += weight;
+    if (hasClick) clickableInRow++;
+  }
+  if (row.length) rows.push(row);
+
+  kbContainer.innerHTML = "";
+  const keyboardDiv = kbContainer;
+  keyboardDiv.style.setProperty("--vertical-gap", vGap + "px");
+  keyboardDiv.style.setProperty("--horizontal-gap", hGap + "px");
+  keyboardDiv.style.setProperty("--keyboard-padding", (style.keyboard_padding || 6) + "px");
+  keyboardDiv.style.setProperty("--keyboard-bg", keyboardBg);
+
+  for (const r of rows) {
+    const rowEl = document.createElement("div");
+    rowEl.className = "kb-row";
+    const total = r.reduce((sum, k) => sum + (k.width || ((k.click !== undefined && k.click !== null) ? defaultWidth : k.width || 0)), 0) || 100;
+    for (const key of r) {
+      const hasClick = key.click !== undefined && key.click !== null;
+      const weight = key.width || (hasClick ? defaultWidth : key.width || 0);
+      if (!hasClick) {
+        // Non-clickable spacer keys are invisible layout slots in Trime.
+        if (weight > 0) {
+          const spacer = document.createElement("div");
+          spacer.className = "key-spacer";
+          spacer.style.width = `calc(${(weight / total) * 100}%)`;
+          spacer.style.height = `${keyHeight}px`;
+          rowEl.appendChild(spacer);
+        }
+        continue;
+      }
+      const keyEl = document.createElement("div");
+      keyEl.className = "key";
+      keyEl.style.width = `calc(${(weight / total) * 100}%)`;
+      keyEl.style.height = `${keyHeight}px`;
+      keyEl.style.borderRadius = `${roundCorner}px`;
+      keyEl.style.borderWidth = `${keyBorder}px`;
+      const bg = resolveColor(key.key_back_color) || keyBack;
+      const fg = resolveColor(key.key_text_color) || keyText;
+      const hlBg = resolveColor(key.hilited_key_back_color) || resolveColor("hilited_key_back_color") || bg;
+      const hlFg = resolveColor(key.hilited_key_text_color) || resolveColor("hilited_key_text_color") || fg;
+      keyEl.style.setProperty("--key-back-color", bg);
+      keyEl.style.setProperty("--key-text-color", fg);
+      keyEl.style.setProperty("--hl-key-back-color", hlBg);
+      keyEl.style.setProperty("--hl-key-text-color", hlFg);
+      keyEl.style.fontSize = (key.key_text_size || keyTextSize) + "px";
+      keyEl.textContent = keyLabel(key, theme.presetKeys);
+      keyEl.addEventListener("pointerdown", () => keyEl.classList.add("pressed"));
+      keyEl.addEventListener("pointerup", () => {
+        keyEl.classList.remove("pressed");
+        handleKeyClick(key, theme.presetKeys);
+      });
+      keyEl.addEventListener("pointerleave", () => keyEl.classList.remove("pressed"));
+      keyEl.addEventListener("pointercancel", () => keyEl.classList.remove("pressed"));
+      rowEl.appendChild(keyEl);
+    }
+    keyboardDiv.appendChild(rowEl);
+  }
+}
+
+function loadPackageFromFiles(files, sourceName) {
+  try {
+    const resolved = resolvePackage(files);
+    const manifest = resolved.manifest;
+    const sections = resolved.sections;
+    const presetKeyboards = resolveKeyboardIncludes(sections.preset_keyboards || {});
+    const theme = {
+      name: manifest.name || "Unnamed",
+      presetKeys: sections.preset_keys || {},
+      presetKeyboards,
+      colorSchemes: decodeColorSchemes(sections),
+      fallbackColors: sections.fallback_colors || {},
+      style: sections.style || {},
+      preedit: sections.preedit || {},
+      window: sections.window || {},
+      tool_bar: sections.tool_bar || {},
+      liquid_keyboard: sections.liquid_keyboard || {},
+    };
+    if (!Object.keys(presetKeyboards).length) throw new Error("No preset_keyboards found in package");
+    if (!theme.colorSchemes.length) throw new Error("No color schemes found in package");
+    loadedState = { manifest, theme, sourceName };
+    typedText = "";
+    updateCandidateDisplay();
+    fillKeyboardSelect();
+    fillSchemeSelect();
+    renderPreview();
+    setStatus(`Loaded ${sourceName}: ${theme.name} (${Object.keys(presetKeyboards).length} keyboards, ${theme.colorSchemes.length} color schemes)`);
+  } catch (e) {
+    loadedState = null;
+    setStatus(`Failed to load package: ${e.message}`, true);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* File loading                                                         */
+/* ------------------------------------------------------------------ */
+
+async function loadFolder(files) {
+  const map = {};
+  let root = null;
+  for (const file of files) {
+    const rel = file.webkitRelativePath || file.name;
+    const norm = normalizePath(rel);
+    const parts = norm.split("/");
+    if (parts.length > 1) root = root || parts[0];
+    map[norm] = await file.text();
+  }
+  if (root) map.root = root;
+  loadPackageFromFiles(map, root || "folder");
+}
+
+async function loadZip(file) {
+  const zip = await JSZip.loadAsync(file);
+  const map = {};
+  const entries = Object.values(zip.files).filter(f => !f.dir);
+  for (const entry of entries) {
+    map[normalizePath(entry.name)] = await entry.async("string");
+  }
+  const rootCandidates = new Set();
+  for (const p of Object.keys(map)) {
+    const parts = p.split("/");
+    if (parts.length > 1) rootCandidates.add(parts[0]);
+  }
+  if (rootCandidates.size === 1) map.root = [...rootCandidates][0];
+  loadPackageFromFiles(map, file.name);
+}
+
+/* ------------------------------------------------------------------ */
+/* Tabs & events                                                        */
+/* ------------------------------------------------------------------ */
+
+function switchPage(name) {
+  document.querySelectorAll("section.page").forEach(el => el.classList.remove("active"));
+  document.getElementById("page-" + name).classList.add("active");
+  document.querySelectorAll("nav button").forEach(btn => btn.classList.toggle("active", btn.dataset.page === name));
+  if (name === "preview" && loadedState) renderPreview();
+}
+
+document.querySelectorAll("nav button").forEach(btn => {
+  btn.addEventListener("click", () => switchPage(btn.dataset.page));
+});
+
+document.getElementById("load-folder-btn").addEventListener("click", () => {
+  document.getElementById("folder-input").click();
+});
+document.getElementById("folder-input").addEventListener("change", async (e) => {
+  const files = e.target.files;
+  if (files && files.length) await loadFolder(files);
+});
+document.getElementById("load-zip-btn").addEventListener("click", () => {
+  document.getElementById("zip-input").click();
+});
+document.getElementById("zip-input").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) {
+    setStatus("Reading zip…");
+    try {
+      await loadZip(file);
+    } catch (err) {
+      setStatus("Failed to read zip: " + err.message, true);
+    }
+  }
+});
+document.getElementById("keyboard-select").addEventListener("change", renderPreview);
+document.getElementById("scheme-select").addEventListener("change", renderPreview);
+document.getElementById("mode-switch").addEventListener("change", () => {
+  document.getElementById("mode-label").textContent =
+    document.getElementById("mode-switch").checked ? "Dark" : "Light";
+  renderPreview();
+});
+
+renderDocs();
+</script>
+</body>
+</html>

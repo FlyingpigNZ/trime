@@ -21,11 +21,14 @@ object KeyCode {
         RimeKeyMapping.symbolNameToCode(name)?.let { return it }
         RimeKeyMapping.charToCode(name)?.let { return it }
 
-        val androidCode = KeyEvent.keyCodeFromString("KEYCODE_$name")
-        if (androidCode > 0) return androidCode
-
+        // Prefer the generated Rime mapping: it is the source of truth for
+        // Trime key names and keeps name resolution testable on the JVM.
         val rimeCode = RimeKeyMapping.nameToKeyCode(name)
         if (rimeCode != KeyEvent.KEYCODE_UNKNOWN) return rimeCode
+
+        val androidCode =
+            runCatching { KeyEvent.keyCodeFromString("KEYCODE_$name") }.getOrDefault(0)
+        if (androidCode > 0) return androidCode
 
         return KeyEvent.KEYCODE_UNKNOWN
     }

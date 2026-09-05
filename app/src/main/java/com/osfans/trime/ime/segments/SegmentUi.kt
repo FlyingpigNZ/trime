@@ -13,6 +13,7 @@ import com.google.android.flexbox.FlexboxLayoutManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.keyboard.GestureFrame
 import splitties.dimensions.dp
 import splitties.views.dsl.core.Ui
@@ -39,8 +40,8 @@ class SegmentUi(override val ctx: Context, theme: Theme) : Ui {
                         intArrayOf(android.R.attr.state_selected),
                     ),
                     intArrayOf(
-                        ColorManager.getColor("key_text_color"),
-                        ColorManager.getColor("hilited_key_text_color"),
+                        ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR),
+                        ColorManager.getColor(ThemeColor.HILITED_KEY_TEXT_COLOR),
                     ),
                 ),
             )

@@ -18,6 +18,7 @@ import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.bar.InputBarDelegate
 import com.osfans.trime.ime.bar.UnrollButtonStateMachine
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
@@ -41,7 +42,6 @@ import kotlin.math.max
 abstract class BaseUnrolledCandidateWindow :
     BoardWindow.NoBarBoardWindow(),
     InputBroadcastReceiver {
-    protected val service: TrimeInputMethodService by di.instance()
     protected val rime: RimeSession by di.instance()
     protected val theme: Theme by di.instance()
     private val inputView: InputView by di.instance()
@@ -58,7 +58,7 @@ abstract class BaseUnrolledCandidateWindow :
             val intrinsicSize = max(spacing, context.dp(spacing)).toInt()
             intrinsicWidth = intrinsicSize
             intrinsicHeight = intrinsicSize
-            paint.color = ColorManager.getColor("candidate_separator_color")
+            paint.color = ColorManager.getColor(ThemeColor.CANDIDATE_SEPARATOR_COLOR)
         }
     }
 
@@ -103,14 +103,35 @@ abstract class BaseUnrolledCandidateWindow :
         bar.unrollButtonStateMachine.push(UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesAttached)
         offsetJob =
             lifecycleCoroutineScope.launch {
-                compactCandidate.unrolledCandidateOffset.collect {
-                    if (it <= 0) {
+                // onLayoutCompleted re-emits the same child count on every
+                // layout pass; skip identical values so a mere relayout does
+                // not reset the scroll position and reload the paging source.
+                // The dedup key must include the highlight index and the
+                // candidates version: a relayout with the same count but a new
+                // highlight, or a new menu with the same count/highlight (e.g.
+                // after selecting a character), must still refresh.
+                var lastOffset = Int.MIN_VALUE
+                var lastHighlight = -1
+                var lastVersion = -1
+                compactCandidate.unrolledCandidateOffset.collect { update ->
+                    val offset = update.offset
+                    val highlight = update.highlightedIdx
+                    if (offset == lastOffset &&
+                        highlight == lastHighlight &&
+                        update.version == lastVersion
+                    ) {
+                        return@collect
+                    }
+                    lastOffset = offset
+                    lastHighlight = highlight
+                    lastVersion = update.version
+                    if (offset <= 0) {
                         windowManager.attachWindow(KeyboardWindow)
                     } else {
                         candidateLayout.resetPosition()
                         adapter.refreshWith(
-                            offset = it,
-                            highlightedIndex = compactCandidate.adapter.highlightedIdx,
+                            offset = offset,
+                            highlightedIndex = highlight,
                         )
                     }
                 }
@@ -136,10 +157,27 @@ abstract class BaseUnrolledCandidateWindow :
     }
 
     override fun onDetached() {
+        // Reuse the UnrolledCandidatesEmpty written by the last
+        // refreshUnrolled() as the single source of truth, instead of
+        // recomputing it here. The two definitions would diverge: the compact
+        // path uses "adapter.total == childCount" ("everything fits the
+        // compact bar, nothing left to unroll"), while !hasMenu would say
+        // "no menu at all". After selecting a character the remaining
+        // candidates may all fit the compact bar (total == childCount →
+        // Empty = true) while a menu still exists (hasMenu = true → Empty =
+        // false); recomputing here would then leave the button at
+        // ClickToAttachWindow even though there is nothing left to unroll.
+        // While the unrolled window is attached, refreshUnrolled() has always
+        // written the latest value, so reusing it is correct.
+        //
+        // Reset the highlight to -1 as well: after the user picked a
+        // candidate and collapsed the window the highlight has no meaning.
+        // Keeping a stale out-of-range value would make the next candidate
+        // refresh (e.g. Backspace rebuilding the menu) see an out-of-bounds
+        // highlight and auto-expand the window again.
+        compactCandidate.resetUnrolledHighlight()
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesDetached,
-            UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty to
-                (compactCandidate.adapter.total == adapter.offset),
         )
         offsetJob?.cancel()
         candidatesSubmitJob?.cancel()

@@ -20,6 +20,7 @@ import com.osfans.trime.data.db.CollectionHelper
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.keyboard.KeyboardWindow
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.BoardWindowManager
 import com.osfans.trime.util.NativeTokenizer
@@ -118,7 +119,7 @@ class SegmentsWindow(private val source: String) : BoardWindow.BarBoardWindow() 
             flexDirection = FlexDirection.ROW_REVERSE
             alignItems = AlignItems.CENTER
             val buttons = listOf(ui.selectButton, ui.copyButton, ui.starButton, ui.searchButton, ui.shareButton)
-            val size = theme.generalStyle.run { candidateViewHeight + commentHeight }
+            val size = (theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt()
             buttons.forEachIndexed { index, button ->
                 val lParams = FlexboxLayout.LayoutParams(dp(size), dp(size))
                 if (index > 0) {
@@ -133,7 +134,7 @@ class SegmentsWindow(private val source: String) : BoardWindow.BarBoardWindow() 
 
     private fun onSelectionChanged() {
         val joined = adapter.joinedSegments
-        service.updateComposingText(joined)
+        service.editor.updateComposingText(joined)
 
         if (adapter.isAllSelected) {
             ui.setSelectButtonToDeselect()

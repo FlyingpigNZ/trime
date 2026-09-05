@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trime.osfans.app/schemas/component.schema.json",
+  "title": "Trime Component Definition Schemas",
+  "description": "Complete machine-checkable schemas for the self-contained component package model: manifests, keyboard files, behavior files, style files, color files, and resources.",
+  "$defs": {
+    "componentManifest": {
+      "type": "object",
+      "required": ["name", "components"],
+      "properties": {
+        "name": { "type": "string" },
+        "author": { "type": "string" },
+        "version": { "type": "string" },
+        "schema_id": { "type": "string" },
+        "default_keyboard": { "type": "string" },
+        "rime_files": { "type": "array", "items": { "type": "string", "pattern": "^rime/.+" } },
+        "components": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/componentEntry" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "componentEntry": {
+      "oneOf": [
+        { "type": "string" },
+        { "$ref": "#/$defs/componentMapping" }
+      ]
+    },
+    "componentMapping": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "schema": {
+          "type": "object",
+          "required": ["file"],
+          "properties": { "file": { "type": "string" } },
+          "additionalProperties": false
+        },
+        "keyboard": { "$ref": "#/$defs/operationSpec" },
+        "behavior": { "$ref": "#/$defs/operationSpec" },
+        "color": { "$ref": "#/$defs/operationSpec" },
+        "style": { "$ref": "#/$defs/styleSpec" },
+        "resources": { "$ref": "#/$defs/operationSpec" }
+      },
+      "additionalProperties": false
+    },
+    "operationSpec": {
+      "type": "object",
+      "properties": {
+        "file": { "type": "string" },
+        "files": { "type": "array", "items": { "type": "string" } },
+        "add": { "type": "object" },
+        "override": { "type": "object" },
+        "remove": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "styleSpec": {
+      "type": "object",
+      "properties": {
+        "file": { "type": "string" },
+        "files": { "type": "array", "items": { "type": "string" } },
+        "override": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+
+    "keyboardFile": {
+      "type": "object",
+      "required": ["preset_keyboards"],
+      "properties": {
+        "preset_keyboards": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/keyboard" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "keyboard": {
+      "type": "object",
+      "anyOf": [
+        { "required": ["name"] },
+        { "required": ["__include"] }
+      ],
+      "properties": {
+        "name": { "type": "string" },
+        "author": { "type": "string" },
+        "__include": { "type": "string" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "keyboard_height": { "type": "integer" },
+        "keyboard_height_land": { "type": "integer" },
+        "horizontal_gap": { "type": "integer" },
+        "vertical_gap": { "type": "integer" },
+        "round_corner": { "type": "number" },
+        "ascii_mode": { "type": "integer" },
+        "reset_ascii_mode": { "type": "boolean" },
+        "label_transform": { "type": "string" },
+        "lock": { "type": "boolean" },
+        "ascii_keyboard": { "type": "string" },
+        "landscape_keyboard": { "type": "string" },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/key" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "key": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "click": { "type": ["string", "number"] },
+        "long_click": { "type": ["string", "number"] },
+        "composing": { "type": ["string", "number"] },
+        "swipe_up": { "type": ["string", "number"] },
+        "swipe_down": { "type": ["string", "number"] },
+        "swipe_left": { "type": ["string", "number"] },
+        "swipe_right": { "type": ["string", "number"] },
+        "label": { "type": "string" },
+        "hint": { "type": "string" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "key_back_color": { "type": "string" },
+        "hilited_key_back_color": { "type": "string" },
+        "key_text_color": { "type": "string" },
+        "key_symbol_color": { "type": "string" },
+        "hilited_key_text_color": { "type": "string" },
+        "hilited_key_symbol_color": { "type": "string" },
+        "key_symbol_offset_x": { "type": "number" },
+        "key_symbol_offset_y": { "type": "number" },
+        "key_text_offset_x": { "type": "number" },
+        "key_text_offset_y": { "type": "number" },
+        "key_press_offset_x": { "type": "number" },
+        "key_press_offset_y": { "type": "number" },
+        "key_hint_offset_x": { "type": "number" },
+        "key_hint_offset_y": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+
+    "behaviorFile": {
+      "type": "object",
+      "properties": {
+        "preset_keys": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/presetKey" }
+        },
+        "switches": { "type": "object" },
+        "keyboard_switch_policy": { "$ref": "#/$defs/switchPolicy" }
+      },
+      "additionalProperties": false
+    },
+    "presetKey": {
+      "type": "object",
+      "anyOf": [
+        { "required": ["send"] },
+        { "required": ["text"] },
+        { "required": ["commit"] },
+        { "required": ["command"] },
+        { "required": ["toggle"] },
+        { "required": ["select"] }
+      ],
+      "properties": {
+        "label": { "type": "string" },
+        "preview": { "type": "string" },
+        "send": { "type": "string" },
+        "text": { "type": "string" },
+        "commit": { "type": "string" },
+        "command": { "type": "string" },
+        "option": { "type": "string" },
+        "select": { "type": "string" },
+        "toggle": { "type": "string" },
+        "shift_lock": { "type": "string" },
+        "states": { "type": "array", "items": { "type": "string" } },
+        "sticky": { "type": "boolean" },
+        "repeatable": { "type": "boolean" },
+        "functional": { "type": "boolean" },
+        "slide_cursor": { "type": "boolean" },
+        "slide_delete": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "switchPolicy": {
+      "type": "object",
+      "properties": {
+        "default_keyboard": { "type": "string" },
+        "ascii_keyboard": { "type": "string" },
+        "aux": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "select": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+
+    "styleFile": {
+      "type": "object",
+      "properties": {
+        "style": { "type": "object" },
+        "preedit": { "type": "object" },
+        "window": { "type": "object" },
+        "tool_bar": { "type": "object" },
+        "liquid_keyboard": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+
+    "colorFile": {
+      "type": "object",
+      "properties": {
+        "colors": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/colorPalette" }
+        },
+        "color_schemes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/colorSchemePair" }
+        },
+        "preset_color_schemes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/colorScheme" }
+        },
+        "fallback_colors": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "colorSchemePair": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "author": { "type": "string" },
+        "light": { "type": "string" },
+        "dark": { "type": "string" }
+      },
+      "required": ["light"],
+      "additionalProperties": false
+    },
+    "colorScheme": {
+      "type": "object",
+      "properties": {
+        "light": { "$ref": "#/$defs/colorPalette" },
+        "dark": { "$ref": "#/$defs/colorPalette" },
+        "name": { "type": "string" },
+        "author": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "colorPalette": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(0x|#)[0-9a-fA-F]{1,8}$"
+      }
+    },
+
+    "resourcesFile": {
+      "type": "object",
+      "required": ["resources"],
+      "properties": {
+        "resources": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  }
+}

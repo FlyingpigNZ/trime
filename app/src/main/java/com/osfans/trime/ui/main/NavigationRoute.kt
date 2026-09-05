@@ -16,6 +16,7 @@ import com.osfans.trime.ui.main.settings.ClipboardSettingsFragment
 import com.osfans.trime.ui.main.settings.GeneralSettingsFragment
 import com.osfans.trime.ui.main.settings.KeyboardSettingsFragment
 import com.osfans.trime.ui.main.settings.ProfileSettingsFragment
+import com.osfans.trime.ui.main.settings.ime.ImeSettingsFragment
 import com.osfans.trime.ui.main.settings.schema.SchemaListFragment
 import com.osfans.trime.ui.main.settings.theme.ThemeSettingsFragment
 import com.osfans.trime.ui.main.settings.userdict.UserDictionaryFragment
@@ -27,6 +28,9 @@ sealed class NavigationRoute : Parcelable {
 
     @Serializable
     data object Main : NavigationRoute()
+
+    @Serializable
+    data object ImePackages : NavigationRoute()
 
     @Serializable
     data object SchemaList : NavigationRoute()
@@ -70,6 +74,10 @@ sealed class NavigationRoute : Parcelable {
 
             fragment<MainFragment, Main> {
                 label = ctx.getString(R.string.trime_app_name)
+            }
+
+            fragment<ImeSettingsFragment, ImePackages> {
+                label = ctx.getString(R.string.selected_ime)
             }
 
             fragment<SchemaListFragment, SchemaList> {

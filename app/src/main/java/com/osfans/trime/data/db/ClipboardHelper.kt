@@ -37,13 +37,6 @@ object ClipboardHelper :
 
     private val mutex = Mutex()
 
-    var itemCount: Int = 0
-        private set
-
-    private suspend fun updateItemCount() {
-        itemCount = clbDao.itemCount()
-    }
-
     private val onUpdateListeners = WeakHashSet<OnClipboardUpdateListener>()
 
     fun addOnUpdateListener(listener: OnClipboardUpdateListener) {
@@ -74,17 +67,20 @@ object ClipboardHelper :
         launch { removeOutdated() }
     }
 
-    private val compareRules: Set<Regex> by lazy {
+    // Rule sets are re-derived from the preferences on every use: a `lazy`
+    // snapshot would never refresh after the user edits the rules (D-4). The
+    // sets are small and only consulted per clipboard change.
+    private fun compareRules(): Set<Regex> {
         val rules by clipPref.clipboardCompareRules
-        rules
+        return rules
             .split('\n')
             .map { Regex(it.trim()) }
             .toSet()
     }
 
-    private val outputRules: Set<Regex> by lazy {
+    private fun outputRules(): Set<Regex> {
         val rules by clipPref.clipboardOutputRules
-        rules
+        return rules
             .split('\n')
             .map { Regex(it) }
             .toSet()
@@ -102,14 +98,13 @@ object ClipboardHelper :
         clbDb =
             Room
                 .databaseBuilder(context, Database::class.java, "clipboard.db")
-                .addMigrations(Database.MIGRATION_3_4)
+                .addMigrations(Database.MIGRATION_1_2, Database.MIGRATION_2_3, Database.MIGRATION_3_4)
                 .build()
         clbDao = clbDb.databaseDao()
         enabledListener.onChange(enabledPref.key, enabledPref.getValue())
         enabledPref.registerOnChangeListener(enabledListener)
         limitListener.onChange(limitPref.key, limitPref.getValue())
         limitPref.registerOnChangeListener(limitListener)
-        launch { updateItemCount() }
     }
 
     suspend fun get(id: Int) = clbDao.get(id)
@@ -134,7 +129,6 @@ object ClipboardHelper :
 
     suspend fun delete(id: Int) {
         clbDao.delete(id)
-        updateItemCount()
     }
 
     suspend fun deleteAll(skipUnpinned: Boolean = true) {
@@ -143,7 +137,6 @@ object ClipboardHelper :
         } else {
             clbDao.deleteAll()
         }
-        updateItemCount()
     }
 
     private var lastClipTimestamp = -1L
@@ -158,7 +151,12 @@ object ClipboardHelper :
      * - [outputRules] 输出规则。如果剪贴板内容与规则匹配，则不通知剪贴板管理器。
      */
     override fun onPrimaryClipChanged() {
-        val clip = clipboardManager.primaryClip ?: return
+        // On API 33+ a clipboard read while the app has no window focus can
+        // throw SecurityException on some OEMs; never let that crash the IME
+        // process. (The system clipboard-access notice is unavoidable for a
+        // process-wide listener; disabling clipboard monitoring removes the
+        // listener entirely via enabledListener.)
+        val clip = runCatching { clipboardManager.primaryClip }.getOrNull() ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val timestamp = clip.description.timestamp
             if (timestamp == lastClipTimestamp) return
@@ -174,8 +172,8 @@ object ClipboardHelper :
             mutex.withLock {
                 val bean = DatabaseBean.fromClipData(clip) ?: return@withLock
                 if (bean.text.isNullOrBlank()) return@withLock
-                if (bean.text.matchesAny(outputRules) ||
-                    bean.text.removeRegexSet(compareRules).isEmpty()
+                if (bean.text.matchesAny(outputRules()) ||
+                    bean.text.removeRegexSet(compareRules()).isEmpty()
                 ) {
                     return@withLock
                 }
@@ -189,11 +187,9 @@ object ClipboardHelper :
                         clbDb.withTransaction {
                             val rowId = clbDao.insert(bean)
                             removeOutdated()
-                            updateItemCount()
                             clbDao.get(rowId) ?: bean
                         }
                     updateLastBean(insertedBean)
-                    updateItemCount()
                 } catch (exception: Exception) {
                     Timber.w("Failed to update clipboard database: $exception")
                     updateLastBean(bean)
@@ -206,9 +202,11 @@ object ClipboardHelper :
         val limit = limitPref.getValue()
         val unpinned = clbDao.getAllUnpinned()
         if (unpinned.size > limit) {
+            // Evict by recency (time), not insertion order (id): re-copied
+            // entries refresh their timestamp and must be kept (D-3).
             val outdated =
                 unpinned
-                    .sortedBy { it.id }
+                    .sortedBy { it.time }
                     .getOrNull(unpinned.size - limit)
             clbDao.deletedUnpinnedEarlierThan(outdated?.time ?: System.currentTimeMillis())
         }

@@ -10,22 +10,10 @@ data class RimeKeyEvent(
     val modifiers: Int,
     val repr: String,
 ) {
-    val keyVal by lazy { KeyValue(value) }
-
-    val keyModifiers by lazy { KeyModifiers.of(modifiers) }
-
     override fun toString() = repr
 
     companion object {
-        val None = RimeKeyEvent(0, 0, "0x0000")
-
-        @JvmStatic
-        external fun parse(repr: String): RimeKeyEvent
-
         @JvmStatic
         external fun getKeycodeByName(name: String): Int
-
-        @JvmStatic
-        external fun getModifierByName(name: String): Int
     }
 }

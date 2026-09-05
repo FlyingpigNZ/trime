@@ -5,21 +5,17 @@
 
 package com.osfans.trime.data.theme.model
 
-import android.os.Parcelable
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.string
-import kotlinx.parcelize.Parcelize
 
-@Parcelize
-sealed class KeyActionToken : Parcelable {
+sealed class KeyActionToken {
     data class Plain(val token: String) : KeyActionToken()
     data class Inline(val token: Token) : KeyActionToken() {
-        @Parcelize
         data class Token(
             val commit: String?,
             val text: String?,
             val label: String?,
-        ) : Parcelable
+        )
     }
 
     companion object {

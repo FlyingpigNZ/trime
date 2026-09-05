@@ -14,7 +14,9 @@ import com.osfans.trime.R
 import com.osfans.trime.core.RimeApi
 import com.osfans.trime.core.RimeConfig
 import com.osfans.trime.core.RimeMessage
+import com.osfans.trime.core.RimeSchema
 import com.osfans.trime.core.SchemaItem
+import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.theme.Theme
@@ -22,10 +24,12 @@ import com.osfans.trime.ime.bar.ui.ToolButton
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.dialog.EnabledSchemaPickerDialog
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.ime.window.BoardWindow
-import com.osfans.trime.ui.main.settings.ThemePickerDialog
 import com.osfans.trime.util.AppUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.kodein.di.instance
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.constraintLayout
@@ -44,11 +48,6 @@ class SwitchOptionWindow :
 
     private val staticEntries by lazy {
         arrayOf(
-            SwitchOptionEntry.Static(
-                context.getString(R.string.theme),
-                R.drawable.ic_baseline_color_lens_24,
-                SwitchOptionEntry.Static.Type.ThemeList,
-            ),
             SwitchOptionEntry.Static(
                 context.getString(R.string.schemata),
                 R.drawable.ic_round_view_list_24,
@@ -109,18 +108,13 @@ class SwitchOptionWindow :
                                 }
                             }
                         }
-                        SwitchOptionEntry.Static.Type.UpdateConfig -> rime.launchOnReady { r ->
-                            r.updateConfig()
+                        SwitchOptionEntry.Static.Type.UpdateConfig -> rime.launchOnReady {
+                            RimeDaemon.restartRime()
                             service.lifecycleScope.launch {
                                 Toast.makeText(service, R.string.done, Toast.LENGTH_SHORT).show()
                             }
                         }
                         SwitchOptionEntry.Static.Type.Keyboard -> AppUtils.launchMainToKeyboard(context)
-                        SwitchOptionEntry.Static.Type.ThemeList -> showDialog { r ->
-                            ThemePickerDialog.build(service.lifecycleScope, context) {
-                                r.commitComposition()
-                            }
-                        }
                     }
                     is SwitchOptionEntry.Custom -> {
                         val options = entry.switch.options
@@ -161,22 +155,53 @@ class SwitchOptionWindow :
         }
     }
 
+    /**
+     * Last known option values for the current schema. Seeded from the engine
+     * on attach/schema change, updated from option messages; the UI must never
+     * read options via blocking `rime.run {}` on the main thread.
+     */
+    private var optionValues: Map<String, Boolean> = emptyMap()
+
+    private fun optionNamesOf(switches: List<RimeSchema.Switch>): Set<String> = switches
+        .flatMap { if (it.name.isNotEmpty()) listOf(it.name) else it.options }
+        .toSet()
+
     private fun updateSchemaOptionEntries() {
-        val switches = rime.run { schemaCached }.switches
-        adapter.submitList(
-            listOf(
-                *staticEntries,
-                *switches.mapNotNull { SwitchOptionEntry.fromSwitch(rime, it) }.toTypedArray(),
-            ),
-        )
+        service.lifecycleScope.launch {
+            val entries =
+                withContext(Dispatchers.Default) {
+                    val switches = rime.run { schemaCached }.switches
+                    listOf(
+                        *staticEntries,
+                        *switches.mapNotNull { SwitchOptionEntry.fromSwitch(it, optionValues) }.toTypedArray(),
+                    )
+                }
+            adapter.submitList(entries)
+        }
     }
 
     override fun onRimeSchemaUpdated(schema: SchemaItem) {
-        updateSchemaOptionEntries()
+        // Re-seed option values for the new schema, then rebuild.
+        rime.launchOnReady { api ->
+            val switches = api.currentSchema().switches
+            val names = optionNamesOf(switches)
+            optionValues = names.associateWith { api.getRuntimeOption(it) }
+            service.lifecycleScope.launch { updateSchemaOptionEntries() }
+        }
     }
 
     override fun onRimeOptionUpdated(value: RimeMessage.OptionMessage.Data) {
-        updateSchemaOptionEntries()
+        optionValues = optionValues + (value.option to value.value)
+        // Rebuild only when a displayed switch option actually changed;
+        // unrelated option churn must not re-render the whole window.
+        val relevant =
+            adapter.items.any { entry ->
+                entry is SwitchOptionEntry.Custom &&
+                    (entry.switch.options.ifEmpty { listOf(entry.switch.name) }.contains(value.option))
+            }
+        if (relevant) {
+            updateSchemaOptionEntries()
+        }
     }
 
     override fun onCreateView() = view
@@ -189,7 +214,7 @@ class SwitchOptionWindow :
 
     private val barExternalView by lazy {
         context.constraintLayout {
-            val size = dp(theme.generalStyle.run { candidateViewHeight + commentHeight })
+            val size = dp((theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt())
             add(
                 settingsButton,
                 lParams(size, size) {
@@ -203,12 +228,14 @@ class SwitchOptionWindow :
 
     override fun onAttached() {
         rime.launchOnReady { api ->
-            val data = api.currentSchema().switches
+            val switches = api.currentSchema().switches
+            val names = optionNamesOf(switches)
+            optionValues = names.associateWith { api.getRuntimeOption(it) }
             service.lifecycleScope.launch {
                 adapter.submitList(
                     listOf(
                         *staticEntries,
-                        *data.mapNotNull { SwitchOptionEntry.fromSwitch(rime, it) }.toTypedArray(),
+                        *switches.mapNotNull { SwitchOptionEntry.fromSwitch(it, optionValues) }.toTypedArray(),
                     ),
                 )
             }

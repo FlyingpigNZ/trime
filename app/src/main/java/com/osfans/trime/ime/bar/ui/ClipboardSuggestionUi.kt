@@ -8,6 +8,7 @@ import android.content.Context
 import android.text.TextUtils
 import com.osfans.trime.R
 import com.osfans.trime.data.theme.ColorManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.keyboard.GestureFrame
 import com.osfans.trime.util.rippleDrawable
 import splitties.dimensions.dp
@@ -38,7 +39,7 @@ class ClipboardSuggestionUi(
         imageView {
             imageDrawable =
                 drawable(R.drawable.ic_clipboard_24)!!.apply {
-                    setTint(ColorManager.getColor("candidate_text_color"))
+                    setTint(ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR))
                 }
         }
 
@@ -47,13 +48,13 @@ class ClipboardSuggestionUi(
             isSingleLine = true
             maxWidth = dp(220)
             ellipsize = TextUtils.TruncateAt.END
-            setTextColor(ColorManager.getColor("candidate_text_color"))
+            setTextColor(ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR))
         }
 
     val dismiss =
         imageView {
             imageDrawable = drawable(R.drawable.ic_outline_cancel_24)!!.apply {
-                setTint(ColorManager.getColor("candidate_text_color"))
+                setTint(ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR))
             }
         }
 
@@ -88,7 +89,7 @@ class ClipboardSuggestionUi(
 
     val suggestionView = GestureFrame(ctx).apply {
         add(layout, lParams(wrapContent, matchParent))
-        background = rippleDrawable(ColorManager.getColor("hilited_candidate_back_color"))
+        background = rippleDrawable(ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_BACK_COLOR))
     }
 
     override val root =

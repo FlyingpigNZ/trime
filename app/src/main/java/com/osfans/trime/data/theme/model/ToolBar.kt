@@ -5,34 +5,37 @@
 
 package com.osfans.trime.data.theme.model
 
-import android.os.Parcelable
 import com.osfans.trime.util.yaml.Node
+import com.osfans.trime.util.yaml.boolean
 import com.osfans.trime.util.yaml.float
 import com.osfans.trime.util.yaml.int
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.sequence
 import com.osfans.trime.util.yaml.string
-import kotlinx.parcelize.Parcelize
 
-@Parcelize
 data class ToolBar(
     val primaryButton: Button? = null,
     val buttons: List<Button> = emptyList(),
     val buttonSpacing: Int = 18,
     val buttonFont: List<String> = emptyList(),
     val backStyle: String = "ic@arrow-left",
-) : Parcelable {
+    /**
+     * Per-schema override intent: true means this toolbar **replaces** the
+     * package `tool_bar` entirely; false (default) means it **merges** onto
+     * it. Only meaningful for toolbars decoded from `<schemaId>.extended.yaml`;
+     * the base package toolbar always has `replace = false`.
+     */
+    val replace: Boolean = false,
+) {
 
-    @Parcelize
     data class Button(
         val background: Background = Background(),
         val foreground: Foreground = Foreground(),
         val action: String = "",
         val longPressAction: String = "",
         val size: List<Int> = emptyList(),
-    ) : Parcelable {
+    ) {
 
-        @Parcelize
         data class Background(
             val type: Type = Type.RECTANGLE,
             val cornerRadius: Float = 10f,
@@ -40,7 +43,7 @@ data class ToolBar(
             val highlight: String = "",
             val verticalInset: Int = 4,
             val horizontalInset: Int = 4,
-        ) : Parcelable {
+        ) {
             enum class Type {
                 RECTANGLE,
                 CIRCLE,
@@ -60,7 +63,6 @@ data class ToolBar(
             }
         }
 
-        @Parcelize
         data class Foreground(
             val style: String = "",
             val optionStyles: List<String> = emptyList(),
@@ -68,7 +70,7 @@ data class ToolBar(
             val highlight: String = "",
             val fontSize: Float = 18f,
             val padding: Int = 4,
-        ) : Parcelable {
+        ) {
             companion object {
                 fun decode(node: Node.Mapping): Foreground = Foreground(
                     style = node["style"]?.string ?: "",
@@ -98,6 +100,9 @@ data class ToolBar(
     }
 
     companion object {
+        /** Custom intent key in `<schemaId>.extended.yaml`; handled by the caller. */
+        const val REPLACE_KEY = "__replace"
+
         fun decode(node: Node.Mapping?): ToolBar = ToolBar(
             primaryButton = node?.get("primary_button")?.mapping?.let { Button.decode(it) },
             buttons = node?.get("buttons")?.sequence?.map { Button.decode(it.mapping!!) } ?: emptyList(),
@@ -106,5 +111,23 @@ data class ToolBar(
                 ?.mapNotNull(Node::string) ?: emptyList(),
             backStyle = node?.get("back_style")?.string ?: "ic@arrow-left",
         )
+
+        /**
+         * Decode a per-schema `tool_bar` override from an `.extended.yaml`.
+         * Returns null when the section is absent; throws on a malformed
+         * `__replace` value so schema mistakes fail loudly (schema-first).
+         */
+        fun decodeExtended(node: Node.Mapping?): ToolBar? {
+            if (node == null) return null
+            val replace = when (val raw = node[REPLACE_KEY]) {
+                null -> false
+                else ->
+                    raw.boolean
+                        ?: throw IllegalArgumentException(
+                            "tool_bar.$REPLACE_KEY must be a boolean, got '${raw.string}'",
+                        )
+            }
+            return decode(node).copy(replace = replace)
+        }
     }
 }

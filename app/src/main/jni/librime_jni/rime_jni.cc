@@ -4,9 +4,19 @@
 
 #include <rime_api.h>
 
+#include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
+
+// librime C++ headers (read-only, see CLAUDE.md rule #4) for the
+// composition-segment probe: the public RimeContext only exposes the converted
+// preedit, while the T9 panel needs the raw input of the still-uncommitted
+// trailing segment.
+#include <rime/composition.h>
+#include <rime/context.h>
+#include <rime/service.h>
 
 #include "frontend.h"
 #include "jni-utils.h"
@@ -28,20 +38,24 @@ static void declare_librime_module_dependencies() {
 class Rime {
  public:
   Rime() : rime(rime_get_api()) {}
-  Rime(Rime const &) = delete;
-  void operator=(Rime const &) = delete;
+  Rime(Rime const&) = delete;
+  void operator=(Rime const&) = delete;
 
-  static Rime &Instance() {
+  static Rime& Instance() {
     static Rime instance;
     return instance;
   }
 
-  void startup(bool fullCheck,
-               const RimeNotificationHandler &notificationHandler) {
-    if (!rime) return;
-    const char *userDir = getenv("RIME_USER_DATA_DIR");
-    const char *sharedDir = getenv("RIME_SHARED_DATA_DIR");
-    const char *versionName = getenv("RIME_DISTRIBUTION_VERSION");
+  // Returns true when a maintenance run was scheduled; false when no
+  // maintenance will run at all (e.g. the workspace is already up to date and
+  // `detect_modifications` found nothing). The Kotlin side gates READY on the
+  // deploy message, so callers must synthesize one when this returns false.
+  bool startup(bool fullCheck,
+               const RimeNotificationHandler& notificationHandler) {
+    if (!rime) return false;
+    const char* userDir = getenv("RIME_USER_DATA_DIR");
+    const char* sharedDir = getenv("RIME_SHARED_DATA_DIR");
+    const char* versionName = getenv("RIME_DISTRIBUTION_VERSION");
 
     RIME_STRUCT(RimeTraits, trime_traits)
     trime_traits.shared_data_dir = sharedDir;
@@ -55,23 +69,67 @@ class Rime {
     rime->setup(&trime_traits);
     rime->initialize(&trime_traits);
     rime->set_notification_handler(notificationHandler, GlobalRef->jvm);
-    rime->start_maintenance(fullCheck);
+    return rime->start_maintenance(fullCheck);
   }
 
-  bool deploySchema(std::string_view schemaFile) {
-    return rime->deploy_schema(schemaFile.data());
+  // Whether the librime API was loaded at all; when false the engine cannot
+  // ever become usable, so startup must report failure rather than success.
+  bool apiAvailable() const { return rime != nullptr; }
+
+  // RimeStartMaintenance returns false both for "no modifications" (steady
+  // state — the engine is usable and a synthesized success is correct) and
+  // for a failing installation_update (unwritable user dir, full disk — no
+  // deploy message is ever sent, so a synthesized success would mask the
+  // failure). Distinguish them by content, not mtime: InstallationUpdate only
+  // rewrites installation.yaml when the recorded distribution/rime version
+  // differs, so on a steady-state start the file exists and carries the
+  // current distribution_version, while a failed installation_update leaves
+  // the file missing or stale.
+  bool installationInfoUsable() const {
+    if (rime == nullptr) return false;
+    const char* distroVersion = getenv("RIME_DISTRIBUTION_VERSION");
+    if (distroVersion == nullptr) return false;
+    // user_config_open reads the *user* data directory (user.yaml,
+    // installation.yaml); config_open would look in the shared data
+    // directory where installation.yaml never exists.
+    RimeConfig cfg;
+    if (!rime->user_config_open("installation", &cfg)) return false;
+    const char* written =
+        rime->config_get_cstring(&cfg, "distribution_version");
+    const bool usable =
+        written != nullptr && strcmp(written, distroVersion) == 0;
+    rime->config_close(&cfg);
+    return usable;
   }
 
-  bool deployConfigFile(std::string_view configFile,
-                        std::string_view versionKey) {
-    return rime->deploy_config_file(configFile.data(), versionKey.data());
+  // Runs a full workspace deploy synchronously against the given directories.
+  // Unlike startup(), this does not start the service or a maintenance thread,
+  // so it is safe to use in a separate compile process without racing the live
+  // engine (and in the same process only when no engine is running).
+  bool deployWorkspace(const char* sharedDir, const char* userDir,
+                       const char* versionName) {
+    if (!rime) return false;
+    RIME_STRUCT(RimeTraits, trime_traits)
+    trime_traits.shared_data_dir = sharedDir;
+    trime_traits.user_data_dir = userDir;
+    trime_traits.log_dir = "";  // set empty log_dir to log to logcat only
+    trime_traits.app_name = "rime.trime";
+    trime_traits.distribution_name = "Trime";
+    trime_traits.distribution_code_name = "trime";
+    trime_traits.distribution_version = versionName;
+    // setup() configures logging as well as the deployer paths;
+    // deployer_initialize() then loads the deployer modules without starting
+    // the service.
+    rime->setup(&trime_traits);
+    rime->deployer_initialize(&trime_traits);
+    return rime->deploy();
   }
 
   bool processKey(int keycode, int mask) {
     return rime->process_key(session(), keycode, mask);
   }
 
-  bool simulateKeySequence(const std::string &sequence) {
+  bool simulateKeySequence(const std::string& sequence) {
     return rime->simulate_key_sequence(session(), sequence.data());
   }
 
@@ -121,6 +179,10 @@ class Rime {
     return rime->get_option(session(), key.data());
   }
 
+  void setInput(std::string_view input) {
+    rime->set_input(session(), input.data());
+  }
+
   std::string currentSchemaId() {
     char result[MAX_BUFFER_LENGTH];
     return rime->get_current_schema(session(), result, MAX_BUFFER_LENGTH)
@@ -147,7 +209,40 @@ class Rime {
     return cStr ? cStr : "";
   }
 
-  size_t caretPosition() { return rime->get_caret_pos(session()); }
+  // Raw input of the composition's still-uncommitted trailing segment. After
+  // a candidate pick librime converts the leading segments (marking them
+  // selected) and opens a new trailing segment at the consumed offset, so this
+  // suffix is exactly the input that remains to be disambiguated — for the T9
+  // digit flow it is the pure-digit remainder of what the user typed, which
+  // the display preedit cannot reliably reproduce (the Lua preedit conversion
+  // renders the top candidate's code, which may be a completion/LM guess that
+  // does not fold back to the typed digits).
+  //
+  // Returns nullopt when there is no usable trailing segment (no session, no
+  // composition, an out-of-range segment start, or the last segment is already
+  // selected/converted so its start is not a pending-input boundary). An empty
+  // string means the trailing segment starts at the end of the input
+  // (composition fully consumed and about to finish).
+  std::optional<std::string> remainingInputTail() {
+    auto id = session_ ? session_->id() : 0;
+    if (id == 0) return std::nullopt;
+    auto rimeSession = rime::Service::instance().GetSession(id);
+    if (!rimeSession) return std::nullopt;
+    auto* ctx = rimeSession->context();
+    if (!ctx) return std::nullopt;
+    const auto& composition = ctx->composition();
+    if (composition.empty()) return std::nullopt;
+    // Only a still-uncommitted trailing segment marks where the consumed input
+    // ends. After a pick librime opens such a segment; if the last segment is
+    // selected/converted instead, its start is not a "remaining input"
+    // boundary, so report no tail and let the caller keep its current state.
+    if (composition.back().status >= rime::Segment::kSelected)
+      return std::nullopt;
+    const auto& input = ctx->input();
+    size_t start = composition.back().start;
+    if (start > input.length()) return std::nullopt;
+    return input.substr(start);
+  }
 
   void setCaretPosition(size_t caretPos) {
     rime->set_caret_pos(session(), caretPos);
@@ -209,7 +304,7 @@ class Rime {
   }
 
  private:
-  RimeApi *rime;
+  RimeApi* rime;
   std::shared_ptr<SessionHolder> session_;
 
   RimeSessionId session(bool requestNewSession = true) {
@@ -228,16 +323,16 @@ class Rime {
   }
 };
 
-GlobalRefSingleton *GlobalRef;
+GlobalRefSingleton* GlobalRef;
 
-JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *jvm, void *reserved) {
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
   GlobalRef = new GlobalRefSingleton(jvm);
   declare_librime_module_dependencies();
   return JNI_VERSION_1_6;
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_osfans_trime_core_Rime_startupRime(
-    JNIEnv *env, jclass clazz, jstring shared_dir, jstring user_dir,
+    JNIEnv* env, jclass clazz, jstring shared_dir, jstring user_dir,
     jstring version_name, jboolean full_check) {
   // for rime shared data dir
   setenv("RIME_SHARED_DATA_DIR", CString(env, shared_dir), 1);
@@ -245,9 +340,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_osfans_trime_core_Rime_startupRime(
   setenv("RIME_USER_DATA_DIR", CString(env, user_dir), 1);
   setenv("RIME_DISTRIBUTION_VERSION", CString(env, version_name), 1);
 
-  auto notificationHandler = [](void *context_object, RimeSessionId session_id,
-                                const char *message_type,
-                                const char *message_value) {
+  auto notificationHandler = [](void* context_object, RimeSessionId session_id,
+                                const char* message_type,
+                                const char* message_value) {
     auto env = GlobalRef->AttachEnv();
     int type = 0;  // unknown
     if (strcmp(message_type, "schema") == 0) {
@@ -264,133 +359,154 @@ extern "C" JNIEXPORT void JNICALL Java_com_osfans_trime_core_Rime_startupRime(
                               type, *vararg);
   };
 
-  Rime::Instance().startup(full_check, notificationHandler);
+  if (!Rime::Instance().startup(full_check, notificationHandler)) {
+    // No maintenance was scheduled: either the workspace is already up to
+    // date (steady state) or a maintenance thread is already running. In both
+    // cases librime will not send a deploy message, yet the engine is usable
+    // and the Kotlin READY gate must be unblocked — synthesize a success
+    // notification through the same channel the maintenance thread uses.
+    //
+    // Do NOT synthesize success when the engine cannot possibly be usable: an
+    // unloaded librime API, or a failing installation_update (unwritable user
+    // dir, full disk) on a fresh workspace, where no installation.yaml was
+    // ever written and no ("deploy","failure") message will ever arrive. Both
+    // must land in FAILED instead of silently flipping to READY.
+    if (Rime::Instance().apiAvailable() &&
+        Rime::Instance().installationInfoUsable()) {
+      notificationHandler(nullptr, 0, "deploy", "success");
+    } else {
+      notificationHandler(nullptr, 0, "deploy", "failure");
+    }
+  }
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_osfans_trime_core_Rime_exitRime(JNIEnv *env, jclass /* thiz */) {
+Java_com_osfans_trime_core_Rime_exitRime(JNIEnv* env, jclass /* thiz */) {
   Rime::Instance().exit();
 }
 
 // deployment
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_deployRimeSchemaFile(JNIEnv *env,
-                                                     jclass /* thiz */,
-                                                     jstring schema_file) {
-  return Rime::Instance().deploySchema(*CString(env, schema_file));
+Java_com_osfans_trime_core_Rime_deployRimeWorkspace(JNIEnv* env,
+                                                    jclass /* thiz */,
+                                                    jstring shared_dir,
+                                                    jstring user_dir,
+                                                    jstring version_name) {
+  return Rime::Instance().deployWorkspace(*CString(env, shared_dir),
+                                          *CString(env, user_dir),
+                                          *CString(env, version_name));
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_deployRimeConfigFile(JNIEnv *env,
-                                                     jclass /* thiz */,
-                                                     jstring file_name,
-                                                     jstring version_key) {
-  return Rime::Instance().deployConfigFile(*CString(env, file_name),
-                                           *CString(env, version_key));
-}
-
-extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_syncRimeUserData(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_syncRimeUserData(JNIEnv* env,
                                                  jclass /* thiz */) {
   return Rime::Instance().sync();
 }
 
 // input
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_processRimeKey(JNIEnv *env, jclass /* thiz */,
+Java_com_osfans_trime_core_Rime_processRimeKey(JNIEnv* env, jclass /* thiz */,
                                                jint keycode, jint mask) {
   return Rime::Instance().processKey(keycode, mask);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_commitRimeComposition(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_commitRimeComposition(JNIEnv* env,
                                                       jclass /* thiz */) {
   return Rime::Instance().commitComposition();
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_osfans_trime_core_Rime_clearRimeComposition(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_clearRimeComposition(JNIEnv* env,
                                                      jclass /* thiz */) {
   Rime::Instance().clearComposition();
 }
 
 // output
 extern "C" JNIEXPORT jobject JNICALL
-Java_com_osfans_trime_core_Rime_getRimeCommit(JNIEnv *env, jclass /* thiz */) {
+Java_com_osfans_trime_core_Rime_getRimeCommit(JNIEnv* env, jclass /* thiz */) {
   auto commit = Rime::Instance().commit();
   return rimeCommitToJObject(env, *commit);
 }
 
 extern "C" JNIEXPORT jobject JNICALL
-Java_com_osfans_trime_core_Rime_getRimeContext(JNIEnv *env, jclass /* thiz */) {
+Java_com_osfans_trime_core_Rime_getRimeContext(JNIEnv* env, jclass /* thiz */) {
   auto context = Rime::Instance().context();
   return rimeContextToJObject(env, *context);
 }
 
 extern "C" JNIEXPORT jobject JNICALL
-Java_com_osfans_trime_core_Rime_getRimeStatus(JNIEnv *env, jclass /* thiz */) {
+Java_com_osfans_trime_core_Rime_getRimeStatus(JNIEnv* env, jclass /* thiz */) {
   auto status = Rime::Instance().status();
   return rimeStatusToJObject(env, *status);
 }
 
 // runtime options
 extern "C" JNIEXPORT void JNICALL Java_com_osfans_trime_core_Rime_setRimeOption(
-    JNIEnv *env, jclass /* thiz */, jstring option, jboolean value) {
+    JNIEnv* env, jclass /* thiz */, jstring option, jboolean value) {
   Rime::Instance().setOption(*CString(env, option), value);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_getRimeOption(JNIEnv *env, jclass /* thiz */,
+Java_com_osfans_trime_core_Rime_getRimeOption(JNIEnv* env, jclass /* thiz */,
                                               jstring option) {
   return Rime::Instance().getOption(*CString(env, option));
 }
 
+extern "C" JNIEXPORT void JNICALL Java_com_osfans_trime_core_Rime_setRimeInput(
+    JNIEnv* env, jclass /* thiz */, jstring input) {
+  Rime::Instance().setInput(*CString(env, input));
+}
+
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_osfans_trime_core_Rime_getRimeSchemaList(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_getRimeSchemaList(JNIEnv* env,
                                                   jclass /* thiz */) {
   return rimeSchemaListToJObjectArray(env, Rime::Instance().schemaList());
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_osfans_trime_core_Rime_getCurrentRimeSchema(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_getCurrentRimeSchema(JNIEnv* env,
                                                      jclass /* thiz */) {
-  return env->NewStringUTF(Rime::Instance().currentSchemaId().c_str());
+  const std::string id = Rime::Instance().currentSchemaId();
+  return NewUtf8String(env, id.data(), id.size());
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_selectRimeSchema(JNIEnv *env, jclass /* thiz */,
+Java_com_osfans_trime_core_Rime_selectRimeSchema(JNIEnv* env, jclass /* thiz */,
                                                  jstring schema_id) {
   return Rime::Instance().selectSchema(*CString(env, schema_id));
 }
 
 // testing
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_simulateRimeKeySequence(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_simulateRimeKeySequence(JNIEnv* env,
                                                         jclass /* thiz */,
                                                         jstring key_sequence) {
   return Rime::Instance().simulateKeySequence(CString(env, key_sequence));
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_osfans_trime_core_Rime_getRimeRawInput(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_getRimeRawInput(JNIEnv* env,
                                                 jclass /* thiz */) {
-  return env->NewStringUTF(Rime::Instance().rawInput().data());
+  const std::string input = Rime::Instance().rawInput();
+  return NewUtf8String(env, input.data(), input.size());
 }
 
-extern "C" JNIEXPORT jint JNICALL
-Java_com_osfans_trime_core_Rime_getRimeCaretPos(JNIEnv *env,
-                                                jclass /* thiz */) {
-  return static_cast<jint>(Rime::Instance().caretPosition());
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_osfans_trime_core_Rime_getRimeRemainingInputTail(JNIEnv* env,
+                                                          jclass /* thiz */) {
+  auto tail = Rime::Instance().remainingInputTail();
+  return tail ? NewUtf8String(env, tail->data(), tail->size()) : nullptr;
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_osfans_trime_core_Rime_setRimeCaretPos(JNIEnv *env, jclass /* thiz */,
+Java_com_osfans_trime_core_Rime_setRimeCaretPos(JNIEnv* env, jclass /* thiz */,
                                                 jint caret_pos) {
   Rime::Instance().setCaretPosition(caret_pos);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_selectRimeCandidate(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_selectRimeCandidate(JNIEnv* env,
                                                     jclass /* thiz */,
                                                     jint index,
                                                     jboolean global) {
@@ -398,7 +514,7 @@ Java_com_osfans_trime_core_Rime_selectRimeCandidate(JNIEnv *env,
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_deleteRimeCandidate(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_deleteRimeCandidate(JNIEnv* env,
                                                     jclass /* thiz */,
                                                     jint index,
                                                     jboolean global) {
@@ -406,14 +522,14 @@ Java_com_osfans_trime_core_Rime_deleteRimeCandidate(JNIEnv *env,
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_changeRimeCandidatePage(JNIEnv *env,
+Java_com_osfans_trime_core_Rime_changeRimeCandidatePage(JNIEnv* env,
                                                         jclass clazz,
                                                         jboolean backward) {
   return Rime::Instance().changePage(backward);
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_osfans_trime_core_Rime_getRimeCandidates(JNIEnv *env, jclass clazz,
+Java_com_osfans_trime_core_Rime_getRimeCandidates(JNIEnv* env, jclass clazz,
                                                   jint start_index,
                                                   jint limit) {
   return rimeCandidateListToJObjectArray(
@@ -421,7 +537,7 @@ Java_com_osfans_trime_core_Rime_getRimeCandidates(JNIEnv *env, jclass clazz,
 }
 
 extern "C" JNIEXPORT jobject JNICALL
-Java_com_osfans_trime_core_Rime_getRimeResponse(JNIEnv *env, jclass clazz,
+Java_com_osfans_trime_core_Rime_getRimeResponse(JNIEnv* env, jclass clazz,
                                                 jboolean paging_mode) {
   auto commit = Rime::Instance().commit();
   // the menu is only needed in paging mode, otherwise its candidates would be

@@ -13,6 +13,7 @@ import com.chad.library.adapter4.BaseQuickAdapter
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.LiquidKeyboard
 import com.osfans.trime.ime.core.AutoScaleTextView
+import com.osfans.trime.ime.keyboard.UiScale
 import splitties.dimensions.dp
 import splitties.views.gravityCenter
 
@@ -34,7 +35,7 @@ class LiquidAdapter(
             scaleMode = AutoScaleTextView.Mode.Proportional
             gravity = gravityCenter
             updateLayoutParams {
-                width = context.dp(theme.liquidKeyboard.singleWidth)
+                width = context.dp((theme.liquidKeyboard.singleWidth * UiScale.factor).toInt())
             }
         }
         return ViewHolder(ui)

@@ -5,34 +5,42 @@
 
 package com.osfans.trime.core
 
-import com.osfans.trime.BuildConfig
-import com.osfans.trime.data.base.DataManager
-import com.osfans.trime.data.opencc.OpenCCDictManager
-import com.osfans.trime.data.prefs.AppPrefs
-import com.osfans.trime.ime.core.InlinePreeditMode
-import com.osfans.trime.util.appContext
-import com.osfans.trime.util.isStorageAvailable
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Rime JNI and instance methods
  *
+ * This class is the pure engine boundary: it has no dependency on Android or on
+ * the application packages. Everything it needs (options, data directories,
+ * side-effect hooks) is injected via the constructor.
+ *
  * @see [librime](https://github.com/rime/librime)
  */
-class Rime :
-    RimeApi,
+class Rime(
+    private val inputOptions: InputOptions,
+    private val environment: () -> RimeEnvironment,
+    private val onBeforeStart: () -> Unit = {},
+    private val onDeployStart: () -> Unit = {},
+) : RimeApi,
     RimeLifecycleOwner {
     private val lifecycleRegistry = RimeLifecycleRegistry()
     override val lifecycle get() = lifecycleRegistry
 
     override val messageFlow = messageFlow_.asSharedFlow()
+
+    private val _uiState = MutableStateFlow(RimeUiState())
+    override val uiState = _uiState.asStateFlow()
 
     override val isReady: Boolean
         get() = lifecycle.currentState == RimeLifecycle.State.READY
@@ -40,24 +48,36 @@ class Rime :
     override var schemaCached = RimeSchema(".default")
         private set
 
-    override var statusCached = StatusProto()
-        private set
+    override val statusCached: StatusProto
+        get() = _uiState.value.status
 
-    override var compositionCached = CompositionProto()
-        private set
+    override val compositionCached: CompositionProto
+        get() = _uiState.value.composition
 
-    override var hasMenu: Boolean = false
-        private set
+    override val hasMenu: Boolean
+        get() = _uiState.value.hasMenu
 
-    override var paging: Boolean = false
-        private set
+    override val paging: Boolean
+        get() = _uiState.value.paging
 
     private val dispatcher =
         RimeDispatcher(
             object : RimeDispatcher.RimeController {
-                override fun nativeStartup() {
-                    startRime(false)
-                    lifecycleRegistry.emitState(RimeLifecycle.State.READY)
+                override fun nativeStartup(fullCheck: Boolean) {
+                    try {
+                        startRime(fullCheck)
+                    } catch (t: Throwable) {
+                        // onBeforeStart()/startupRime() failed before any
+                        // deploy message could arrive. Leave STARTING
+                        // explicitly: the engine is not usable and the daemon
+                        // must be able to observe/retry the failure instead of
+                        // hanging forever.
+                        Timber.e(t, "Rime startup failed")
+                        lifecycleRegistry.emitState(RimeLifecycle.State.FAILED)
+                    }
+                    // No unconditional READY here: readiness is gated on the
+                    // deploy message (see handleRimeMessage), so a failed or
+                    // half-initialized engine never masquerades as ready.
                 }
 
                 override fun nativeFinalize() {
@@ -65,9 +85,6 @@ class Rime :
                 }
             },
         )
-
-    private val inlinePreeditMode by AppPrefs.defaultInstance().general.inlinePreeditMode
-    private val showAsciiSwitchTips by AppPrefs.defaultInstance().general.asciiSwitchTips
 
     private var asciiSwitchTipsJob: Job? = null
     private var isNullInputType = true
@@ -86,16 +103,6 @@ class Rime :
 
     override suspend fun isEmpty(): Boolean = withRimeContext {
         getCurrentRimeSchema() == ".default" // 無方案
-    }
-
-    override suspend fun deploy() = withRimeContext {
-        exitRime()
-        startRime(true)
-    }
-
-    override suspend fun updateConfig() = withRimeContext {
-        exitRime()
-        startRime(false)
     }
 
     override suspend fun syncUserData(): Boolean = withRimeContext {
@@ -179,15 +186,31 @@ class Rime :
         getRimeRawInput()
     }
 
+    override suspend fun remainingInputTail(): String? = withRimeContext {
+        getRimeRemainingInputTail()
+    }
+
     override suspend fun setRuntimeOption(
         option: String,
         value: Boolean,
     ): Unit = withRimeContext {
         setRimeOption(option, value)
+        _uiState.update { it.copy(options = it.options + (option to value)) }
     }
 
     override suspend fun getRuntimeOption(option: String): Boolean = withRimeContext {
         getRimeOption(option)
+    }
+
+    override suspend fun setInput(input: String): Unit = withRimeContext {
+        setRimeInput(input)
+        emitResponse()
+    }
+
+    override suspend fun clearAndSetInput(input: String) = withRimeContext {
+        clearRimeComposition()
+        setRimeInput(input)
+        emitResponse()
     }
 
     override suspend fun setNullInputType(value: Boolean) = withRimeContext {
@@ -207,18 +230,17 @@ class Rime :
     }
 
     private fun startRime(fullCheck: Boolean) {
-        DataManager.sync()
-        val sharedDataDir = DataManager.sharedDataDir.absolutePath
-        val userDataDir = DataManager.userDataDir.absolutePath
+        onBeforeStart()
+        val env = environment()
         Timber.d(
             """
             Starting rime with:
-            sharedDataDir: $sharedDataDir
-            userDataDir: $userDataDir
+            sharedDataDir: ${env.sharedDataDir}
+            userDataDir: ${env.userDataDir}
             fullCheck: $fullCheck
             """.trimIndent(),
         )
-        startupRime(sharedDataDir, userDataDir, BuildConfig.BUILD_VERSION_NAME, fullCheck)
+        startupRime(env.sharedDataDir, env.userDataDir, env.versionName, fullCheck)
     }
 
     private fun processKeyInner(value: Int, modifiers: Int, isVirtual: Boolean): Boolean {
@@ -226,9 +248,14 @@ class Rime :
         val handled = processRimeKey(value, modifiers)
         emitResponse()
         if (!handled) {
-            handleRimeMessage(
-                10, // RimeMessage.MessageType.Key,
-                arrayOf(value, modifiers, isVirtual),
+            emitMessage(
+                RimeMessage.KeyMessage(
+                    RimeMessage.KeyMessage.Data(
+                        KeyValue(value),
+                        KeyModifiers.of(modifiers),
+                        isVirtual,
+                    ),
+                ),
             )
         }
         return handled
@@ -243,73 +270,112 @@ class Rime :
 
     private fun emitResponse(commit: CommitProto? = null) {
         val response = getRimeResponse(pagingMode)
-        handleRimeMessage(4, arrayOf(commit ?: response.commit))
+        emitMessage(RimeMessage.CommitTextMessage(commit ?: response.commit))
         handlePreedit(response.composition)
         if (response.composition.length <= 0 && lastAsciiTipsText != asciiTipsText(response.status)) {
             showAsciiSwitchTips(response.status)
         }
         when (val candidates = response.candidates) {
-            is Candidates.Paged -> handleRimeMessage(7, arrayOf(candidates))
-            is Candidates.Bulk -> handleRimeMessage(9, arrayOf(candidates))
+            is Candidates.Paged -> emitMessage(RimeMessage.PagedCandidatesMessage(candidates))
+            is Candidates.Bulk -> emitMessage(RimeMessage.BulkCandidatesMessage(candidates))
         }
-        handleRimeMessage(8, arrayOf(response.status))
+        emitMessage(RimeMessage.StatusMessage(response.status))
     }
 
     private fun handlePreedit(composition: CompositionProto) {
         val mode = if (isNullInputType) {
-            InlinePreeditMode.DISABLE
+            InlinePreeditStyle.DISABLE
         } else {
-            inlinePreeditMode
+            inputOptions.inlinePreeditMode
         }
         val inlinePreedit = when (mode) {
-            InlinePreeditMode.DISABLE -> ""
-            InlinePreeditMode.COMPOSING_TEXT -> composition.preedit ?: ""
-            InlinePreeditMode.COMMIT_TEXT_PREVIEW -> composition.commitTextPreview ?: ""
+            InlinePreeditStyle.DISABLE -> ""
+            InlinePreeditStyle.COMPOSING_TEXT -> composition.preedit ?: ""
+            InlinePreeditStyle.COMMIT_TEXT_PREVIEW -> composition.commitTextPreview ?: ""
         }
-        val composition = if (mode == InlinePreeditMode.COMPOSING_TEXT) {
+        val composition = if (mode == InlinePreeditStyle.COMPOSING_TEXT) {
             CompositionProto()
         } else {
             composition
         }
-        handleRimeMessage(5, arrayOf(inlinePreedit))
-        handleRimeMessage(6, arrayOf(composition))
+        emitMessage(RimeMessage.InlinePreeditMessage(inlinePreedit))
+        emitMessage(RimeMessage.CompositionMessage(composition))
     }
 
     private fun handleRimeMessage(it: RimeMessage<*>) {
         when (it) {
             is RimeMessage.SchemaMessage -> {
-                statusCached = getRimeStatus()
+                _uiState.update { it.copy(status = getRimeStatus()) }
                 schemaCached = RimeSchema(it.data.id)
             }
             is RimeMessage.OptionMessage -> {
                 // Option change won't trigger response update
                 val status = getRimeStatus()
-                statusCached = status
+                val optionMessage = it.data
+                _uiState.update { state ->
+                    state.copy(
+                        status = status,
+                        options = state.options + (optionMessage.option to optionMessage.value),
+                    )
+                }
                 updateSchemaCached(status)
-                if (it.data.option == "ascii_mode") {
+                if (optionMessage.option == "ascii_mode") {
                     showAsciiSwitchTips(status)
                 }
             }
             is RimeMessage.DeployMessage -> {
-                if (it.data == RimeMessage.DeployMessage.State.Start) {
-                    OpenCCDictManager.buildOpenCCDict()
+                when (it.data) {
+                    RimeMessage.DeployMessage.State.Start -> {
+                        _uiState.update { state -> state.copy(deployState = DeployState.Deploying) }
+                        onDeployStart()
+                    }
+                    RimeMessage.DeployMessage.State.Success -> {
+                        _uiState.update { state -> state.copy(deployState = DeployState.Success) }
+                        if (lifecycle.currentState == RimeLifecycle.State.STARTING) {
+                            // Hop off the librime notification thread:
+                            // emitState resumes whenReady observers, some of
+                            // which restart the engine, and none of that may
+                            // run inline on the notification thread.
+                            lifecycleScope.launch {
+                                if (lifecycle.currentState == RimeLifecycle.State.STARTING) {
+                                    lifecycleRegistry.emitState(RimeLifecycle.State.READY)
+                                }
+                            }
+                        }
+                    }
+                    RimeMessage.DeployMessage.State.Failure -> {
+                        _uiState.update { state -> state.copy(deployState = DeployState.Failure) }
+                        if (lifecycle.currentState == RimeLifecycle.State.STARTING) {
+                            lifecycleScope.launch {
+                                if (lifecycle.currentState == RimeLifecycle.State.STARTING) {
+                                    lifecycleRegistry.emitState(RimeLifecycle.State.FAILED)
+                                }
+                            }
+                        }
+                    }
                 }
             }
             is RimeMessage.CompositionMessage -> {
                 val composition = it.data
-                compositionCached = composition
+                _uiState.update { state -> state.copy(composition = composition) }
             }
             is RimeMessage.PagedCandidatesMessage -> {
                 val paged = it.data
-                paging = paged.hasPrevPage
-                hasMenu = paged.candidates.isNotEmpty()
+                _uiState.update {
+                    it.copy(
+                        paging = paged.hasPrevPage,
+                        hasMenu = paged.candidates.isNotEmpty(),
+                    )
+                }
             }
             is RimeMessage.BulkCandidatesMessage -> {
-                hasMenu = it.data.candidates.isNotEmpty()
+                val bulk = it.data
+                _uiState.update { state -> state.copy(hasMenu = bulk.candidates.isNotEmpty()) }
             }
             is RimeMessage.StatusMessage -> {
-                statusCached = it.data
-                updateSchemaCached(it.data)
+                val status = it.data
+                _uiState.update { state -> state.copy(status = status) }
+                updateSchemaCached(status)
             }
             else -> {}
         }
@@ -330,7 +396,7 @@ class Rime :
     }
 
     private fun showAsciiSwitchTips(status: StatusProto) {
-        if (!showAsciiSwitchTips) return
+        if (!inputOptions.asciiSwitchTips) return
         val tipsText = asciiTipsText(status)
         if (tipsText.isEmpty()) return
 
@@ -338,35 +404,45 @@ class Rime :
 
         val tips = CompositionProto(tipsText)
         messageFlow_.tryEmit(RimeMessage.CompositionMessage(tips))
-        compositionCached = tips
+        _uiState.update { it.copy(composition = tips) }
         asciiSwitchTipsJob?.cancel()
         asciiSwitchTipsJob = lifecycleScope.launch {
             delay(1000L)
             val ctx = getRimeContext()
-            handleRimeMessage(6, arrayOf(ctx.composition))
+            emitMessage(RimeMessage.CompositionMessage(ctx.composition))
         }
     }
 
-    fun startup() {
-        if (!appContext.isStorageAvailable()) {
-            Timber.w("Skip starting rime: storage not available!")
-            return
-        }
-        if (lifecycle.currentState != RimeLifecycle.State.STOPPED) {
+    fun startup(fullCheck: Boolean = false) {
+        // Atomic CAS STOPPED -> STARTING: a concurrent restartRime or
+        // createSession that also observes STOPPED gets false here and
+        // returns instead of double-starting (emitState would throw).
+        if (!lifecycle.tryTransition(listOf(RimeLifecycle.State.STOPPED), RimeLifecycle.State.STARTING)) {
             Timber.w("Skip starting rime: not at stopped state!")
             return
         }
-        registerRimeMessageHandler(::handleRimeMessage)
-        lifecycleRegistry.emitState(RimeLifecycle.State.STARTING)
-        dispatcher.start()
+        // Forget the last schema id: after an engine (re)start the first
+        // StatusMessage must re-emit a SchemaMessage even when the schema id
+        // did not change (e.g. a package re-import/re-activation redeploys the
+        // same schema), so per-schema state (toolbar override, T9
+        // disambiguation data) is re-read from the workspace instead of going
+        // stale until the next real schema switch.
+        schemaCached = RimeSchema(".default")
+        _uiState.update { it.copy(deployState = DeployState.Idle) }
+        registerRimeMessageHandler(rimeMessageHandler)
+        dispatcher.start(fullCheck)
     }
 
     fun finalize() {
-        if (lifecycle.currentState != RimeLifecycle.State.READY) {
+        // Atomic CAS READY|FAILED -> STOPPING (see [startup]).
+        if (!lifecycle.tryTransition(
+                listOf(RimeLifecycle.State.READY, RimeLifecycle.State.FAILED),
+                RimeLifecycle.State.STOPPING,
+            )
+        ) {
             Timber.w("Skip stopping rime: not at ready state!")
             return
         }
-        lifecycleRegistry.emitState(RimeLifecycle.State.STOPPING)
         Timber.i("Rime finalize()")
         dispatcher.stop().let {
             if (it.isNotEmpty()) {
@@ -374,17 +450,31 @@ class Rime :
             }
         }
         lifecycleRegistry.emitState(RimeLifecycle.State.STOPPED)
-        unregisterRimeMessageHandler(::handleRimeMessage)
+        unregisterRimeMessageHandler(rimeMessageHandler)
     }
 
+    /**
+     * Stable bound reference to [handleRimeMessage]. A fresh `::handleRimeMessage`
+     * callable-reference is a new object every time, so registering/unregistering
+     * it by identity would never match: the handler would accumulate one copy
+     * per [startup] and never be removed.
+     */
+    private val rimeMessageHandler: (RimeMessage<*>) -> Unit = ::handleRimeMessage
+
     companion object {
+        /**
+         * Engine event stream. UI state that must never be lost (commit text,
+         * key events) is emitted first in each response batch; the large buffer
+         * with [BufferOverflow.DROP_OLDEST] keeps the rime thread non-blocking
+         * while giving collectors ample headroom under fast typing.
+         */
         private val messageFlow_ =
             MutableSharedFlow<RimeMessage<*>>(
-                extraBufferCapacity = 15,
+                extraBufferCapacity = 64,
                 onBufferOverflow = BufferOverflow.DROP_OLDEST,
             )
 
-        private val rimeMessageHandlers = ArrayList<(RimeMessage<*>) -> Unit>()
+        private val rimeMessageHandlers = CopyOnWriteArrayList<(RimeMessage<*>) -> Unit>()
 
         init {
             System.loadLibrary("rime_jni")
@@ -402,13 +492,12 @@ class Rime :
         @JvmStatic
         external fun exitRime()
 
+        /** Synchronously deploy a full workspace without starting the engine. */
         @JvmStatic
-        external fun deployRimeSchemaFile(schemaFile: String): Boolean
-
-        @JvmStatic
-        external fun deployRimeConfigFile(
-            fileName: String,
-            versionKey: String,
+        external fun deployRimeWorkspace(
+            sharedDir: String,
+            userDir: String,
+            versionName: String,
         ): Boolean
 
         @JvmStatic
@@ -448,6 +537,9 @@ class Rime :
         external fun getRimeOption(option: String): Boolean
 
         @JvmStatic
+        external fun setRimeInput(input: String)
+
+        @JvmStatic
         external fun getRimeSchemaList(): Array<SchemaItem>
 
         @JvmStatic
@@ -464,7 +556,7 @@ class Rime :
         external fun getRimeRawInput(): String
 
         @JvmStatic
-        external fun getRimeCaretPos(): Int
+        external fun getRimeRemainingInputTail(): String?
 
         @JvmStatic
         external fun setRimeCaretPos(caretPos: Int)
@@ -501,7 +593,16 @@ class Rime :
             type: Int,
             params: Array<Any>,
         ) {
-            val message = RimeMessage.nativeCreate(type, params)
+            emitMessage(RimeMessage.nativeCreate(type, params))
+        }
+
+        /**
+         * Dispatch a typed message to the registered handlers and the message
+         * flow. Kotlin code should construct the sealed [RimeMessage] subtypes
+         * directly and call this; only the C++ channel goes through
+         * [handleRimeMessage].
+         */
+        fun emitMessage(message: RimeMessage<*>) {
             Timber.d("Handling $message")
             rimeMessageHandlers.forEach { it.invoke(message) }
             messageFlow_.tryEmit(message)

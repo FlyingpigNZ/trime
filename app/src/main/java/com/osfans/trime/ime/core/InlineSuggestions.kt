@@ -22,6 +22,7 @@ import androidx.autofill.inline.common.ViewStyle
 import androidx.autofill.inline.v1.InlineSuggestionUi
 import com.osfans.trime.R
 import com.osfans.trime.data.theme.ColorManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.util.ColorUtils
 import splitties.dimensions.dp
 
@@ -29,9 +30,9 @@ object InlineSuggestions {
     @SuppressLint("RestrictedApi")
     @RequiresApi(Build.VERSION_CODES.R)
     fun createRequest(ctx: Context): InlineSuggestionsRequest {
-        val textColor = ColorManager.getColor("candidate_text_color")
-        val altTextColor = ColorManager.getColor("comment_text_color")
-        val isDark = ColorUtils.isContrastedDark(ColorManager.getColor("back_color"))
+        val textColor = ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR)
+        val altTextColor = ColorManager.getColor(ThemeColor.COMMENT_TEXT_COLOR)
+        val isDark = ColorUtils.isContrastedDark(ColorManager.getColor(ThemeColor.BACK_COLOR))
         val chipDrawable = if (isDark) {
             R.drawable.bg_inline_suggestion_dark
         } else {

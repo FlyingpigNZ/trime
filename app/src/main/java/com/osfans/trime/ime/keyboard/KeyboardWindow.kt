@@ -16,11 +16,11 @@ import com.osfans.trime.core.SchemaItem
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.Theme
-import com.osfans.trime.data.theme.model.TextKeyboard
+import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.ime.broadcast.EnterKeyDisplayDelegate
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
 import com.osfans.trime.ime.core.TrimeInputMethodService
-import com.osfans.trime.ime.keyboard.KeyboardPrefs.isLandscapeMode
+import com.osfans.trime.ime.disambiguation.T9DisambiguationController
 import com.osfans.trime.ime.popup.PopupDelegate
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.ResidentWindow
@@ -35,6 +35,10 @@ import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
 import timber.log.Timber
 
+/**
+ * Renders the current keyboard and delegates all selection policy (target
+ * resolution, schema smart-match, ascii-mode sync) to [KeyboardSwitcher].
+ */
 class KeyboardWindow :
     BoardWindow.NoBarBoardWindow(),
     ResidentWindow,
@@ -42,6 +46,7 @@ class KeyboardWindow :
     private val service: TrimeInputMethodService by di.instance()
     private val theme: Theme by di.instance()
     private val rime: RimeSession by di.instance()
+    private val switcher: KeyboardSwitcher by di.instance()
     private val commonKeyboardActionListener: CommonKeyboardActionListener by di.instance()
     private val popup: PopupDelegate by di.instance()
     private val enterKeyDisplay: EnterKeyDisplayDelegate by di.instance()
@@ -71,20 +76,23 @@ class KeyboardWindow :
     override val key: ResidentWindow.Key
         get() = KeyboardWindow
 
-    private val presetKeyboardIds = theme.presetKeyboards.keys.toList()
-    private var currentKeyboardId = ""
-    private var lastKeyboardId = ""
-    private var lastLockKeyboardId = ""
-    private var tempAsciiMode: Boolean? = null
-    private val cachedKeyboards = mutableMapOf<String, Pair<Keyboard, KeyboardView>>()
-    private val currentKeyboard: Keyboard? get() = cachedKeyboards[currentKeyboardId]?.first
-    private val currentKeyboardView: KeyboardView? get() = cachedKeyboards[currentKeyboardId]?.second
+    private val cachedKeyboardViews = mutableMapOf<String, KeyboardView>()
+    private val currentKeyboard: Keyboard? get() = switcher.currentKeyboard
+    private val currentKeyboardView: KeyboardView? get() = cachedKeyboardViews[switcher.currentKeyboardId]
 
     private val keyboardActionListener = commonKeyboardActionListener.listener
 
+    /**
+     * T9 pinyin disambiguation (feature ②): a floating column over the
+     * keyboard's first punctuation column listing every legal pinyin parse
+     * of the current digit input. Exposed (internal) so the key listener can
+     * route T9 digit keys / Backspace to it before they reach Rime.
+     */
+    val t9Disambiguation = T9DisambiguationController(rime, theme)
+
     override fun onCreateView(): View {
         keyboardView = context.frameLayout(R.id.keyboard_view)
-        attachKeyboard(evalKeyboard(".default"))
+        attachKeyboard(switcher.resolveKeyboard(".default"))
         return keyboardView
     }
 
@@ -93,48 +101,33 @@ class KeyboardWindow :
             it.onDetach()
             keyboardView.removeView(it)
         }
-        currentKeyboard?.lastAsciiMode = rime.run { statusCached }.isAsciiMode
+        switcher.detachCurrentKeyboard()
     }
 
-    private fun selectKeyboardConfig(name: String): TextKeyboard? {
-        val config = theme.presetKeyboards[name] ?: theme.presetKeyboards["default"]
-        val importPreset = config?.importPreset
-        if (!importPreset.isNullOrEmpty()) {
-            return selectKeyboardConfig(importPreset)
-        }
-        return config
+    /**
+     * Rebuild the current keyboard after a configuration change (e.g.
+     * rotation). Both the [Keyboard] model and the [KeyboardView] caches are
+     * orientation-dependent and must be recreated with fresh metrics; the
+     * target is re-resolved so landscape variants are picked up both ways.
+     */
+    fun onConfigurationChanged() {
+        detachCurrentView()
+        cachedKeyboardViews.clear()
+        switcher.invalidateKeyboardCache()
+        attachKeyboard(switcher.currentKeyboardId.ifEmpty { ".default" })
     }
 
     private fun attachKeyboard(target: String) {
-        currentKeyboardId = target
-        lastKeyboardId = target
-
-        val config = selectKeyboardConfig(target)
-        val keyboard = currentKeyboard ?: Keyboard(context, theme, config)
-        val view = currentKeyboardView ?: KeyboardView(context, theme, keyboard, popup, service, keyboardActionListener, enterKeyDisplay)
-
-        if (currentKeyboard == null) {
-            cachedKeyboards[target] = keyboard to view
-            keyboard.lastAsciiMode = keyboard.asciiMode
-        }
+        val keyboard = switcher.selectKeyboard(target)
+        val keyboardId = switcher.currentKeyboardId
+        val view =
+            cachedKeyboardViews.getOrPut(keyboardId) {
+                KeyboardView(context, theme, keyboard, popup, service, keyboardActionListener, enterKeyDisplay, rime)
+            }
 
         keyboard.also {
             runBlocking { _currentKeyboardHeight.emit(it.keyboardHeight) }
-            if (it.isLock) lastLockKeyboardId = target
             dispatchCapsState(it::setShifted)
-
-            val currentMode = rime.run { statusCached }.isAsciiMode
-            val targetMode = if (it.resetAsciiMode) it.asciiMode else it.lastAsciiMode
-
-            if (currentMode != targetMode) {
-                service.postRimeJob {
-                    commitComposition()
-                    setRuntimeOption("ascii_mode", targetMode)
-                }
-            }
-
-            // TODO：为避免过量重构，这里暂时将 currentKeyboard 同步到 KeyboardSwitcher
-            KeyboardSwitcher.currentKeyboard = it
         }
 
         view.let {
@@ -143,123 +136,44 @@ class KeyboardWindow :
                 add(it, lParams(matchParent, matchParent))
             }
         }
+
+        // Attach the disambiguation panel on top of the keyboard view so it
+        // covers the first (punctuation) column of a T9 keyboard. The current
+        // keyboard id is passed so the controller can gate the overlay on the
+        // keyboard id the schema declares (`t9_disambiguation.keyboard`).
+        t9Disambiguation.attach(keyboardView, keyboard, keyboardId)
     }
 
-    private fun smartMatchKeyboard(): String {
-        // 主题的布局中包含方案id，直接采用
-        val currentSchema = rime.run { statusCached }.schemaId
-        if (presetKeyboardIds.contains(currentSchema)) {
-            return currentSchema
-        }
-        val alphabet = rime.run { schemaCached }.alphabet
-        val layout =
-            when {
-                alphabet.all { it.isLetter() } -> "qwerty" // 包含 26 个字母
-                alphabet.all { it.isLetter() || ",./;".any(it::equals) } -> "qwerty_" // 包含 26 个字母和,./;
-                alphabet.all { it.isLetterOrDigit() } -> "qwerty0" // 包含 26 个字母和数字键
-                else -> "default"
-            }
-        return if (presetKeyboardIds.contains(layout)) layout else "default"
-    }
-
-    private fun evalKeyboard(id: String): String {
-        val currentIdx = presetKeyboardIds.indexOfFirst { currentKeyboardId == it }
-        val dot =
-            when (id) {
-                ".default" -> smartMatchKeyboard()
-                ".prior" -> presetKeyboardIds.getOrNull(currentIdx - 1) ?: currentKeyboardId
-                ".next" -> presetKeyboardIds.getOrNull(currentIdx + 1) ?: currentKeyboardId
-                ".last" -> lastKeyboardId
-                ".last_lock" -> lastLockKeyboardId
-                ".ascii" -> {
-                    var ascii = currentKeyboard?.asciiKeyboard
-                    if (ascii.isNullOrEmpty()) {
-                        ascii = lastLockKeyboardId
-                    }
-                    if (presetKeyboardIds.contains(ascii)) ascii else currentKeyboardId
-                }
-                else -> {
-                    id.ifEmpty {
-                        if (currentKeyboard?.isLock == true) currentKeyboardId else lastLockKeyboardId
-                    }
-                }
-            }
-        var final = dot.ifEmpty { smartMatchKeyboard() }
-
-        // 切换到横屏布局
-        if (service.isLandscapeMode()) {
-            val landscape =
-                theme.presetKeyboards[final]?.landscapeKeyboard ?: ""
-            if (landscape.isNotEmpty() && presetKeyboardIds.contains(landscape)) final = landscape
-        }
-        return final
-    }
-
-    fun switchKeyboard(to: String) {
-        val target = evalKeyboard(to)
+    fun switchKeyboard(
+        to: String,
+        onSwitched: (() -> Unit)? = null,
+    ) {
+        val target = switcher.resolveKeyboard(to)
         ContextCompat.getMainExecutor(service).execute {
-            if (cachedKeyboards.containsKey(target)) {
-                if (target == currentKeyboardId) return@execute
+            if (cachedKeyboardViews.containsKey(target)) {
+                if (target == switcher.currentKeyboardId) {
+                    // Target is already current; the post-switch callback must
+                    // still run (e.g. the start-input ascii policy).
+                    onSwitched?.invoke()
+                    return@execute
+                }
             }
             detachCurrentView()
             attachKeyboard(target)
+            onSwitched?.invoke()
         }
         Timber.d("Switched to keyboard: $target")
     }
 
     override fun onStartInput(info: EditorInfo) {
-        val targetKeyboard =
-            when (info.imeOptions and EditorInfo.IME_FLAG_FORCE_ASCII) {
-                EditorInfo.IME_FLAG_FORCE_ASCII -> ".ascii"
-                else -> {
-                    when (info.inputType and InputType.TYPE_MASK_CLASS) {
-                        InputType.TYPE_CLASS_NUMBER,
-                        InputType.TYPE_CLASS_PHONE,
-                        InputType.TYPE_CLASS_DATETIME,
-                        -> "number"
-                        InputType.TYPE_CLASS_TEXT -> {
-                            when (info.inputType and InputType.TYPE_MASK_VARIATION) {
-                                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-                                InputType.TYPE_TEXT_VARIATION_PASSWORD,
-                                InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
-                                InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
-                                InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
-                                -> ".ascii"
-                                else -> ""
-                            }
-                        }
-                        else -> ""
-                    }
-                }
-            }
-        switchKeyboard(targetKeyboard)
-        val isAsciiMode = rime.run { statusCached }.isAsciiMode
-        if (targetKeyboard == ".ascii" || targetKeyboard == "number") {
-            if (tempAsciiMode == null) {
-                tempAsciiMode = isAsciiMode
-            }
-            if (!isAsciiMode) {
-                service.postRimeJob { setRuntimeOption("ascii_mode", true) }
-            }
-        } else {
-            tempAsciiMode?.let { saved ->
-                if (isAsciiMode != saved) {
-                    service.postRimeJob { setRuntimeOption("ascii_mode", saved) }
-                }
-                tempAsciiMode = null
-            } ?: currentKeyboard?.let {
-                if (theme.generalStyle.resetAsciiModeOnFocusChange) {
-                    val targetMode = if (it.resetAsciiMode) it.asciiMode else it.lastAsciiMode
-                    if (isAsciiMode != targetMode) {
-                        service.postRimeJob { setRuntimeOption("ascii_mode", targetMode) }
-                    }
-                }
-            }
-        }
+        val target = switcher.startInputTarget(info)
+        // Apply the ascii policy after the deferred switch actually happened;
+        // applying it before would run it against the OLD keyboard (K-M1).
+        switchKeyboard(target) { switcher.applyStartInputPolicy(target) }
     }
 
     private fun dispatchCapsState(setShift: (Boolean, Boolean) -> Unit) {
-        val status = rime.run { statusCached }
+        val status = rime.uiState.value.status
         // TODO: 启用自动首句大写后，点击方向键时，保持Shift锁定状态功能将无法生效
         if (theme.generalStyle.autoCaps && status.isAsciiMode && currentKeyboardView?.isCapsOn == false) {
             setShift(false, cursorCapsMode != 0)
@@ -267,7 +181,7 @@ class KeyboardWindow :
     }
 
     override fun onKeyAppearanceUpdate(composing: Boolean, menu: Boolean, paging: Boolean) {
-        if (!rime.run { statusCached }.isAsciiMode) {
+        if (!rime.uiState.value.isAsciiMode) {
             currentKeyboard?.appearanceStateKeys?.forEach { key ->
                 currentKeyboardView?.invalidateKeyByIndex(key.index)
             }
@@ -284,7 +198,15 @@ class KeyboardWindow :
     }
 
     override fun onRimeSchemaUpdated(schema: SchemaItem) {
+        // Apply the schema-level toolbar override (feature ①) before
+        // rebuilding the keyboard so the toolbar follows the current schema.
+        ThemeManager.applySchemaToolBar(schema.id)
+        t9Disambiguation.onRimeSchemaUpdated(schema)
         switchKeyboard(".default")
+    }
+
+    override fun onCompositionUpdate(data: CompositionProto) {
+        t9Disambiguation.onCompositionUpdate(data)
     }
 
     override fun onRimeOptionUpdated(value: RimeMessage.OptionMessage.Data) {
@@ -309,9 +231,19 @@ class KeyboardWindow :
     }
 
     override fun onAttached() {
+        // The window's view is cached and reused across attach/detach cycles
+        // (e.g. the unrolled candidate window replaces the keyboard window, and
+        // onDetached() tears down the disambiguation panel). Re-attach it when
+        // the window comes back, otherwise the panel never reappears until the
+        // next schema switch re-runs attachKeyboard via switchKeyboard.
+        val keyboard = currentKeyboard ?: return
+        if (!t9Disambiguation.isAttached) {
+            t9Disambiguation.attach(keyboardView, keyboard, switcher.currentKeyboardId)
+        }
     }
 
     override fun onDetached() {
         currentKeyboardView?.onDetach()
+        t9Disambiguation.detach()
     }
 }

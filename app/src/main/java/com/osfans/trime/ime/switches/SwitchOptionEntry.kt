@@ -7,7 +7,6 @@ package com.osfans.trime.ime.switches
 
 import androidx.annotation.DrawableRes
 import com.osfans.trime.core.RimeSchema
-import com.osfans.trime.daemon.RimeSession
 
 sealed class SwitchOptionEntry(
     val label: String,
@@ -19,7 +18,6 @@ sealed class SwitchOptionEntry(
             SchemaList,
             UpdateConfig,
             Keyboard,
-            ThemeList,
         }
     }
 
@@ -30,21 +28,29 @@ sealed class SwitchOptionEntry(
     ) : SwitchOptionEntry(label, icon)
 
     companion object {
-        fun fromSwitch(rime: RimeSession, it: RimeSchema.Switch): Custom? {
-            val labels = it.states
+        /**
+         * Build a [Custom] entry from cached option values. Callers must pass
+         * the current option snapshot (e.g. `RimeUiState.options` merged with
+         * engine reads) so building the list never blocks on the engine.
+         */
+        fun fromSwitch(
+            switch: RimeSchema.Switch,
+            options: Map<String, Boolean>,
+        ): Custom? {
+            val labels = switch.states
             if (labels.size <= 1) return null
-            return if (it.name.isNotEmpty()) {
+            return if (switch.name.isNotEmpty()) {
                 if (labels.size != 2) return null
                 val (disabledText, enabledText) = labels
-                val value = rime.run { getRuntimeOption(it.name) }
+                val value = options[switch.name] ?: false
                 val label = if (value) "$enabledText → $disabledText" else "$disabledText → $enabledText"
-                Custom(it, label, 0)
+                Custom(switch, label, 0)
             } else {
-                val options = it.options
-                if (options.size != labels.size) return null
-                val index = options.indexOfFirst { rime.run { getRuntimeOption(it) } }
+                val optionList = switch.options
+                if (optionList.size != labels.size) return null
+                val index = optionList.indexOfFirst { options[it] == true }
                 val label = labels[if (index >= 0) index else 0]
-                Custom(it, label, 0)
+                Custom(switch, label, 0)
             }
         }
     }

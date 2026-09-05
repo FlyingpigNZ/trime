@@ -21,8 +21,10 @@ import com.osfans.trime.core.CompositionProto
 import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
+import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.bar.InputBarDelegate
 import com.osfans.trime.ime.broadcast.EnterKeyDisplayDelegate
 import com.osfans.trime.ime.broadcast.InputBroadcaster
@@ -89,7 +91,15 @@ class InputView(
 
     private val updateWindowViewHeightJob: Job
 
-    private val inputDepMgr = InputDependencyManager.initialize(this, themedContext, theme, service, rime)
+    private val inputDepMgr =
+        InputDependencyManager.initialize(
+            this,
+            themedContext,
+            theme,
+            service,
+            rime,
+            ImePackageManager.registry(),
+        )
     private val di = inputDepMgr.di
     private val broadcaster: InputBroadcaster by di.instance()
     private val popup: PopupDelegate by di.instance()
@@ -117,10 +127,8 @@ class InputView(
     private var lastAppearanceState = Triple(false, false, false)
 
     private fun broadcastKeyAppearanceUpdate() {
-        val composing = rime.run { statusCached.isComposing }
-        val hasMenu = rime.run { hasMenu }
-        val paging = rime.run { paging }
-        val current = Triple(composing, hasMenu, paging)
+        val ui = rime.uiState.value
+        val current = Triple(ui.isComposing, ui.hasMenu, ui.paging)
         if (current != lastAppearanceState) {
             lastAppearanceState = current
             broadcaster.onKeyAppearanceUpdate(current.first, current.second, current.third)
@@ -145,7 +153,7 @@ class InputView(
         // show KeyboardWindow by default
         windowManager.attachWindow(KeyboardWindow)
 
-        keyboardBackground.imageDrawable = ColorManager.getDrawable("keyboard_background")
+        keyboardBackground.imageDrawable = ColorManager.getDrawable(ThemeColor.KEYBOARD_BACKGROUND)
 
         keyboardView =
             constraintLayout {
@@ -264,6 +272,15 @@ class InputView(
             }
         }
         inputBar.view.setPadding(sidePadding, 0, sidePadding, 0)
+    }
+
+    /**
+     * Rebuild the keyboard and the orientation-dependent paddings after a
+     * configuration change (e.g. rotation).
+     */
+    fun onOrientationChanged() {
+        keyboardWindow.onConfigurationChanged()
+        updateKeyboardSize()
     }
 
     override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {

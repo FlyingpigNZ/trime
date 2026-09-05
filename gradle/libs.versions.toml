@@ -2,6 +2,7 @@
 androidGradlePlugin = "9.3.0"
 kotlin = "2.3.21"
 ksp = "2.3.6"
+androidx-test = "1.6.2"
 navigation = "2.9.8"
 room = "2.7.2"
 splitties = "3.0.0"
@@ -48,6 +49,9 @@ splitties-views-recyclerview = { module = "com.louiscad.splitties:splitties-view
 aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutlibraries" }
 junit = { module = "junit:junit", version = "4.13.2" }
 kotlinpoet-ksp = { module = "com.squareup:kotlinpoet-ksp", version = "2.2.0" }
+androidx-test-core = { module = "androidx.test:core-ktx", version = "1.6.1" }
+androidx-test-ext-junit = { module = "androidx.test.ext:junit", version = "1.2.1" }
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidx-test" }
 ksp = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }

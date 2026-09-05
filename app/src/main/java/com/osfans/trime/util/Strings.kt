@@ -4,22 +4,28 @@
 
 package com.osfans.trime.util
 
-val String.Companion.EMPTY: String
-    get() = ""
-
 private const val SECTION_DIVIDER = ",.?!~:，。：～？！…\t\r\n\\/"
 
+/**
+ * Find the next (or previous) section boundary relative to [start].
+ *
+ * With [backward] = false, searches forward from [start] and returns the index
+ * of the first section divider at or after it (the end of the current
+ * section); with [backward] = true, searches the prefix and returns the last
+ * divider before [start] (the start of the current section). Returns -1 when
+ * no boundary exists in the searched direction.
+ */
 fun CharSequence.findSectionFrom(
     start: Int,
-    forward: Boolean = false,
+    backward: Boolean = false,
 ): Int {
     if (start !in 0..lastIndex) return -1
-    return if (forward) {
-        val subSequence = subSequence(0, start)
-        subSequence.indexOfLast { SECTION_DIVIDER.contains(it) }
+    return if (backward) {
+        subSequence(0, start).indexOfLast { SECTION_DIVIDER.contains(it) }
     } else {
         val subSequence = subSequence(start, length)
-        start + subSequence.indexOfFirst { SECTION_DIVIDER.contains(it) }
+        val relative = subSequence.indexOfFirst { SECTION_DIVIDER.contains(it) }
+        if (relative < 0) -1 else start + relative
     }
 }
 

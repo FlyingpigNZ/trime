@@ -7,18 +7,13 @@ package com.osfans.trime.data.db
 
 import androidx.paging.PagingSource
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
-import androidx.room.Update
 
 @Dao
 interface DatabaseDao {
     @Insert
     suspend fun insert(bean: DatabaseBean): Long
-
-    @Update
-    suspend fun update(bean: DatabaseBean)
 
     @Query("UPDATE ${DatabaseBean.TABLE_NAME} SET text=:newText WHERE id=:id")
     suspend fun updateText(
@@ -38,17 +33,8 @@ interface DatabaseDao {
         timestamp: Long,
     )
 
-    @Delete
-    suspend fun delete(bean: DatabaseBean)
-
-    @Query("DELETE FROM ${DatabaseBean.TABLE_NAME} WHERE text=:text")
-    suspend fun delete(text: String)
-
     @Query("DELETE FROM ${DatabaseBean.TABLE_NAME} WHERE id=:id")
     suspend fun delete(id: Int)
-
-    @Delete
-    suspend fun delete(beans: List<DatabaseBean>)
 
     @Query("DELETE FROM ${DatabaseBean.TABLE_NAME}")
     suspend fun deleteAll()
@@ -76,7 +62,4 @@ interface DatabaseDao {
 
     @Query("SELECT * FROM ${DatabaseBean.TABLE_NAME} WHERE text=:text LIMIT 1")
     suspend fun find(text: String): DatabaseBean?
-
-    @Query("SELECT COUNT(*) FROM ${DatabaseBean.TABLE_NAME}")
-    suspend fun itemCount(): Int
 }

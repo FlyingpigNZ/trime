@@ -5,14 +5,11 @@
 
 package com.osfans.trime.data.theme.model
 
-import android.os.Parcelable
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.float
 import com.osfans.trime.util.yaml.get
 import com.osfans.trime.util.yaml.int
-import kotlinx.parcelize.Parcelize
 
-@Parcelize
 data class Window(
     val insets: Padding = Padding(4, 4),
     val itemPadding: Padding = Padding(2, 4),
@@ -22,13 +19,12 @@ data class Window(
     val shadow: Float = 0f,
     val alpha: Float = 1f,
     val foreground: Foreground = Foreground(),
-) : Parcelable {
+) {
 
-    @Parcelize
     data class Padding(
         val vertical: Int = 0,
         val horizontal: Int = 0,
-    ) : Parcelable {
+    ) {
         companion object {
             fun decode(node: Node?): Padding = Padding(
                 vertical = node?.get("vertical")?.int ?: 0,
@@ -37,12 +33,11 @@ data class Window(
         }
     }
 
-    @Parcelize
     data class Foreground(
         val labelFontSize: Float = 20f,
         val textFontSize: Float = 20f,
         val commentFontSize: Float = 20f,
-    ) : Parcelable {
+    ) {
         companion object {
             fun decode(node: Node?): Foreground = Foreground(
                 labelFontSize = node?.get("label_font_size")?.float ?: 20f,

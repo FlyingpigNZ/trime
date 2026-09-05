@@ -12,7 +12,6 @@ import org.kodein.di.instance
 import splitties.bitflags.hasFlag
 
 class EnterKeyDisplayDelegate {
-    private val broadcaster: InputBroadcaster by InputDependencyManager.getInstance().di.instance()
     private val theme: Theme by InputDependencyManager.getInstance().di.instance()
 
     companion object {
@@ -41,7 +40,9 @@ class EnterKeyDisplayDelegate {
             val actionLabel = info.actionLabel
             when (mode) {
                 Mode.ACTION_LABEL_ONLY -> {
-                    return actionLabel.toString()
+                    // actionLabel is nullable; toString() on null would render
+                    // the literal "null" on the enter key.
+                    return actionLabel?.toString() ?: theme.generalStyle.enterLabel.default
                 }
                 Mode.ACTION_LABEL_PREFERRED -> {
                     return if (!actionLabel.isNullOrEmpty()) {
@@ -81,6 +82,5 @@ class EnterKeyDisplayDelegate {
         actionLabel = labelFromEditorInfo(info)
         if (keyLabel == actionLabel) return
         keyLabel = actionLabel
-        broadcaster.onEnterKeyLabelUpdate(keyLabel)
     }
 }

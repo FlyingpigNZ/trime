@@ -11,6 +11,7 @@ import android.view.Window
 import androidx.annotation.ColorInt
 import androidx.core.view.WindowCompat
 import com.osfans.trime.data.theme.ColorManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.data.theme.ThemePrefs
 import com.osfans.trime.util.ColorUtils
@@ -94,7 +95,7 @@ class NavigationBarManager {
     private fun update(window: Window) {
         val backColor =
             runCatching {
-                ColorManager.getColor("back_color")
+                ColorManager.getColor(ThemeColor.BACK_COLOR)
             }.getOrDefault(Color.BLACK)
         if (shouldUpdateNavbarForeground) {
             WindowCompat

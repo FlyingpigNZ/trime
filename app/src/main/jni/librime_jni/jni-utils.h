@@ -7,41 +7,177 @@
 
 #include <jni.h>
 
+#include <cstdint>
+#include <cstring>
 #include <string>
+#include <vector>
 
-static inline void throwJavaException(JNIEnv *env, const char *msg) {
+static inline void throwJavaException(JNIEnv* env, const char* msg) {
   jclass c = env->FindClass("java/lang/Exception");
   env->ThrowNew(c, msg);
   env->DeleteLocalRef(c);
 }
 
+// --- UTF conversion helpers -------------------------------------------------
+//
+// JNI strings travel as *Modified* UTF-8 (surrogate pairs for supplementary
+// characters), while librime speaks standard UTF-8 (4-byte sequences). Passing
+// one where the other is expected corrupts emoji / CJK Ext-B text and
+// non-ASCII paths, so every boundary conversion is explicit.
+
+// Decode UTF-8 (standard or modified) into UTF-16 code units. 3-byte
+// sequences that are surrogate halves (modified UTF-8) decode to the matching
+// UTF-16 surrogate code unit, so a high+low pair becomes a proper UTF-16 pair
+// for the same supplementary code point.
+static inline std::vector<jchar> Utf8ToUtf16(const char* in, size_t len) {
+  constexpr unsigned kContinuationMask = 0xC0;
+  constexpr unsigned kContinuationTag = 0x80;
+  std::vector<jchar> out;
+  out.reserve(len);
+  size_t i = 0;
+  while (i < len) {
+    const auto c = static_cast<unsigned char>(in[i]);
+    if (c < 0x80) {
+      out.push_back(static_cast<jchar>(c));
+      ++i;
+    } else if ((c >> 5) == 0x6 && i + 1 < len &&
+               (static_cast<unsigned char>(in[i + 1]) & kContinuationMask) ==
+                   kContinuationTag) {
+      out.push_back(
+          static_cast<jchar>(((c & 0x1Fu) << 6) |
+                             (static_cast<unsigned char>(in[i + 1]) & 0x3Fu)));
+      i += 2;
+    } else if ((c >> 4) == 0xE && i + 2 < len &&
+               (static_cast<unsigned char>(in[i + 1]) & kContinuationMask) ==
+                   kContinuationTag &&
+               (static_cast<unsigned char>(in[i + 2]) & kContinuationMask) ==
+                   kContinuationTag) {
+      out.push_back(static_cast<jchar>(
+          ((c & 0x0Fu) << 12) |
+          ((static_cast<unsigned char>(in[i + 1]) & 0x3Fu) << 6) |
+          (static_cast<unsigned char>(in[i + 2]) & 0x3Fu)));
+      i += 3;
+    } else if (c >= 0xF0 && c <= 0xF7 && i + 3 < len) {
+      // Only a real 4-byte lead (0xF0-0xF7) enters this branch: continuation
+      // bytes (0x80-0xBF) and invalid leads (0xF8-0xFF) must not be decoded
+      // as a 4-byte code point, which would corrupt the rest of the string
+      // on malformed input.
+      const auto cp = static_cast<uint32_t>(
+          ((c & 0x07u) << 18) |
+          ((static_cast<unsigned char>(in[i + 1]) & 0x3Fu) << 12) |
+          ((static_cast<unsigned char>(in[i + 2]) & 0x3Fu) << 6) |
+          (static_cast<unsigned char>(in[i + 3]) & 0x3Fu));
+      const bool valid =
+          cp <= 0x10FFFF && !(cp >= 0xD800 && cp <= 0xDFFF) &&
+          (static_cast<unsigned char>(in[i + 1]) & kContinuationMask) ==
+              kContinuationTag &&
+          (static_cast<unsigned char>(in[i + 2]) & kContinuationMask) ==
+              kContinuationTag &&
+          (static_cast<unsigned char>(in[i + 3]) & kContinuationMask) ==
+              kContinuationTag;
+      if (valid) {
+        const auto v = cp - 0x10000;
+        out.push_back(static_cast<jchar>(0xD800 + (v >> 10)));
+        out.push_back(static_cast<jchar>(0xDC00 + (v & 0x3FF)));
+      } else {
+        out.push_back(static_cast<jchar>(c));
+      }
+      i += 4;
+    } else {
+      // Malformed tail: keep the byte rather than dropping data.
+      out.push_back(static_cast<jchar>(c));
+      ++i;
+    }
+  }
+  return out;
+}
+
+// Encode UTF-16 code units as standard UTF-8 (surrogate pairs combined).
+static inline std::string Utf16ToUtf8(const std::vector<jchar>& in) {
+  // Unicode replacement character (U+FFFD) for unpaired surrogates, which
+  // Java strings may legally contain and which have no standard UTF-8 form.
+  constexpr uint32_t kReplacement = 0xFFFD;
+  std::string out;
+  out.reserve(in.size());
+  for (size_t i = 0; i < in.size(); ++i) {
+    const auto u = static_cast<uint32_t>(in[i]);
+    if (u >= 0xD800 && u <= 0xDBFF && i + 1 < in.size()) {
+      const auto lo = static_cast<uint32_t>(in[i + 1]);
+      if (lo >= 0xDC00 && lo <= 0xDFFF) {
+        const auto cp = 0x10000 + ((u - 0xD800) << 10) + (lo - 0xDC00);
+        out.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        ++i;
+        continue;
+      }
+    }
+    if (u == kReplacement || (u >= 0xD800 && u <= 0xDFFF)) {
+      // Lone surrogate: emit U+FFFD instead of invalid CESU-8.
+      out.push_back(static_cast<char>(0xEF));
+      out.push_back(static_cast<char>(0xBF));
+      out.push_back(static_cast<char>(0xBD));
+    } else if (u < 0x80) {
+      out.push_back(static_cast<char>(u));
+    } else if (u < 0x800) {
+      out.push_back(static_cast<char>(0xC0 | (u >> 6)));
+      out.push_back(static_cast<char>(0x80 | (u & 0x3F)));
+    } else {
+      out.push_back(static_cast<char>(0xE0 | (u >> 12)));
+      out.push_back(static_cast<char>(0x80 | ((u >> 6) & 0x3F)));
+      out.push_back(static_cast<char>(0x80 | (u & 0x3F)));
+    }
+  }
+  return out;
+}
+
+// Convert a Java (modified UTF-8) byte string to standard UTF-8.
+static inline std::string ModifiedUtf8ToUtf8(const char* in, jsize len) {
+  return Utf16ToUtf8(Utf8ToUtf16(in, static_cast<size_t>(len)));
+}
+
+// Create a Java String from standard UTF-8. NewStringUTF must not be used with
+// librime output: its 4-byte sequences are not valid Modified UTF-8.
+static inline jstring NewUtf8String(JNIEnv* env, const char* in, size_t len) {
+  const std::vector<jchar> utf16 = Utf8ToUtf16(in, len);
+  // NewString is only guaranteed to accept a valid pointer; an empty vector's
+  // data() may be null, so pass a non-null dummy for the empty case.
+  static constexpr jchar kEmpty = 0;
+  return env->NewString(utf16.empty() ? &kEmpty : utf16.data(),
+                        static_cast<jsize>(utf16.size()));
+}
+
 class CString {
  private:
-  JNIEnv *env_;
-  jstring str_;
-  const char *chr_;
+  std::string owned_;  // standard UTF-8 representation for librime
 
  public:
-  CString(JNIEnv *env, jstring str)
-      : env_(env), str_(str), chr_(env->GetStringUTFChars(str, nullptr)) {}
+  explicit CString(JNIEnv* env, jstring str) {
+    if (str == nullptr) return;
+    const jsize len = env->GetStringUTFLength(str);
+    const char* modified = env->GetStringUTFChars(str, nullptr);
+    if (modified != nullptr) {
+      owned_ = ModifiedUtf8ToUtf8(modified, len);
+      env->ReleaseStringUTFChars(str, modified);
+    }
+  }
 
-  ~CString() { env_->ReleaseStringUTFChars(str_, chr_); }
+  operator std::string() const { return owned_; }
 
-  operator std::string() { return chr_; }
+  operator const char*() const { return owned_.c_str(); }
 
-  operator const char *() { return chr_; }
-
-  const char *operator*() { return chr_; }
+  const char* operator*() const { return owned_.c_str(); }
 };
 
 template <typename T = jobject>
 class JRef {
  private:
-  JNIEnv *env_;
+  JNIEnv* env_;
   T ref_;
 
  public:
-  JRef(JNIEnv *env, jobject ref) : env_(env), ref_(reinterpret_cast<T>(ref)) {}
+  JRef(JNIEnv* env, jobject ref) : env_(env), ref_(reinterpret_cast<T>(ref)) {}
 
   ~JRef() { env_->DeleteLocalRef(ref_); }
 
@@ -52,43 +188,44 @@ class JRef {
 
 class JString {
  private:
-  JNIEnv *env_;
+  JNIEnv* env_;
   jstring jstring_;
 
  public:
-  JString(JNIEnv *env, const char *chars)
-      : env_(env), jstring_(env->NewStringUTF(chars)) {}
+  JString(JNIEnv* env, const std::string& string)
+      : env_(env), jstring_(NewUtf8String(env, string.data(), string.size())) {}
 
-  JString(JNIEnv *env, const std::string &string)
-      : JString(env, string.c_str()) {}
+  JString(JNIEnv* env, const char* chars)
+      : env_(env),
+        jstring_(NewUtf8String(env, chars, chars ? std::strlen(chars) : 0)) {}
 
   ~JString() { env_->DeleteLocalRef(jstring_); }
 
-  operator jstring() { return jstring_; }
+  operator jstring() const { return jstring_; }
 
-  jstring operator*() { return jstring_; }
+  jstring operator*() const { return jstring_; }
 };
 
 class JEnv {
  private:
-  JNIEnv *env = nullptr;
+  JNIEnv* env = nullptr;
 
  public:
-  explicit JEnv(JavaVM *jvm) {
-    if (jvm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) ==
+  explicit JEnv(JavaVM* jvm) {
+    if (jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) ==
         JNI_EDETACHED) {
       jvm->AttachCurrentThread(&env, nullptr);
     }
   }
 
-  operator JNIEnv *() { return env; }
+  operator JNIEnv*() { return env; }
 
-  JNIEnv *operator->() { return env; }
+  JNIEnv* operator->() { return env; }
 };
 
 class GlobalRefSingleton {
  public:
-  JavaVM *jvm;
+  JavaVM* jvm;
 
   jclass Object;
 
@@ -130,11 +267,8 @@ class GlobalRefSingleton {
   jclass SchemaListItem;
   jmethodID SchemaListItemInit;
 
-  jclass KeyEvent;
-  jmethodID KeyEventInit;
-
-  explicit GlobalRefSingleton(JavaVM *jvm_) : jvm(jvm_) {
-    JNIEnv *env;
+  explicit GlobalRefSingleton(JavaVM* jvm_) : jvm(jvm_) {
+    JNIEnv* env;
     jvm->AttachCurrentThread(&env, nullptr);
 
     Object = reinterpret_cast<jclass>(
@@ -182,9 +316,8 @@ class GlobalRefSingleton {
 
     StatusProto = reinterpret_cast<jclass>(
         env->NewGlobalRef(env->FindClass("com/osfans/trime/core/StatusProto")));
-    StatusProtoInit =
-        env->GetMethodID(StatusProto, "<init>",
-                         "(Ljava/lang/String;Ljava/lang/String;ZZZZZZZ)V");
+    StatusProtoInit = env->GetMethodID(
+        StatusProto, "<init>", "(Ljava/lang/String;Ljava/lang/String;ZZZ)V");
 
     RimeResponse = reinterpret_cast<jclass>(env->NewGlobalRef(
         env->FindClass("com/osfans/trime/core/RimeResponse")));
@@ -210,14 +343,9 @@ class GlobalRefSingleton {
         env->NewGlobalRef(env->FindClass("com/osfans/trime/core/SchemaItem")));
     SchemaListItemInit = env->GetMethodID(
         SchemaListItem, "<init>", "(Ljava/lang/String;Ljava/lang/String;)V");
-
-    KeyEvent = reinterpret_cast<jclass>(env->NewGlobalRef(
-        env->FindClass("com/osfans/trime/core/RimeKeyEvent")));
-    KeyEventInit =
-        env->GetMethodID(KeyEvent, "<init>", "(IILjava/lang/String;)V");
   }
 
   [[nodiscard]] JEnv AttachEnv() const { return JEnv(jvm); }
 };
 
-extern GlobalRefSingleton *GlobalRef;
+extern GlobalRefSingleton* GlobalRef;

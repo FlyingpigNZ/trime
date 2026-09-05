@@ -11,11 +11,27 @@ import androidx.core.graphics.red
 import androidx.core.graphics.toColorInt
 
 object ColorUtils {
+    /**
+     * Parse a color string into an Android [ColorInt] (`0xAARRGGBB`, alpha in
+     * the high byte — Android's native order).
+     *
+     * Accepted forms (same semantics as [android.graphics.Color.parseColor]):
+     * - `0xAARRGGBB` / `#AARRGGBB` — 8 hex digits, **alpha first**;
+     * - `0xRRGGBB` / `#RRGGBB` — 6 hex digits (opaque);
+     * - shorter forms, and named colors (`red`, `blue`, …).
+     *
+     * Theme authors must write 8-digit colors as `0xAARRGGBB`. A value like
+     * `0x80141617` is black at 50% alpha; writing the alpha last
+     * (`0x14161780`, CSS style) would be parsed as a different color.
+     */
     @ColorInt
     fun parseColor(colorString: String): Int {
         val normalized =
             if (colorString.startsWith("#") || colorString.startsWith("0x", ignoreCase = true)) {
-                val sub = colorString.replace("^#|^0x".toRegex(), "")
+                // Case-insensitive strip: the guard accepts 0X… but the regex
+                // must too, otherwise `0XFF0000` keeps the prefix and
+                // toColorInt() throws.
+                val sub = colorString.replace("^#|^0[xX]".toRegex(), "")
                 when (sub.length) {
                     1, 2 -> "#%02x000000".format(java.lang.Long.decode(colorString)) // 0xA(A) -> #AA000000
                     in 3..5 -> "#%06x".format(java.lang.Long.decode(colorString)) // 0xGBB... -> #RRGGBB

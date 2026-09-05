@@ -146,10 +146,14 @@ class SchemaListUi(
                             }
                         }
 
-                        override fun onItemRemovedBatch(items: List<SchemaItem>) {
+                        override fun onItemRemovedBatch(items: List<Pair<Int, SchemaItem>>) {
                             updateFAB()
                             showUndoSnackBar(ctx.getString(R.string.removed_n_items, items.size)) {
-                                items.forEach { add(it) }
+                                // Restore at the original indices in ascending
+                                // order: order = enabled-schema priority.
+                                items.sortedBy { it.first }.forEach { (index, item) ->
+                                    add(index, item)
+                                }
                             }
                         }
                     },

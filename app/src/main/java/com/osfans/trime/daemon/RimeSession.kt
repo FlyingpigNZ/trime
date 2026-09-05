@@ -5,12 +5,28 @@
 package com.osfans.trime.daemon
 
 import com.osfans.trime.core.RimeApi
+import com.osfans.trime.core.RimeMessage
+import com.osfans.trime.core.RimeUiState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * A interface to run different operations on RimeApi
  */
 interface RimeSession {
+    /** Observable engine state; read [StateFlow.value] without blocking. */
+    val uiState: StateFlow<RimeUiState>
+
+    /** Whether the engine is currently at the ready state. */
+    val isReady: Boolean
+
+    /**
+     * Engine event stream (commit/composition/candidates/status/...).
+     * Collect directly without going through [run].
+     */
+    val messageFlow: SharedFlow<RimeMessage<*>>
+
     /**
      * Run an operation immediately
      * The suspended [block] will be executed in caller's thread.
@@ -26,6 +42,14 @@ interface RimeSession {
      * Client should use this function in most cases.
      */
     suspend fun <T> runOnReady(block: suspend RimeApi.() -> T): T
+
+    /**
+     * Like [runOnReady], but also runs [block] when the engine settled into a
+     * failed state (deploy failure). Bootstrap work that must happen either
+     * way — package/theme fallback, self-healing restarts — uses this so a
+     * failed engine does not leave the IME permanently uninitialized.
+     */
+    suspend fun <T> runOnReadyOrFailed(block: suspend RimeApi.() -> T): T
 
     /**
      * Run an operation if rime is at ready state.

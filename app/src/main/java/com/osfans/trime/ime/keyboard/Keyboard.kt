@@ -10,6 +10,7 @@ import android.graphics.Point
 import android.os.Build
 import android.view.KeyEvent
 import android.view.WindowInsets
+import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.TextKeyboard
@@ -25,15 +26,20 @@ import kotlin.math.pow
 class Keyboard(
     private val context: Context,
     private val theme: Theme,
-    selfConfig: TextKeyboard? = null,
+    private val selfConfig: TextKeyboard? = null,
+    private val rime: RimeSession,
 ) {
 
-    /** 按鍵默認水平間距  */
-    internal val horizontalGap: Int =
-        intArrayOf(
-            selfConfig?.horizontalGap ?: 0,
-            theme.generalStyle.horizontalGap,
-        ).firstOrNull { it > 0 }?.let { context.dp(it) } ?: 0
+    /** 按鍵默認水平間距 (scaled with the keyboard height) */
+    internal val horizontalGap: Int
+        get() = (
+            context.dp(
+                intArrayOf(
+                    selfConfig?.horizontalGap ?: 0,
+                    theme.generalStyle.horizontalGap,
+                ).firstOrNull { it > 0 } ?: 0,
+            ) * heightScaleFactor
+            ).toInt()
 
     /** 默認鍵寬  */
     private val keyWidth: Int = (allowedWidth * theme.generalStyle.keyWidth / 100).toInt()
@@ -45,12 +51,16 @@ class Keyboard(
             theme.generalStyle.keyHeight,
         ).firstOrNull { it > 0 } ?: 0
 
-    /** 默認行距  */
-    internal val verticalGap: Int =
-        intArrayOf(
-            selfConfig?.verticalGap ?: 0,
-            theme.generalStyle.verticalGap,
-        ).firstOrNull { it > 0 }?.let { context.dp(it) } ?: 0
+    /** 默認行距 (scaled with the keyboard height) */
+    internal val verticalGap: Int
+        get() = (
+            context.dp(
+                intArrayOf(
+                    selfConfig?.verticalGap ?: 0,
+                    theme.generalStyle.verticalGap,
+                ).firstOrNull { it > 0 } ?: 0,
+            ) * heightScaleFactor
+            ).toInt()
 
     /** 默認按鍵圓角半徑  */
     val roundCorner: Float =
@@ -66,6 +76,17 @@ class Keyboard(
     var mAltKey: Key? = null
     var mMetaKey: Key? = null
     var mSymKey: Key? = null
+
+    /**
+     * Whether the T9 pinyin-disambiguation panel is currently overlaying the
+     * keyboard's first column. When true, the first-column (punctuation) keys
+     * are not drawn at all (button background and label/symbol/hint alike) so
+     * nothing of the covered column shows through behind the transparent
+     * panel. Mutated by the disambiguation controller, read by each [KeyView]
+     * on draw.
+     */
+    @Volatile
+    var pinyinOverlayVisible: Boolean = false
 
     /**
      * Total height of the keyboard, including the padding and keys
@@ -144,11 +165,28 @@ class Keyboard(
     val isLock = selfConfig?.lock ?: false // 切換程序時記憶鍵盤
     val asciiKeyboard: String? = selfConfig?.asciiKeyboard // 英文鍵盤
 
-    val keyboardHeight: Int =
+    /** Keyboard height in dp before the user-adjustable scale is applied. */
+    val unscaledKeyboardHeight: Int =
         intArrayOf(
             selfConfig?.let { getKeyboardHeightFromKeyboardConfig(it) } ?: 0,
             getKeyboardHeightFromTheme(theme),
         ).firstOrNull { it > 0 } ?: 0
+
+    /**
+     * The user-adjustable height scale, as a multiplier (1f = original).
+     * Computed from the height-scale preference directly, so it does not
+     * depend on property-initialization order: portrait, landscape and
+     * per-keyboard heights all share the same user-adjustable scale.
+     */
+    val heightScaleFactor: Float
+        get() = heightScalePercent() / HEIGHT_SCALE_FACTOR.toFloat()
+
+    val keyboardHeight: Int =
+        unscaledKeyboardHeight * heightScalePercent() / HEIGHT_SCALE_FACTOR
+
+    init {
+        UiScale.updateFactor(heightScaleFactor)
+    }
 
     private val expandKeypressArea: Boolean by AppPrefs.defaultInstance().keyboard.expandKeypressArea
 
@@ -299,7 +337,7 @@ class Keyboard(
                     continue
                 }
 
-                val key = Key(this, textKey)
+                val key = Key(this, textKey, rime)
 
                 key.keyTextOffsetX = firstNonZero(textKey.keyTextOffsetX, selfConfig.keyTextOffsetX, theme.generalStyle.keyTextOffsetX)
                 key.keyTextOffsetY = firstNonZero(textKey.keyTextOffsetY, selfConfig.keyTextOffsetY, theme.generalStyle.keyTextOffsetY)
@@ -379,6 +417,9 @@ class Keyboard(
         return context.dp(keyboardHeight)
     }
 
+    /** User-adjustable keyboard height scale (percent, 100 = original). */
+    private fun heightScalePercent(): Int = AppPrefs.defaultInstance().keyboard.heightScale.getValue()
+
     fun setModifierKey(
         c: Int,
         key: Key?,
@@ -455,7 +496,7 @@ class Keyboard(
                 KeyEvent.META_ALT_ON -> mAltKey
                 KeyEvent.META_CTRL_ON -> mCtrlKey
                 KeyEvent.META_META_ON -> mMetaKey
-                KeyEvent.KEYCODE_SYM -> mSymKey
+                KeyEvent.META_SYM_ON -> mSymKey
                 else -> null
             }
         val keepOn = modifierKey?.setOn(on) ?: on
@@ -469,7 +510,7 @@ class Keyboard(
         if (mAltKey != null && !mAltKey!!.isOn) result = result || setModifier(KeyEvent.META_ALT_ON, false)
         if (mCtrlKey != null && !mCtrlKey!!.isOn) result = result || setModifier(KeyEvent.META_CTRL_ON, false)
         if (mMetaKey != null && !mMetaKey!!.isOn) result = result || setModifier(KeyEvent.META_META_ON, false)
-        if (mSymKey != null && !mSymKey!!.isOn) result = result || setModifier(KeyEvent.KEYCODE_SYM, false)
+        if (mSymKey != null && !mSymKey!!.isOn) result = result || setModifier(KeyEvent.META_SYM_ON, false)
         return result
     }
 
@@ -546,6 +587,9 @@ class Keyboard(
         private const val GRID_HEIGHT = 5
         private const val GRID_SIZE = GRID_WIDTH * GRID_HEIGHT
         private const val MAX_TOTAL_WEIGHT = 100
+
+        /** Percentage basis of the user-adjustable keyboard height scale. */
+        private const val HEIGHT_SCALE_FACTOR = 100
 
         /** Number of key widths from current touch point to search for nearest keys.  */
         const val SEARCH_DISTANCE = 1.4f

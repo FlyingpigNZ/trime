@@ -31,12 +31,12 @@ import com.hjq.permissions.Permission
 import com.hjq.permissions.XXPermissions
 import com.osfans.trime.BuildConfig
 import com.osfans.trime.R
+import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.soundeffect.SoundEffectManager
 import com.osfans.trime.databinding.ActivityMainBinding
 import com.osfans.trime.ui.setup.SetupActivity
-import com.osfans.trime.util.isStorageAvailable
 import com.osfans.trime.util.item
 import com.osfans.trime.util.parcelable
 import com.osfans.trime.util.startActivity
@@ -164,7 +164,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupToolbarMenu(menu: Menu) {
         val optionMenuItems = listOf(
             menu.item(R.string.deploy, R.drawable.ic_baseline_refresh_reversed_24, showAsAction = true) {
-                viewModel.rime.launchOnReady { it.deploy() }
+                viewModel.rime.launchOnReady { RimeDaemon.restartRime(fullCheck = true) }
             },
             menu.item(R.string.test_input, R.drawable.ic_baseline_keyboard_24, showAsAction = true) {
                 testInputPanel?.show(window)
@@ -211,9 +211,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (isStorageAvailable()) {
-            SoundEffectManager.init()
-        }
+        SoundEffectManager.init()
     }
 
     override fun onStop() {

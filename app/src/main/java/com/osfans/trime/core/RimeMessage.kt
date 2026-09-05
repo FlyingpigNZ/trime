@@ -5,6 +5,8 @@
 
 package com.osfans.trime.core
 
+import timber.log.Timber
+
 sealed class RimeMessage<T>(
     open val data: T,
 ) {
@@ -130,56 +132,43 @@ sealed class RimeMessage<T>(
     }
 
     companion object {
-        private val types = MessageType.entries.toTypedArray()
-
+        /**
+         * Thin adapter for the C++ notification channel (`rime_jni.cc`).
+         *
+         * Only types 0-3 are sent from native code: unknown / schema / option /
+         * deploy. Kotlin-internal emission must construct the sealed
+         * subclasses directly (see [com.osfans.trime.core.Rime]).
+         */
         @Suppress("UNCHECKED_CAST")
         fun nativeCreate(
             type: Int,
             params: Array<Any>,
-        ) = when (types[type]) {
-            MessageType.Schema -> {
-                val (id, name) = (params[0] as String).split('/', limit = 2)
-                SchemaMessage(SchemaItem(id, name))
+        ): RimeMessage<*> = runCatching {
+            when (type) {
+                1 -> {
+                    val (id, name) = (params[0] as String).split('/', limit = 2)
+                    SchemaMessage(SchemaItem(id, name))
+                }
+                2 -> {
+                    val value = params[0] as String
+                    OptionMessage(
+                        OptionMessage.Data(
+                            value.substringAfter('!'),
+                            !value.startsWith('!'),
+                        ),
+                    )
+                }
+                3 ->
+                    DeployMessage(
+                        DeployMessage.State.valueOf((params[0] as String).replaceFirstChar { it.titlecase() }),
+                    )
+                else -> UnknownMessage(params)
             }
-            MessageType.Option -> {
-                val value = params[0] as String
-                OptionMessage(
-                    OptionMessage.Data(
-                        value.substringAfter('!'),
-                        !value.startsWith('!'),
-                    ),
-                )
-            }
-            MessageType.Deploy ->
-                DeployMessage(
-                    DeployMessage.State.valueOf((params[0] as String).replaceFirstChar { it.titlecase() }),
-                )
-            MessageType.Commit ->
-                CommitTextMessage(params[0] as CommitProto)
-            MessageType.InlinePreedit ->
-                InlinePreeditMessage(params[0] as String)
-            MessageType.Composition ->
-                CompositionMessage(params[0] as CompositionProto)
-            MessageType.Menu ->
-                PagedCandidatesMessage(params[0] as Candidates.Paged)
-            MessageType.Status ->
-                StatusMessage(params[0] as StatusProto)
-            MessageType.Candidate ->
-                BulkCandidatesMessage(params[0] as Candidates.Bulk)
-            MessageType.Key ->
-                KeyMessage(
-                    KeyMessage.Data(
-                        KeyValue(params[0] as Int),
-                        KeyModifiers.of(params[1] as Int),
-                        params[2] as Boolean,
-                    ),
-                )
-            else -> UnknownMessage(params)
+        }.getOrElse { t ->
+            // Runs on the rime-main thread: throwing here would escape into the
+            // dispatcher loop and wedge the whole engine.
+            Timber.w(t, "Malformed native Rime message: type=$type")
+            UnknownMessage(params)
         }
-
-        fun create(
-            type: MessageType,
-            params: Array<Any>,
-        ) = nativeCreate(type.ordinal, params)
     }
 }

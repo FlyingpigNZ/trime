@@ -5,10 +5,10 @@
   ~ SPDX-License-Identifier: GPL-3.0-or-later
   -->
 
-<resources xmlns:xliff="urn:oasis:names:en:xliff:document:1.2">
+<resources xmlns:xliff="urn:oasis:names:en:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools">
     <!-- Input Method Platform Tittle  -->
-    <string name="app_name_release">Trime</string>
-    <string name="app_name_debug">Trime (Debug)</string>
+    <string name="app_name_release" tools:ignore="UnusedResources">Trime</string>
+    <string name="app_name_debug" tools:ignore="UnusedResources">Trime (Debug)</string>
     <!-- Preference settings -->
     <string name="qq_group_1">Trime QQ group 1</string>
     <string name="qq_group_2">Trime QQ group 2</string>
@@ -19,8 +19,8 @@
     <string name="license">License</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="build_info_format">Builder: %1$s\nBuild Git Hash: %2$s\nBuild Time: %3$s</string>
-    <string name="selected_theme">Themes</string>
-    <string name="selected_theme_summary">Select desired theme</string>
+    <string name="selected_ime">IME packages</string>
+    <string name="selected_ime_summary">Select self-contained IME package</string>
     <string name="normal_mode_color">Colors</string>
     <string name="normal_mode_color_summary">Select desired color</string>
     <string name="reset">Reset</string>
@@ -47,10 +47,8 @@
     <string name="other_ime">Other IMEs</string>
     <string name="ui_mode">UI mode</string>
     <string name="advanced">Advanced</string>
-    <string name="user_data_dir">User directory</string>
     <string name="periodic_background_sync">Periodic background sync</string>
     <string name="periodic_background_sync_status">Last: %1$s (%2$s)</string>
-    <string name="effects">Effects</string>
     <string name="show_app_icon">Show app icon in launcher</string>
     <string name="only_available_on_some_roms">This option is only available on some ROMs</string>
     <string name="default_">Default</string>
@@ -64,9 +62,6 @@
     <string name="system_default">System default</string>
     <string name="key_swipe_travel">Min travel for gesture</string>
     <string name="trime_app_slogan">Rimes with Your Keystrokes on Android</string>
-    <string name="external_storage_permission_not_available">External storage permission is not available</string>
-    <string name="external_storage_permission_granted">External storage permission is granted</string>
-    <string name="external_storage_permission_denied">External storage permission was denied, deployment or reading schemas and config may not be available</string>
     <string name="custom_sound_effect_name">Custom key Sound Effect</string>
     <string name="setup__next">Next</string>
     <string name="done">Done</string>
@@ -90,7 +85,6 @@
     <string name="key_swipe_velocity">The speed of triggering the button swipe gesture (the distance/velocity is sufficient)</string>
     <string name="build_info">Build Info</string>
     <string name="telegram">Telegram</string>
-    <string name="quick_bar">Quick bar</string>
     <string name="copy_done">Copied to clipboard!</string>
     <string name="hook_shift_space">Ignore Shift locked for Space</string>
     <string name="test_input">Test input</string>
@@ -100,7 +94,7 @@
     <string name="type_text">Type text</string>
     <string name="type_number">Type number</string>
     <string name="type_password">Type password</string>
-    <string name="hook_shift_num">Ignore Shift locked for 0-9</string>
+    <string name="hook_shift_num">Ignore Shift locked for 0–9</string>
     <string name="hook_shift_symbol">Ignore Shift locked for Symbol keys</string>
     <string name="hook_shift_arrow">Keep Shift locked for Arrow keys</string>
     <string name="exception_logcat_created">Logcat process is already created</string>
@@ -118,8 +112,31 @@
     <string name="virtual_keyboard">Virtual Keyboard</string>
     <string name="theme">Keyboard Style</string>
     <string name="about">About</string>
-    <string name="storage">Storage</string>
     <string name="maintenance">Maintenance</string>
+    <string name="install_schema_layout_package">Install schema layout package</string>
+    <string name="install_schema_layout_package_summary">Install a .zip containing a Rime schema, layouts, and optional resources</string>
+    <string name="install_schema_layout_package_failure">Failed to install schema layout package</string>
+    <string name="ime_package_not_compiled">IME package is not compiled yet</string>
+    <string name="ime_package_broken">(broken: %1$s)</string>
+    <string name="ime_package_compile">Compile IME package</string>
+    <string name="ime_package_compiled_switch_hint">Package compiled. You can switch to it now.</string>
+    <string name="ime_package_compiling_start">Starting IME package compilation…</string>
+    <string name="ime_package_importing">Importing IME package…</string>
+    <string name="ime_package_compiling">Compiling IME package…</string>
+    <string name="ime_package_import_in_progress">IME package import/compile is in progress…</string>
+    <string name="ime_package_compiled_active_refreshed">Compiled. The current package has been refreshed.</string>
+    <string name="ime_package_compile_failed">IME package compile failed</string>
+    <string name="ime_package_activation_success">IME package switched</string>
+    <string name="export_migrated_workspace">Export migrated workspace</string>
+    <string name="export_migrated_workspace_summary">Export old data that has no corresponding package</string>
+    <string name="ime_package_deleted">IME package deleted</string>
+    <string name="cannot_delete_active_ime_package">Switch to another IME package before deleting this one</string>
+    <string name="ime_package_already_active">This IME package is already active</string>
+    <string name="validate_definition_file">Validate definition file</string>
+    <string name="validate_definition_file_summary">Check a theme/layout/manifest YAML against the definition schema</string>
+    <string name="validate_definition_success">Definition is valid</string>
+    <string name="validate_definition_failure">Definition has errors</string>
+    <string name="validate_definition_syntax_only">Definition syntax is valid, but referenced files are not available; full package validation was skipped.</string>
     <string name="loading">Loading</string>
     <string name="success">success</string>
     <string name="failure">failure</string>
@@ -129,7 +146,7 @@
     <string name="clip_edit_text_hint">Edit text here</string>
     <string name="ask_to_delete_all">Delete All?</string>
     <string name="ok">OK</string>
-    <string name="cancel">CANCEL</string>
+    <string name="cancel">Cancel</string>
     <string name="licenses_of_third_party_libraries">Licenses of third-party libraries</string>
     <string name="clipboard">Clipboard</string>
     <string name="collection">Collection</string>
@@ -141,9 +158,8 @@
     <string name="custom_sound_effect_enabled">Use custom key sound</string>
     <string name="enable_landscape_mode">Enable Landscape Mode</string>
     <string name="split_space_percent">Auto Split Keyboard Space Ratio</string>
-    <string name="setup__step_three">Setup 3</string>
-    <string name="setup__request_permission_hint">Currently Trime requests storage permissions to access its configuration\nand allow users to modify easily.</string>
-    <string name="setup__request_permission">Request storage permission</string>
+    <string name="keyboard_height_scale">Keyboard height</string>
+    <string name="keyboard_height_scale_summary">Scale the keyboard height (50–150%%) by resizing all key rows proportionally</string>
     <string name="grant_permission">Grant permission</string>
     <string name="notification_permission_title">No Notification Permission</string>
     <string name="notification_permission_message">Without the permission to post notifications, we are not able to notify you when some time-consuming operations are done.</string>
@@ -152,7 +168,6 @@
     <string name="select_current_schema">Select current schema</string>
     <string name="enable_schemata">Enable schemata</string>
     <string name="no_schema_to_select">Currently there is no schema to select. Please go to enable schemata from the available list.</string>
-    <string name="no_schema_to_enable">No schema to enable. Make sure you have prelude and schema files in the user directory.</string>
     <string name="schemata">Schemata</string>
     <string name="navbar_background">Navigation bar background</string>
     <string name="no_theme_to_select">Currently there is no theme to select.</string>
@@ -167,7 +182,6 @@
     <string name="general">General</string>
     <string name="composing_text">Composing text</string>
     <string name="commit_text_preview">Commit text preview</string>
-    <string name="raw_input">Raw input</string>
     <string name="inline_preedit_mode">Inline preedit mode</string>
     <string name="depends_on_input_device">Depends on input device</string>
     <string name="always_show">Always show</string>
@@ -209,7 +223,6 @@
     <string name="backed_up_x_to_sync_dir">Backed up %1$s to sync dir</string>
     <string name="restored_from_x">Restored from %1$s</string>
     <string name="backup">Backup</string>
-    <string name="restore">Restore</string>
     <string name="clipboard_listening">Clipboard listening</string>
     <string name="clipboard_return_after_paste">Return after pasting</string>
     <string name="source_code">Source code</string>
@@ -228,4 +241,6 @@
     <string name="word_segment">Word segment</string>
     <string name="star_success">Star success</string>
     <string name="ignore_system_gesture_insets">Ignore system gesture insets</string>
+    <string name="pagination_prev_page">Previous page</string>
+    <string name="pagination_next_page">Next page</string>
 </resources>

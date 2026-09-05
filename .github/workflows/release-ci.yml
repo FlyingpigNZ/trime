@@ -32,8 +32,15 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Install Android NDK
+        # Keep the cmake version in sync with Versions.DEFAULT_CMAKE instead
+        # of maintaining it in two places.
         run: |
-          sdkmanager --install "cmake;3.31.6"
+          CMAKE_VERSION=$(grep -oP 'DEFAULT_CMAKE = "\K[^"]+' build-logic/convention/src/main/kotlin/Versions.kt)
+          sdkmanager --install "cmake;$CMAKE_VERSION"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --user pyyaml || python3 -m pip install --user --break-system-packages pyyaml
 
       - name: Calculate JNI cache hash
         id: cache-hash
@@ -63,12 +70,38 @@ jobs:
         if: ${{ !steps.jni-cache.outputs.cache-hit }}
         run: cp -R app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib app/prebuilt
 
+      - name: Resolve changelog base
+        id: changelog_base
+        run: |
+          # This repo is single-branch (main) with no 'develop' branch, so the
+          # old `git merge-base HEAD origin/develop` fails. Use the previous
+          # release tag as the changelog base instead; for the FIRST release on
+          # a tag-less fork there is no previous tag, so fall back to a fixed
+          # baseline commit so the first changelog isn't the whole git history.
+          prev_tag=$(git describe --tags --abbrev=0 "HEAD^" 2>/dev/null) || prev_tag=""
+          if [ -n "$prev_tag" ]; then
+            base="$prev_tag"
+          else
+            # First release: diff against the last release before the single-branch
+            # migration, keeping the initial changelog bounded.
+            base="148ff931d5c66327e51b8d01d2c36dcdad74ae12"
+          fi
+          echo "base=${base}" >> "$GITHUB_OUTPUT"
+
       - name: Build changelog
         id: build_changelog
         uses: mikepenz/release-changelog-builder-action@v4
         with:
+          # This repo runs on a self-hosted Gitea instance, not GitHub. Without
+          # this the action defaults to `github` and queries api.github.com
+          # (which isn't reachable), producing an empty changelog. Gitea has no
+          # compare API, so in commitMode the diff is read from the local
+          # checked-out repo.
+          platform: "gitea"
           commitMode: true
           ignorePreReleases: true
+          fromTag: ${{ steps.changelog_base.outputs.base }}
+          toTag: ${{ github.ref_name }}
           configurationJson: |
             {
               "template": "Change log from #{{FROM_TAG}} to #{{TO_TAG}}: #{{RELEASE_DIFF}}\n#{{UNCATEGORIZED}}",
@@ -82,7 +115,40 @@ jobs:
         with:
           allowUpdates: true
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
-          artifacts: "app/build/outputs/apk/release/*.apk"
           body: |
             ${{ steps.build_changelog.outputs.changelog }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ncipollo/release-action's `artifacts` upload uses GitHub's asset
+      # creation flow, which Gitea does not implement (the action exits 0 with
+      # a "Could not determine name of attachment" warning and attaches nothing).
+      # Upload the built APKs to the release directly via the Gitea API instead.
+      - name: Upload APKs to release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # GITHUB_API_URL is populated by the Gitea runner (verified on
+          # 1.27.3), e.g. http://host:3000/api/v1. Use it so the workflow is
+          # host-agnostic instead of hardcoding the server URL.
+          API="${GITHUB_API_URL:?}"
+          REPO="${{ github.repository }}"
+          TAG="${{ github.ref_name }}"
+
+          # The release was created in the previous step; fetch its id by tag.
+          RELEASE_ID=$(curl -fsS -H "Authorization: token $GITHUB_TOKEN" \
+            "$API/repos/$REPO/releases/tags/$TAG" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])")
+          echo "release id: $RELEASE_ID"
+
+          for apk in app/build/outputs/apk/release/*.apk; do
+            [ -e "$apk" ] || continue
+            name=$(basename "$apk")
+            echo "Uploading $name ..."
+            curl -fsS -X POST -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"$apk" \
+              "$API/repos/$REPO/releases/$RELEASE_ID/assets?name=$name" \
+              -o /dev/null -w "  -> %{http_code}\n"
+          done
+          echo "Assets uploaded."

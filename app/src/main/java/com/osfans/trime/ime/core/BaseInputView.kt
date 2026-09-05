@@ -22,6 +22,7 @@ import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.data.theme.ThemePrefs
 import com.osfans.trime.ime.keyboard.InputFeedbackManager
@@ -43,7 +44,7 @@ abstract class BaseInputView(
     private fun setupRimeMessageHandler() {
         messageHandlerJob =
             service.lifecycleScope.launch {
-                rime.run { messageFlow }.collect {
+                rime.messageFlow.collect {
                     handleRimeMessage(it)
                 }
             }
@@ -69,7 +70,7 @@ abstract class BaseInputView(
     fun showCandidateActionMenu(idx: Int, text: String, view: View, global: Boolean) {
         candidateActionMenu?.dismiss()
         candidateActionMenu = null
-        val highlightColor = ColorManager.getColor("hilited_candidate_text_color")
+        val highlightColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_TEXT_COLOR)
         val title = buildSpannedString {
             bold {
                 color(highlightColor) { append(text) }

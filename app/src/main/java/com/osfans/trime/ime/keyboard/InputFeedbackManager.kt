@@ -176,15 +176,13 @@ object InputFeedbackManager {
                     KeyEvent.KEYCODE_ENTER -> AudioManager.FX_KEYPRESS_RETURN
                     else -> AudioManager.FX_KEYPRESS_STANDARD
                 }
-            val volume =
-                if (soundVolume == 0) {
-                    -1f
-                } else {
-                    soundVolume / 100f
-                }
+            // Volume is a plain 0-100 percentage in both branches: 0 mutes the
+            // key sound. (Previously 0 meant "system default volume" here but
+            // "muted" for custom sound effects — contradictory semantics.)
+            if (soundVolume <= 0) return
             audioManager.playSoundEffect(
                 effect,
-                volume,
+                soundVolume / 100f,
             )
         }
     }

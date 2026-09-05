@@ -46,6 +46,11 @@ class MainFragment : PaddingPreferenceFragment() {
     ) {
         preferenceScreen = preferenceManager.createPreferenceScreen(requireContext()).apply {
             addDestinationPreference(
+                R.string.selected_ime,
+                R.drawable.ic_baseline_keyboard_24,
+                NavigationRoute.ImePackages,
+            )
+            addDestinationPreference(
                 R.string.schemata,
                 R.drawable.ic_round_view_list_24,
                 NavigationRoute.SchemaList,

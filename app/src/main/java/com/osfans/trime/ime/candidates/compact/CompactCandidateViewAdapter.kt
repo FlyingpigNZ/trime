@@ -25,7 +25,7 @@ open class CompactCandidateViewAdapter(
         setHasStableIds(true)
     }
 
-    override fun getItemId(position: Int): Long = items.getOrNull(position).hashCode().toLong()
+    override fun getItemId(position: Int): Long = items.getOrNull(position)?.hashCode()?.toLong() ?: position.toLong()
 
     var total: Int = -1
         private set
@@ -54,6 +54,16 @@ open class CompactCandidateViewAdapter(
         this.highlightedIdx = highlightedIndex
     }
 
+    /**
+     * Reset the highlighted index to -1. Called when the unrolled window is
+     * collapsed: the highlight has no meaning after the user picked a
+     * candidate, and keeping a stale out-of-range value would make the next
+     * candidate refresh (e.g. Backspace) auto-expand the window again.
+     */
+    fun resetHighlightedIndex() {
+        highlightedIdx = -1
+    }
+
     override fun onCreateViewHolder(
         context: Context,
         parent: ViewGroup,
@@ -77,7 +87,7 @@ open class CompactCandidateViewAdapter(
         holder.ui.update(item, isHighlighted)
         holder.text = item.text
         holder.comment = item.comment
-        holder.idx = position // unused
+        holder.idx = position // read by BaseUnrolledCandidateWindow
         holder.ui.root.updateLayoutParams<FlexboxLayoutManager.LayoutParams> {
             minWidth = this@CompactCandidateViewAdapter.layoutMinWidth
             flexGrow = this@CompactCandidateViewAdapter.layoutFlexGrow

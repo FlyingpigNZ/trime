@@ -18,8 +18,10 @@ import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.KeyActionManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.core.AutoScaleTextView
 import com.osfans.trime.ime.keyboard.KeyboardSwitcher
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.ime.keyboard.isIconFont
 import com.osfans.trime.ime.keyboard.toIconName
 import splitties.dimensions.dp
@@ -56,6 +58,7 @@ import kotlin.math.roundToInt
 class PopupKeyboardUi(
     override val ctx: Context,
     theme: Theme,
+    private val keyboardSwitcher: KeyboardSwitcher,
     outerBounds: Rect,
     triggerBounds: Rect,
     onDismissSelf: PopupContainerUi.() -> Unit = {},
@@ -71,8 +74,8 @@ class PopupKeyboardUi(
 
         val textView = view(::AutoScaleTextView) {
             scaleMode = AutoScaleTextView.Mode.Proportional
-            textSize = theme.generalStyle.popupTextSize
-            setTextColor(ColorManager.getColor("popup_text_color"))
+            textSize = theme.generalStyle.popupTextSize * UiScale.factor
+            setTextColor(ColorManager.getColor(ThemeColor.POPUP_TEXT_COLOR))
             typeface = FontManager.getTypeface("POPUP_FONT")
         }
 
@@ -97,8 +100,8 @@ class PopupKeyboardUi(
             if (text.isIconFont) {
                 imageView.setImageDrawable(
                     IconicsDrawable(ctx, text.toIconName()).apply {
-                        sizeDp = theme.generalStyle.popupTextSize.toInt()
-                        colorFilter = PorterDuffColorFilter(ColorManager.getColor("popup_text_color"), PorterDuff.Mode.SRC_IN)
+                        sizeDp = (theme.generalStyle.popupTextSize * UiScale.factor).toInt()
+                        colorFilter = PorterDuffColorFilter(ColorManager.getColor(ThemeColor.POPUP_TEXT_COLOR), PorterDuff.Mode.SRC_IN)
                     },
                 )
                 imageView.isVisible = true
@@ -113,12 +116,12 @@ class PopupKeyboardUi(
 
     private val inactiveBackground = GradientDrawable().apply {
         cornerRadius = radius
-        setColor(ColorManager.getColor("popup_back_color"))
+        setColor(ColorManager.getColor(ThemeColor.POPUP_BACK_COLOR))
     }
 
     private val focusBackground = GradientDrawable().apply {
         cornerRadius = radius
-        setColor(ColorManager.getColor("hilited_popup_back_color"))
+        setColor(ColorManager.getColor(ThemeColor.HILITED_POPUP_BACK_COLOR))
     }
 
     private val rowCount: Int
@@ -195,10 +198,15 @@ class PopupKeyboardUi(
             if (label.length == 1 && label[0].code < 128) {
                 label
             } else {
-                KeyActionManager.getAction(label).getLabel(KeyboardSwitcher.currentKeyboard).let {
+                keyboardSwitcher.currentKeyboard?.let { keyboard ->
+                    KeyActionManager.getAction(label).getLabel(keyboard, keyboardSwitcher.currentUiState)
+                }.orEmpty().let {
                     when {
                         it.isIconFont -> it
-                        it.isNotEmpty() -> String(Character.toChars(it.codePointAt(0)))
+                        // Keep the full label: AutoScaleTextView fits it, and
+                        // truncating to the first code point mangles multi-
+                        // code-point graphemes (ZWJ emoji, accents, CJK).
+                        it.isNotEmpty() -> it
                         else -> ""
                     }
                 }
@@ -240,7 +248,7 @@ class PopupKeyboardUi(
     private fun markFocus(index: Int) {
         keyUis.getOrNull(index)?.apply {
             root.background = focusBackground
-            val color = ColorManager.getColor("hilited_popup_text_color")
+            val color = ColorManager.getColor(ThemeColor.HILITED_POPUP_TEXT_COLOR)
             textView.setTextColor(color)
             imageView.drawable?.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
         }
@@ -249,7 +257,7 @@ class PopupKeyboardUi(
     private fun markInactive(index: Int) {
         keyUis.getOrNull(index)?.apply {
             root.background = null
-            val color = ColorManager.getColor("popup_text_color")
+            val color = ColorManager.getColor(ThemeColor.POPUP_TEXT_COLOR)
             textView.setTextColor(color)
             imageView.drawable?.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
         }

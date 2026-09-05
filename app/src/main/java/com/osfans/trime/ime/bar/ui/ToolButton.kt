@@ -21,10 +21,14 @@ import com.mikepenz.iconics.utils.sizeDp
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.KeyActionManager
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.model.ToolBar
 import com.osfans.trime.ime.core.AutoScaleTextView
+import com.osfans.trime.ime.dependency.InputDependencyManager
 import com.osfans.trime.ime.keyboard.GestureFrame
 import com.osfans.trime.ime.keyboard.KeyboardSwitcher
+import com.osfans.trime.ime.keyboard.UiScale
+import org.kodein.di.instance
 import splitties.dimensions.dp
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.imageView
@@ -36,6 +40,7 @@ import splitties.views.imageResource
 import splitties.views.padding
 
 class ToolButton(context: Context) : GestureFrame(context) {
+    private val keyboardSwitcher: KeyboardSwitcher by InputDependencyManager.getInstance().di.instance()
 
     private val image = imageView {
         isClickable = false
@@ -72,7 +77,7 @@ class ToolButton(context: Context) : GestureFrame(context) {
 
     constructor(context: Context, @DrawableRes icon: Int) : this(context) {
         val tintList = ColorStateList.valueOf(
-            ColorManager.getColor("candidate_text_color"),
+            ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR),
         )
         image.imageTintList = tintList
         image.padding = dp(4)
@@ -91,13 +96,15 @@ class ToolButton(context: Context) : GestureFrame(context) {
         } else {
             singleStyle = fg.style
         }
-        actionLabel = keyAction.getLabel(KeyboardSwitcher.currentKeyboard)
+        actionLabel = keyboardSwitcher.currentKeyboard?.let {
+            keyAction.getLabel(it, keyboardSwitcher.currentUiState)
+        } ?: ""
 
         val padding = dp(fg.padding)
         image.padding = padding
         label.padding = padding
 
-        fontSize = fg.fontSize
+        fontSize = fg.fontSize * UiScale.factor
         label.textSize = fontSize
 
         label.typeface = FontManager.getTypeface("toolbar_font")

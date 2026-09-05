@@ -53,7 +53,7 @@ class PagedCandidatesUi(
                 setHasStableIds(true)
             }
 
-            override fun getItemId(position: Int): Long = items.getOrNull(position).hashCode().toLong()
+            override fun getItemId(position: Int): Long = items.getOrNull(position)?.hashCode()?.toLong() ?: position.toLong()
 
             override fun getItemCount(items: List<CandidateProto>) = items.size + (if (candidates.hasPrevPage || candidates.hasNextPage) 1 else 0)
 

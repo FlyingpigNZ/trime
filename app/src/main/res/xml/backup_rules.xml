@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: 2015 - 2026 Rime community
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
+<!--
+Auto Backup rules for API <= 30 (android:fullBackupContent).
+
+Clipboard/collection history and the Rime workspace are private user data:
+clipboard history must never leave the device, and the workspace (user dicts,
+sync data, compiled packages) is large and personal. Settings and other
+preferences continue to back up normally.
+-->
+<full-backup-content>
+    <exclude domain="database" path="clipboard.db" />
+    <exclude domain="database" path="collection.db" />
+    <exclude domain="external" path="rime/" />
+    <exclude domain="external" path="packages/" />
+    <exclude domain="external" path="shared/" />
+    <exclude domain="file" path="symbol_history" />
+</full-backup-content>

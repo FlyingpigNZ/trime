@@ -20,8 +20,10 @@ import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.keyboard.KeyboardWindow
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.ime.segments.SegmentsWindow
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.BoardWindowManager
@@ -57,7 +59,7 @@ class ClipboardWindow(private val initialTab: Int = 0) : BoardWindow.BarBoardWin
         object : ClipboardAdapter(theme) {
             override fun onPaste(bean: DatabaseBean) {
                 val text = bean.text ?: return
-                service.commitText(text)
+                service.editor.commitText(text)
                 if (clipboardReturnAfterPaste) {
                     windowManager.attachWindow(KeyboardWindow)
                 }
@@ -103,7 +105,7 @@ class ClipboardWindow(private val initialTab: Int = 0) : BoardWindow.BarBoardWin
         object : ClipboardAdapter(theme) {
             override fun onPaste(bean: DatabaseBean) {
                 val text = bean.text ?: return
-                service.commitText(text)
+                service.editor.commitText(text)
                 if (clipboardReturnAfterPaste) {
                     windowManager.attachWindow(KeyboardWindow)
                 }
@@ -169,9 +171,9 @@ class ClipboardWindow(private val initialTab: Int = 0) : BoardWindow.BarBoardWin
                 }
                 tabUi.label.apply {
                     setText(label)
-                    textSize = theme.generalStyle.candidateTextSize
+                    textSize = theme.generalStyle.candidateTextSize * UiScale.factor
                     setTypeface(FontManager.getTypeface("candidate_font"), Typeface.BOLD)
-                    setTextColor(ColorManager.getColor("key_text_color"))
+                    setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
                 }
             }
             deleteAllButton.setOnClickListener {

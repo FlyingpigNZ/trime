@@ -9,17 +9,17 @@ SPDX-License-Identifier: GPL-3.0-or-later
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:name="com.osfans.trime.TrimeApplication"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_app_icon"
         android:label="@string/trime_app_name"
-        android:requestLegacyExternalStorage="true"
         android:roundIcon="@mipmap/ic_app_icon_round"
         android:theme="@style/Theme.TrimeAppTheme">
 
@@ -36,6 +36,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
                 android:resource="@xml/method" />
         </service>
 
+        <!-- POC: separate process for offline workspace compilation. -->
+        <service
+            android:name=".daemon.PackageCompileService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:process=":compile" />
+
         <provider
             android:name=".provider.RimeDataProvider"
             android:authorities="${applicationId}.provider"
@@ -45,16 +52,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
             <intent-filter>
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>
-        </provider>
-
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/provider_paths" />
         </provider>
 
         <!-- Settings activity -->
@@ -89,7 +86,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
             android:name="com.osfans.trime.MainLauncherAlias"
             android:exported="true"
             android:label="@string/trime_app_name"
-            android:launchMode="singleTask"
             android:targetActivity=".ui.main.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

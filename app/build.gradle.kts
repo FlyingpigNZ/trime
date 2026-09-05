@@ -16,6 +16,22 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val buildDefaultPackage by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Build the bundled Default.zip IME package from shared/Default"
+    workingDir = rootProject.projectDir
+    commandLine("python3", "script/build_default_package.py")
+    inputs.dir(rootProject.layout.projectDirectory.dir("app/src/main/assets/shared/Default"))
+    inputs.file(rootProject.layout.projectDirectory.file("script/build_default_package.py"))
+    inputs.file(rootProject.layout.projectDirectory.file("script/package_schema.py"))
+    outputs.file(rootProject.layout.projectDirectory.file("app/src/main/assets/shared/Default.zip"))
+    outputs.file(rootProject.layout.projectDirectory.file("sample_theme_schemas/Default.zip"))
+}
+
+tasks.named("generateDataChecksums") {
+    dependsOn(buildDefaultPackage)
+}
+
 android {
     namespace = "com.osfans.trime"
     compileSdk = 36
@@ -26,7 +42,8 @@ android {
         minSdk = 21
         targetSdk = 36
         versionCode = 20260901
-        versionName = "3.3.12"
+        versionName = "3.4.1"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         multiDexEnabled = true
         buildConfigField("String", "BUILDER", "\"${project.builder}\"")
@@ -79,14 +96,13 @@ android {
         }
     }
 
+    androidResources {
+        ignoreAssetsPatterns.add("Default")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    // hack workaround lint gradle 8.0.2
-    lint {
-        checkReleaseBuilds = false
     }
 
     testOptions {
@@ -176,6 +192,9 @@ dependencies {
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
     androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
 
 configurations {

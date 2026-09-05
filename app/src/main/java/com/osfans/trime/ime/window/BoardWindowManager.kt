@@ -73,6 +73,7 @@ class BoardWindowManager {
     fun attachWindow(window: BoardWindow) {
         if (window === currentWindow) {
             Timber.d("Skip attaching $window")
+            return
         }
         val newView =
             if (window is ResidentWindow) {

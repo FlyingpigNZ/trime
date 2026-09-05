@@ -12,6 +12,7 @@ import com.osfans.trime.R
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.keyboard.GestureFrame
 import splitties.dimensions.dp
 import splitties.resources.drawable
@@ -39,14 +40,14 @@ class ClipboardBeanUi(override val ctx: Context, private val theme: Theme) : Ui 
             typeface = FontManager.getTypeface("key_font")
             setPaddingDp(8, 4, 8, 4)
             ellipsize = TextUtils.TruncateAt.END
-            setTextColor(ColorManager.getColor("key_text_color"))
+            setTextColor(ColorManager.getColor(ThemeColor.KEY_TEXT_COLOR))
         }
 
     val pin =
         imageView {
             imageDrawable =
                 drawable(R.drawable.ic_baseline_push_pin_24)!!.apply {
-                    setTint(ColorManager.getColor("key_symbol_color"))
+                    setTint(ColorManager.getColor(ThemeColor.KEY_SYMBOL_COLOR))
                     setAlpha(0.3f)
                 }
         }

@@ -17,6 +17,7 @@ import com.osfans.trime.core.CompositionProto
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.lParams
@@ -28,8 +29,8 @@ open class PreeditUi(
     private val setupPreeditView: (TextView.() -> Unit)? = null,
     private val onMoveCursor: ((Int) -> Unit)? = null,
 ) : Ui {
-    private val textColor = ColorManager.getColor("text_color")
-    private val highlightTextColor = ColorManager.getColor("hilited_text_color")
+    private val textColor = ColorManager.getColor(ThemeColor.TEXT_COLOR)
+    private val highlightTextColor = ColorManager.getColor(ThemeColor.HILITED_TEXT_COLOR)
 
     val preedit =
         view(::PreeditTextView) {
@@ -70,22 +71,15 @@ open class PreeditUi(
 
     fun update(composition: CompositionProto) {
         val string = composition.toSpannedString()
-        val cursorPos = composition.cursorPos
         val hasPreedit = composition.length > 0
         visible = hasPreedit
         if (!visible) {
             updateTextView("", false)
             return
         }
-        val stringWithCursor =
-            if (cursorPos == 0 || cursorPos == string.length) {
-                string
-            } else {
-                buildSpannedString {
-                    if (cursorPos > 0) append(string, 0, cursorPos)
-                    append(string, cursorPos, string.length)
-                }
-            }
-        updateTextView(stringWithCursor, true)
+        // The old code split the string at cursorPos to render a cursor, but
+        // both branches produced exactly [string] — no cursor was ever drawn,
+        // so the branch was a no-op.
+        updateTextView(string, true)
     }
 }

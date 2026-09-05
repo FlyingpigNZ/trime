@@ -7,8 +7,6 @@ package com.osfans.trime.ui.main.settings
 
 import android.net.Uri
 import android.os.Bundle
-import android.provider.DocumentsContract
-import android.view.ViewGroup
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -21,6 +19,8 @@ import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.prefs.PreferenceDelegate
+import com.osfans.trime.data.theme.DefinitionValidator
+import com.osfans.trime.data.theme.component.ComponentSource
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
 import com.osfans.trime.ui.common.withLoadingDialog
 import com.osfans.trime.ui.main.MainViewModel
@@ -29,28 +29,10 @@ import com.osfans.trime.util.addCategory
 import com.osfans.trime.util.addPreference
 import com.osfans.trime.util.customFormatTimeInDefault
 import com.osfans.trime.util.getFileFromUri
-import com.osfans.trime.util.getUriForFile
 import com.osfans.trime.util.toast
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import splitties.dimensions.dp
-import splitties.resources.drawable
-import splitties.resources.styledColor
-import splitties.views.dsl.constraintlayout.centerVertically
-import splitties.views.dsl.constraintlayout.constraintLayout
-import splitties.views.dsl.constraintlayout.endOfParent
-import splitties.views.dsl.constraintlayout.endToStartOf
-import splitties.views.dsl.constraintlayout.lParams
-import splitties.views.dsl.constraintlayout.matchConstraints
-import splitties.views.dsl.constraintlayout.startOfParent
-import splitties.views.dsl.constraintlayout.startToEndOf
-import splitties.views.dsl.core.add
-import splitties.views.dsl.core.editText
-import splitties.views.dsl.core.imageButton
-import splitties.views.dsl.core.matchParent
-import splitties.views.dsl.core.wrapContent
-import splitties.views.imageDrawable
-import splitties.views.topPadding
 import java.io.File
 
 class ProfileSettingsFragment : PaddingPreferenceFragment() {
@@ -71,12 +53,7 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
             }
         }
 
-    private val onUserDataDirChange = PreferenceDelegate.OnChangeListener<String> { _, newValue ->
-        findPreference<Preference>(AppPrefs.Profile.USER_DATA_DIR)?.summary = newValue
-    }
-
-    private lateinit var browseLauncher: ActivityResultLauncher<Uri?>
-    private var launcherResultCallback: ((path: String) -> Unit)? = null
+    private lateinit var validateLauncher: ActivityResultLauncher<String>
 
     private lateinit var editSyncIntervalPreference: EditTextIntPreference
 
@@ -84,17 +61,8 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
         super.onCreate(savedInstanceState)
         prefs.periodicBackgroundSync.registerOnChangeListener(onBackgroundSyncEnable)
         prefs.periodicBackgroundSyncInterval.registerOnChangeListener(onSyncIntervalChange)
-        prefs.userDataDir.registerOnChangeListener(onUserDataDirChange)
-
-        browseLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) {
-            it ?: return@registerForActivityResult
-            val uri =
-                DocumentsContract.buildDocumentUriUsingTree(
-                    it,
-                    DocumentsContract.getTreeDocumentId(it),
-                ) ?: return@registerForActivityResult
-            val path = requireContext().getFileFromUri(uri)?.absolutePath ?: return@registerForActivityResult
-            launcherResultCallback?.invoke(path)
+        validateLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) validateDefinitionFile(uri)
         }
     }
 
@@ -104,72 +72,6 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
     ) {
         val ctx = requireContext()
         preferenceScreen = preferenceManager.createPreferenceScreen(ctx).apply {
-            addCategory(R.string.storage) {
-                isIconSpaceReserved = false
-                addPreference(
-                    Preference(requireContext()).apply {
-                        key = AppPrefs.Profile.USER_DATA_DIR
-                        isIconSpaceReserved = false
-                        setTitle(R.string.user_data_dir)
-                        setDefaultValue(DataManager.defaultDataDir.absolutePath)
-                        summary = prefs.userDataDir.getValue()
-                        setOnPreferenceClickListener {
-                            val dirNameText = ctx.editText {
-                                setText(prefs.userDataDir.getValue())
-                            }
-                            launcherResultCallback = { path ->
-                                dirNameText.setText(path)
-                            }
-                            val browseButton = ctx.imageButton {
-                                imageDrawable = ctx.drawable(R.drawable.ic_baseline_more_horiz_24)!!.apply {
-                                    setTint(styledColor(android.R.attr.colorControlNormal))
-                                }
-                                setOnClickListener {
-                                    val currentValue = prefs.userDataDir.getValue()
-                                    browseLauncher.launch(ctx.getUriForFile(File(currentValue)))
-                                }
-                            }
-                            val dialogContent = ctx.constraintLayout {
-                                layoutParams = ViewGroup.LayoutParams(matchParent, wrapContent)
-                                topPadding = dp(8)
-                                add(
-                                    dirNameText,
-                                    lParams(matchConstraints, wrapContent) {
-                                        centerVertically()
-                                        startOfParent(dp(20))
-                                        endToStartOf(browseButton, dp(2))
-                                    },
-                                )
-                                val size = dp(48)
-                                add(
-                                    browseButton,
-                                    lParams(size, size) {
-                                        centerVertically()
-                                        startToEndOf(dirNameText, dp(2))
-                                        endOfParent(dp(20))
-                                    },
-                                )
-                            }
-                            AlertDialog.Builder(ctx)
-                                .setTitle(R.string.user_data_dir)
-                                .setView(dialogContent)
-                                .setPositiveButton(android.R.string.ok) { _, _ ->
-                                    prefs.userDataDir.setValue(dirNameText.text.toString())
-                                }
-                                .setNegativeButton(android.R.string.cancel, null)
-                                .setNeutralButton(R.string.default_) { _, _ ->
-                                    prefs.userDataDir.setValue(DataManager.defaultDataDir.absolutePath)
-                                }
-                                .setOnDismissListener {
-                                    // avoid memory leak
-                                    launcherResultCallback = null
-                                }
-                                .show()
-                            true
-                        }
-                    },
-                )
-            }
             addCategory(R.string.synchronization) {
                 isIconSpaceReserved = false
                 addPreference(R.string.sync_user_data_immediately) {
@@ -218,6 +120,12 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
             }
             addCategory(R.string.maintenance) {
                 isIconSpaceReserved = false
+                addPreference(
+                    R.string.validate_definition_file,
+                    R.string.validate_definition_file_summary,
+                ) {
+                    validateLauncher.launch("*/*")
+                }
                 addPreference(R.string.reset, R.string.reset_hint) {
                     val items = ctx.assets.list("shared") ?: return@addPreference
                     val checked = BooleanArray(items.size) { false }
@@ -250,10 +158,90 @@ class ProfileSettingsFragment : PaddingPreferenceFragment() {
         }
     }
 
+    private fun validateDefinitionFile(uri: Uri) {
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            val outcome =
+                withContext(Dispatchers.IO) {
+                    val text =
+                        ctx.contentResolver.openInputStream(uri)
+                            ?.bufferedReader(Charsets.UTF_8)
+                            ?.use { it.readText() }
+                            ?: return@withContext null
+                    val realFile = ctx.getFileFromUri(uri)
+                    if (realFile != null) {
+                        ValidationOutcome(
+                            DefinitionValidator.validateComponentManifest(
+                                text,
+                                ComponentSource.fromDirectory(realFile.parentFile ?: return@withContext null),
+                            ),
+                        )
+                    } else {
+                        // Most GetContent URIs are content:// and have no usable
+                        // filesystem path. Copy the selected file into a temp dir and
+                        // try full validation; if the only problems are missing
+                        // sibling files, fall back to a clearly-labeled
+                        // syntax-only result instead of a false failure.
+                        val tempDir =
+                            File.createTempFile("definition-", ".dir", ctx.cacheDir).apply {
+                                delete()
+                                mkdirs()
+                            }
+                        try {
+                            File(tempDir, "manifest.yaml").writeText(text, Charsets.UTF_8)
+                            val fullErrors =
+                                DefinitionValidator.validateComponentManifest(
+                                    text,
+                                    ComponentSource.fromDirectory(tempDir),
+                                )
+                            if (fullErrors.isEmpty()) {
+                                ValidationOutcome(emptyList())
+                            } else {
+                                val syntaxErrors = DefinitionValidator.validateComponentManifest(text)
+                                val hasMissingReferences =
+                                    fullErrors.any { it.startsWith(ComponentSource.MISSING_FILE_ERROR_PREFIX) }
+                                if (hasMissingReferences && syntaxErrors.isEmpty()) {
+                                    ValidationOutcome(emptyList(), referencedFilesUnavailable = true)
+                                } else {
+                                    ValidationOutcome(fullErrors)
+                                }
+                            }
+                        } finally {
+                            tempDir.deleteRecursively()
+                        }
+                    }
+                }
+            if (outcome == null) return@launch
+            when {
+                outcome.referencedFilesUnavailable -> {
+                    AlertDialog.Builder(ctx)
+                        .setTitle(R.string.validate_definition_success)
+                        .setMessage(R.string.validate_definition_syntax_only)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+                outcome.errors.isEmpty() -> {
+                    ctx.toast(R.string.validate_definition_success)
+                }
+                else -> {
+                    AlertDialog.Builder(ctx)
+                        .setTitle(R.string.validate_definition_failure)
+                        .setMessage(outcome.errors.joinToString("\n"))
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+            }
+        }
+    }
+
+    private data class ValidationOutcome(
+        val errors: List<String>,
+        val referencedFilesUnavailable: Boolean = false,
+    )
+
     override fun onDestroy() {
         super.onDestroy()
         prefs.periodicBackgroundSync.unregisterOnChangeListener(onBackgroundSyncEnable)
         prefs.periodicBackgroundSyncInterval.unregisterOnChangeListener(onSyncIntervalChange)
-        prefs.userDataDir.unregisterOnChangeListener(onUserDataDirChange)
     }
 }

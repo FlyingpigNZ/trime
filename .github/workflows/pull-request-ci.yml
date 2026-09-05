@@ -22,9 +22,6 @@ jobs:
       matrix:
         os:
           - ubuntu-24.04
-          - macos-26
-          - macos-26-intel
-          - windows-2025
     env:
       BUILD_ABI: armeabi-v7a,arm64-v8a,x86,x86_64
     steps:
@@ -52,9 +49,23 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
-      - name: Install Android NDK
+      - name: Install clang-format
         run: |
-          sdkmanager --install "cmake;3.31.6"
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
+
+      - name: Install Android NDK
+        # Keep the cmake version in sync with Versions.DEFAULT_CMAKE instead
+        # of maintaining it in two places.
+        shell: bash
+        run: |
+          CMAKE_VERSION=$(python3 -c 'import re,pathlib;m=re.search(r"DEFAULT_CMAKE = \"([^\"]+)\"",pathlib.Path("build-logic/convention/src/main/kotlin/Versions.kt").read_text());print(m.group(1))')
+          sdkmanager --install "cmake;$CMAKE_VERSION"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --user pyyaml || python3 -m pip install --user --break-system-packages pyyaml
 
       - name: Calculate JNI cache hash
         id: cache-hash
@@ -74,9 +85,10 @@ jobs:
           git submodule update --init --recursive
 
       - name: Check code style
-        if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           make style-lint
+          make python-verifiers
+          ./gradlew :app:lintDebug
 
       - name: Build debug Trime
         run: |
@@ -86,11 +98,3 @@ jobs:
         if: ${{ !steps.jni-cache.outputs.cache-hit }}
         shell: bash
         run: cp -R app/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib app/prebuilt
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: trime-${{ matrix.os }}
-          path: app/build/outputs/apk/debug/
-          # keep 30 days
-          retention-days: 30

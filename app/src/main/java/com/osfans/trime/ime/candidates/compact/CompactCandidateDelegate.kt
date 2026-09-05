@@ -19,6 +19,7 @@ import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.bar.InputBarDelegate
 import com.osfans.trime.ime.bar.UnrollButtonStateMachine
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
@@ -34,10 +35,29 @@ import splitties.dimensions.dp
 import splitties.views.dsl.recyclerview.recyclerView
 import kotlin.math.max
 
+/**
+ * Snapshot of one candidate-menu refresh, consumed by the unrolled window to
+ * decide whether it must reload.
+ *
+ * [offset] is the number of candidates currently shown by the compact bar
+ * (the unrolled window displays the ones after it), [highlightedIdx] is the
+ * current highlighted candidate index, and [version] is a content version
+ * that increments whenever the candidate list actually changes. The dedup in
+ * BaseUnrolledCandidateWindow must include [version]: after selecting a
+ * character the new menu may have exactly the same visible count and
+ * highlight as the old one, so comparing offset/highlight alone would
+ * wrongly skip the refresh and leave the unrolled window on stale
+ * candidates.
+ */
+data class UnrolledCandidateUpdate(
+    val offset: Int,
+    val highlightedIdx: Int,
+    val version: Int,
+)
+
 class CompactCandidateDelegate : InputBroadcastReceiver {
     private val di = InputDependencyManager.getInstance().di
     private val context: Context by di.instance()
-    val service: TrimeInputMethodService by di.instance()
     val rime: RimeSession by di.instance()
     val theme: Theme by di.instance()
     private val inputView: InputView by di.instance()
@@ -67,8 +87,30 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     private var secondLayoutPassNeeded = false
     private var secondLayoutPassDone = false
 
+    /**
+     * Content version of the candidate list, bumped in [onCandidateListUpdate]
+     * only when the candidates actually differ (compared by content hash).
+     * Lets the unrolled window distinguish "relayout of the same menu"
+     * (version unchanged) from "a new candidate list" (version changed),
+     * even when the visible count and highlight happen to stay the same.
+     */
+    private var candidatesVersion = 0
+    private var lastCandidatesHash = 0
+
+    /**
+     * Candidates version observed at the last auto-expand decision. When the
+     * version changes between two refreshes it means the candidate content
+     * itself changed (a key press: Backspace, a new character, a selection),
+     * as opposed to a pure highlight move (arrow-key navigation) which keeps
+     * the content identical. Auto-expand must only react to navigation: a
+     * highlight that is out of bounds because of a content change (e.g. the
+     * residual selected_index after Backspace reopens a selected segment) is
+     * not a user navigation signal and must not re-attach the window.
+     */
+    private var lastAutoExpandVersion = -1
+
     private val _unrolledCandidateOffset =
-        MutableSharedFlow<Int>(
+        MutableSharedFlow<UnrolledCandidateUpdate>(
             replay = 1,
             onBufferOverflow = BufferOverflow.DROP_OLDEST,
         )
@@ -76,17 +118,44 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
     val unrolledCandidateOffset = _unrolledCandidateOffset.asSharedFlow()
 
     fun refreshUnrolled(childCount: Int) {
-        _unrolledCandidateOffset.tryEmit(childCount)
+        _unrolledCandidateOffset.tryEmit(
+            UnrolledCandidateUpdate(
+                offset = childCount,
+                highlightedIdx = adapter.highlightedIdx,
+                version = candidatesVersion,
+            ),
+        )
+        // Auto-expand purely on the highlighted index exceeding the compact
+        // visible count (as in the original feature), but only when the
+        // candidate content did not change since the last refresh. A content
+        // change means a key press (Backspace, new character, selection)
+        // rebuilt the menu; the highlight it reports is residual state, not a
+        // navigation move, and must not re-attach the window. Arrow-key
+        // navigation keeps the content identical and only moves the highlight,
+        // so it still triggers the auto-expand.
+        val highlighted = adapter.highlightedIdx
+        val contentChanged = candidatesVersion != lastAutoExpandVersion
+        lastAutoExpandVersion = candidatesVersion
         bar.unrollButtonStateMachine.push(
             UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesUpdated,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesEmpty to
                 (adapter.total == childCount),
-        )
-        bar.unrollButtonStateMachine.push(
-            UnrollButtonStateMachine.TransitionEvent.UnrolledCandidatesUpdated,
             UnrollButtonStateMachine.BooleanKey.UnrolledCandidatesHighlighted to
-                (adapter.highlightedIdx >= childCount),
+                (!contentChanged && highlighted >= childCount),
         )
+    }
+
+    /**
+     * Reset the highlighted index to -1. Called when the unrolled window is
+     * collapsed: after the user picked a candidate the highlight has no
+     * meaning, and resetting it guarantees that the next candidate refresh
+     * (e.g. Backspace rebuilding the menu) sees an in-bounds highlight and
+     * does not auto-expand the window. No state-machine push is needed here:
+     * the next refreshUnrolled() re-pushes both booleans atomically and will
+     * read the reset -1.
+     */
+    fun resetUnrolledHighlight() {
+        adapter.resetHighlightedIndex()
     }
 
     val adapter by lazy {
@@ -142,20 +211,15 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
             val intrinsicSize = max(spacing, context.dp(spacing)).toInt()
             intrinsicWidth = intrinsicSize
             intrinsicHeight = intrinsicSize
-            paint.color = ColorManager.getColor("candidate_separator_color")
+            paint.color = ColorManager.getColor(ThemeColor.CANDIDATE_SEPARATOR_COLOR)
         }
     }
 
     val view by lazy {
-        object : RecyclerView(context) {
-            override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-                super.onSizeChanged(w, h, oldw, oldh)
-                if (fillStyle == CompactCandidateMode.AUTO_FILL) {
-                    val maxSpanCount = maxSpanCountPref.getValue()
-                    layoutMinWidth = w / maxSpanCount - separatorDrawable.intrinsicWidth
-                }
-            }
-        }
+        // The previous implementation created an anonymous RecyclerView first
+        // whose value was discarded — including its onSizeChanged AUTO_FILL
+        // layoutMinWidth logic, which therefore never ran. Keep only the real
+        // view.
         context.recyclerView(R.id.candidate_view) {
             itemAnimator = null
             adapter = this@CompactCandidateDelegate.adapter
@@ -166,6 +230,15 @@ class CompactCandidateDelegate : InputBroadcastReceiver {
 
     override fun onCandidateListUpdate(data: Candidates.Bulk) {
         val (total, highlighted, candidates) = data
+
+        // Bump the content version only when the candidates actually differ.
+        // Keeps relayouts of the same menu deduplicated while guaranteeing a
+        // reload after a selection changes the candidate set.
+        val hash = candidates.contentHashCode()
+        if (hash != lastCandidatesHash) {
+            lastCandidatesHash = hash
+            candidatesVersion++
+        }
 
         val maxSpanCount = maxSpanCountPref.getValue()
 

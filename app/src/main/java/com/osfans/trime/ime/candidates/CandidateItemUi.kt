@@ -15,9 +15,11 @@ import com.osfans.trime.core.CandidateProto
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.model.GeneralStyle
 import com.osfans.trime.ime.core.AutoScaleTextView
 import com.osfans.trime.ime.keyboard.GestureFrame
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.util.roundedRippleDrawable
 import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.baselineToBaselineOf
@@ -48,18 +50,18 @@ class CandidateItemUi(
     private val theme: Theme,
 ) : Ui {
 
-    private val textSize = theme.generalStyle.candidateTextSize
-    private val commentSize = theme.generalStyle.commentTextSize
+    private val textSize = theme.generalStyle.candidateTextSize * UiScale.factor
+    private val commentSize = theme.generalStyle.commentTextSize * UiScale.factor
 
     private val textFont = FontManager.getTypeface("candidate_font")
     private val commentFont = FontManager.getTypeface("comment_font")
 
-    private val textColor = ColorManager.getColor("candidate_text_color")
-    private val commentColor = ColorManager.getColor("comment_text_color")
+    private val textColor = ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR)
+    private val commentColor = ColorManager.getColor(ThemeColor.COMMENT_TEXT_COLOR)
 
-    private val hlCommentColor = ColorManager.getColor("hilited_comment_text_color")
-    private val hlTextColor = ColorManager.getColor("hilited_candidate_text_color")
-    private val hlBackColor = ColorManager.getColor("hilited_candidate_back_color")
+    private val hlCommentColor = ColorManager.getColor(ThemeColor.HILITED_COMMENT_TEXT_COLOR)
+    private val hlTextColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_TEXT_COLOR)
+    private val hlBackColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_BACK_COLOR)
 
     private val commentPosition = theme.generalStyle.commentPosition
     private val commentVerticalBias = theme.generalStyle.commentVerticalBias
@@ -152,7 +154,7 @@ class CandidateItemUi(
          */
         add(
             content,
-            lParams(wrapContent, dp(theme.generalStyle.candidateViewHeight)) {
+            lParams(wrapContent, dp((theme.generalStyle.candidateViewHeight * UiScale.factor).toInt())) {
                 gravity = gravityCenter
             },
         )

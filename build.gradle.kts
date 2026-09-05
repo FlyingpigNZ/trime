@@ -24,6 +24,17 @@ plugins {
 spotless {
     kotlin {
         target("**/*.kt", "**/*.kts")
+        targetExclude(
+            // Generated / caches must not be formatted: build outputs and any
+            // GRADLE_USER_HOME variant checked out into the workspace (see
+            // .gitignore and doc/repo-knowledge.md §9.2).
+            "build/**",
+            "**/build/**",
+            ".gradle/**",
+            ".gradle-home/**",
+            ".gradle-test-home/**",
+            ".gradle-home-fix/**",
+        )
         ktlint("1.7.1")
     }
 }

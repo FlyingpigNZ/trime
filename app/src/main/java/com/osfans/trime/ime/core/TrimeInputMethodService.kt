@@ -14,10 +14,7 @@ import android.graphics.RectF
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
 import android.text.InputType
-import android.view.InputDevice
-import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -25,7 +22,6 @@ import android.view.Window
 import android.view.WindowManager
 import android.view.inputmethod.CursorAnchorInfo
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InlineSuggestionsRequest
 import android.view.inputmethod.InlineSuggestionsResponse
 import android.widget.FrameLayout
@@ -34,16 +30,15 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
-import com.osfans.trime.core.KeyModifiers
-import com.osfans.trime.core.KeyValue
 import com.osfans.trime.core.RimeApi
 import com.osfans.trime.core.RimeKeyMapping
-import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.data.prefs.PreferenceDelegateProvider
+import com.osfans.trime.data.schema.ImePackageManager
+import com.osfans.trime.data.schema.PackageCompiler
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeManager
@@ -51,18 +46,18 @@ import com.osfans.trime.ime.composition.CandidatesView
 import com.osfans.trime.ime.keyboard.InputFeedbackManager
 import com.osfans.trime.receiver.RimeIntentReceiver
 import com.osfans.trime.util.any
-import com.osfans.trime.util.findSectionFrom
 import com.osfans.trime.util.forceShowSelf
 import com.osfans.trime.util.monitorCursorAnchor
 import com.osfans.trime.util.styledFloat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
-import splitties.bitflags.hasFlag
-import splitties.systemservices.clipboardManager
+import kotlinx.coroutines.withContext
 import splitties.systemservices.inputMethodManager
 import timber.log.Timber
 
@@ -71,6 +66,20 @@ import timber.log.Timber
 open class TrimeInputMethodService : LifecycleInputMethodService() {
     private lateinit var rime: RimeSession
     private val jobs = Channel<Job>(capacity = Channel.UNLIMITED)
+
+    /** Text editing / editor-action logic, split out of this god class. */
+    val editor = ImeEditor(this)
+
+    /** Engine message routing, split out of this god class. */
+    private val messageDispatcher = RimeMessageDispatcher(this)
+
+    // Bridges to InputMethodService protected members for [ImeEditor].
+    internal val inputConnection get() = currentInputConnection
+    internal val inputEditorInfo get() = currentInputEditorInfo
+
+    internal fun sendEnterKeyDownUp() = sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+    internal val rimeSession: RimeSession
+        get() = rime
 
     private val prefs = AppPrefs.defaultInstance()
     private lateinit var decorView: View
@@ -90,14 +99,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     }
     private val rimeIntentReceiver = RimeIntentReceiver()
 
-    private var lastCommittedText: String = ""
-
-    private var composingText: String = ""
-
     private var cursorUpdateIndex = 0
 
     private val recreateInputViewPrefs: Array<PreferenceDelegate<*>> = arrayOf(
         prefs.keyboard.hideInputBar,
+        prefs.keyboard.heightScale,
         prefs.advanced.ignoreSystemGestureInsets,
     )
 
@@ -123,7 +129,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     private val onColorChangeListener =
         ColorManager.OnColorChangeListener {
             ContextCompat.getMainExecutor(this).execute {
-                replaceInputViews(it)
+                restyleInputViews(it)
             }
         }
 
@@ -173,17 +179,35 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             jobs.consumeEach { it.join() }
         }
         lifecycleScope.launch {
-            rime.run { messageFlow }.collect {
-                handleRimeMessage(it)
+            rime.messageFlow.collect { message ->
+                // Never let one malformed message kill the collector: that
+                // would silently stop commits/preedit/candidates/key handling
+                // for the whole service lifetime.
+                runCatching { messageDispatcher.handle(message) }
+                    .onFailure { t -> Timber.e(t, "Failed to handle Rime message: $message") }
             }
         }
         recreateInputViewPrefs.forEach {
             it.registerOnChangeListener(recreateInputViewListener)
         }
         prefs.candidates.registerOnChangeListener(recreateCandidatesViewListener)
-        // ensure theme and color managers are initialized after rime is ready
+        // ensure theme and color managers are initialized after rime is ready.
+        // runOnReadyOrFailed: a failed initial deploy must still run the
+        // package/theme fallback path instead of suspending forever.
         lifecycleScope.launch {
-            rime.runOnReady {
+            rime.runOnReadyOrFailed {
+                // A corrupt/undeployable Default workspace must not crash the
+                // IME at startup: log, apply the builtin fallback theme, and
+                // let the rest of the bootstrap continue. Catch Exception
+                // (not Throwable) so genuine Errors still surface.
+                try {
+                    ImePackageManager.ensureDefaultPackageReady()
+                } catch (t: Exception) {
+                    if (t is CancellationException) throw t
+                    Timber.e(t, "Default package bootstrap failed; applying fallback theme")
+                    runCatching { PackageCompiler.applyTheme(ThemeManager.fallbackTheme) }
+                        .onFailure { e -> Timber.e(e, "Fallback theme unavailable") }
+                }
                 ThemeManager.init(resources.configuration)
                 ThemeManager.addOnChangedListener(onThemeChangeListener)
                 ColorManager.addOnChangedListener(onColorChangeListener)
@@ -196,76 +220,6 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         decorView = window.window!!.decorView
         contentView = decorView.findViewById(android.R.id.content)
         lastKnownConfig = Configuration(resources.configuration)
-    }
-
-    private fun handleRimeMessage(it: RimeMessage<*>) {
-        when (it) {
-            is RimeMessage.CommitTextMessage -> {
-                if (!it.data.text.isNullOrEmpty()) {
-                    commitText(it.data.text)
-                }
-            }
-            is RimeMessage.InlinePreeditMessage -> {
-                updateComposingText(it.data)
-            }
-            is RimeMessage.KeyMessage ->
-                it.data.let msg@{
-                    if (it.isVirtual) {
-                        when (it.value.value) {
-                            RimeKeyMapping.RimeKey_Return -> handleReturnKey()
-                            else -> {
-                                val keyCode = it.value.keyCode
-                                if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
-                                    // recognized keyCode
-                                    sendDownUpKeyEvent(
-                                        keyCode,
-                                        it.modifiers.metaState or meta(
-                                            alt = it.modifiers.alt,
-                                            shift = it.modifiers.shift,
-                                            ctrl = it.modifiers.ctrl,
-                                            meta = it.modifiers.meta,
-                                        ),
-                                    )
-                                    if (it.modifiers.ctrl && keyCode == KeyEvent.KEYCODE_C) clearTextSelection()
-                                } else {
-                                    if (it.value.value > 0) {
-                                        runCatching {
-                                            commitText(Character.toString(it.value.value))
-                                        }.getOrElse { t -> Timber.w(t, "Unhandled Virtual KeyEvent: $it") }
-                                    } else {
-                                        Timber.w("Unhandled Virtual KeyEvent: $it")
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        val keyCode = it.value.keyCode
-                        if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
-                            // recognized keyCode
-                            val eventTime = SystemClock.uptimeMillis()
-                            if (it.modifiers.release) {
-                                sendUpKeyEvent(eventTime, keyCode, it.modifiers.metaState)
-                            } else {
-                                sendDownKeyEvent(eventTime, keyCode, it.modifiers.metaState)
-                            }
-                        } else {
-                            if (!it.modifiers.release && it.value.value > 0) {
-                                runCatching {
-                                    commitText(Character.toString(it.value.value))
-                                }.getOrElse { t -> Timber.w(t, "Unhandled Rime KeyEvent: $it") }
-                            } else {
-                                Timber.w("Unhandled Rime KeyEvent: $it")
-                            }
-                        }
-                    }
-                }
-            is RimeMessage.DeployMessage -> {
-                if (it.data == RimeMessage.DeployMessage.State.Success) {
-                    ThemeManager.selectTheme(ThemeManager.prefs.selectedTheme.getValue())
-                }
-            }
-            else -> {}
-        }
     }
 
     private fun replaceInputView(theme: Theme): InputView {
@@ -289,7 +243,18 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         navBarManager.evaluate(window.window!!, inputDeviceManager.useVirtualKeyboard)
         replaceInputView(theme)
         replaceCandidateView(theme)
-        inputView?.updateEnterKeyLabel(currentInputEditorInfo)
+        currentInputEditorInfo?.let { editorInfo ->
+            inputView?.updateEnterKeyLabel(editorInfo)
+        }
+    }
+
+    /**
+     * Color changes rebuild the input/candidate views. Rebuilding re-creates the
+     * DI graph and all delegates/views, which is the only reliable way to clear
+     * the many color/drawable caches scattered across the IME UI.
+     */
+    private fun restyleInputViews(theme: Theme) {
+        replaceInputViews(theme)
     }
 
     override fun onDestroy() {
@@ -306,28 +271,6 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         RimeDaemon.destroySession(javaClass.name)
     }
 
-    private fun handleReturnKey() {
-        currentInputEditorInfo.run {
-            if (inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_NULL ||
-                imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_ENTER_ACTION)
-            ) {
-                sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
-                return
-            }
-            if (!actionLabel.isNullOrEmpty() && actionId != EditorInfo.IME_ACTION_UNSPECIFIED) {
-                currentInputConnection.performEditorAction(actionId)
-                return
-            }
-            when (val action = imeOptions and EditorInfo.IME_MASK_ACTION) {
-                EditorInfo.IME_ACTION_UNSPECIFIED,
-                EditorInfo.IME_ACTION_NONE,
-                -> sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
-
-                else -> currentInputConnection.performEditorAction(action)
-            }
-        }
-    }
-
     /**
      * https://github.com/fcitx5-android/fcitx5-android/blob/fe3a618c8fd18842305d2f8ec2880fcc67ec1679/app/src/main/java/org/fcitx/fcitx5/android/input/FcitxInputMethodService.kt#L523-#L547
      */
@@ -340,6 +283,12 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         Timber.d("onConfigurationChanged diff=$diff")
         if (diff and keyboardUiModeMask != diff) {
             super.onConfigurationChanged(newConfig)
+        }
+        if (diff and ActivityInfo.CONFIG_ORIENTATION != 0) {
+            // The IME window survives rotation, so the keyboard models (whose
+            // layout metrics are frozen at construction) and views must be
+            // rebuilt for the new orientation.
+            inputView?.onOrientationChanged()
         }
         lastKnownConfig.setTo(newConfig)
     }
@@ -376,6 +325,27 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     override fun onUpdateCursorAnchorInfo(info: CursorAnchorInfo) {
         val bounds = info.getCharacterBounds(0)
+        // The caret side depends on the composing text's own direction, not
+        // the IME window's layout direction (which follows the device
+        // locale); for RTL text the caret sits at the right edge of the
+        // first character. Per-character RTL flags exist since API 30; fall
+        // back to the window direction on older platforms or when no
+        // character is available.
+        val isRtl =
+            if (bounds != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                runCatching {
+                    // FLAG_IS_RTL is per-character; a neutral leading
+                    // character (digit/punctuation) carries no flag, so fall
+                    // back to the window direction in that case too.
+                    if ((info.getCharacterBoundsFlags(0) and CursorAnchorInfo.FLAG_IS_RTL) != 0) {
+                        true
+                    } else {
+                        candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL
+                    }
+                }.getOrDefault(candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL)
+            } else {
+                candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL
+            }
         // update anchorPosition
         if (bounds == null) {
             // composing is disabled in target app or trime settings
@@ -387,7 +357,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         } else {
             // for different writing system (e.g. right to left languages),
             // we have to calculate the correct RectF
-            val horizontal = if (candidatesView?.layoutDirection == View.LAYOUT_DIRECTION_RTL) bounds.right else bounds.left
+            val horizontal = if (isRtl) bounds.right else bounds.left
             anchorPosition.top = bounds.top
             anchorPosition.left = horizontal
             anchorPosition.bottom = bounds.bottom
@@ -403,7 +373,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         info.matrix.mapRect(anchorPosition)
         val (dX, dY) = decorLocation
         anchorPosition.offset(-dX, -dY)
-        candidatesView?.updateCursorAnchor(anchorPosition, contentSize)
+        candidatesView?.updateCursorAnchor(anchorPosition, contentSize, isRtl)
     }
 
     override fun onUpdateSelection(
@@ -438,7 +408,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         if (candidatesStart == candidatesEnd) return
         if (newSelStart in candidatesStart..candidatesEnd) {
             val position = newSelStart - candidatesStart
-            if (position != composingText.length) {
+            if (position != editor.composingText.length) {
                 postRimeJob {
                     if (updateIndex != cursorUpdateIndex) return@postRimeJob
                     Timber.d("handleCursorUpdate: move rime cursor to $position")
@@ -482,6 +452,32 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     override fun onCreateInputView(): View? {
         Timber.d("onCreateInputView")
+        // If Rime is not ready yet and no package has been activated, return a
+        // lightweight placeholder instead of blocking the IME main thread on
+        // package activation. The background activation replaces it with the
+        // real input view as soon as the theme is available.
+        if (!ThemeManager.isInitialized) {
+            val placeholder = FrameLayout(this)
+            lifecycleScope.launch {
+                withContext(Dispatchers.IO) {
+                    // A failed Default bootstrap must not crash the IME nor
+                    // leave the placeholder forever; fall back and continue.
+                    // Catch Exception (not Throwable) so Errors still surface.
+                    try {
+                        ImePackageManager.ensureDefaultPackageReady()
+                    } catch (t: Exception) {
+                        if (t is CancellationException) throw t
+                        Timber.e(t, "Default package bootstrap failed; applying fallback theme")
+                        runCatching { PackageCompiler.applyTheme(ThemeManager.fallbackTheme) }
+                            .onFailure { e -> Timber.e(e, "Fallback theme unavailable") }
+                    }
+                }
+                ThemeManager.ensureInitialized(resources.configuration)
+                replaceInputViews(ThemeManager.activeTheme)
+            }
+            return placeholder
+        }
+        ThemeManager.ensureInitialized(resources.configuration)
         replaceInputViews(ThemeManager.activeTheme)
         // We will call `setInputView` by ourselves. This is fine.
         return null
@@ -510,7 +506,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         attribute: EditorInfo,
         restarting: Boolean,
     ) {
-        composingText = ""
+        editor.resetTextState()
         Timber.d("onStartInput: restarting=$restarting")
         val isNullType = attribute.inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_NULL
         postRimeJob {
@@ -527,6 +523,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle): InlineSuggestionsRequest? {
         if (!inlineSuggestions || !inputDeviceManager.useVirtualKeyboard) return null
+        // The system can request inline suggestions while Rime/theme bootstrap
+        // is still in progress (ColorManager not initialized); building the
+        // request then crashes on the uninitialized color scheme. Defer until
+        // the theme is ready.
+        if (!ThemeManager.isInitialized) return null
         return InlineSuggestions.createRequest(this)
     }
 
@@ -568,150 +569,22 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             finishComposingText()
             monitorCursorAnchor(false)
         }
-        composingText = ""
+        editor.resetTextState()
         postRimeJob {
             clearComposition()
         }
         InputFeedbackManager.finishInput()
     }
 
-    fun commitText(text: String) {
-        val ic = currentInputConnection ?: return
-
-        // when composing text equals commit content, finish composing text as-is
-        if (composingText.isNotEmpty() && composingText == text) {
-            ic.finishComposingText()
-        } else {
-            ic.commitText(text, 1)
-        }
-        lastCommittedText = text
-        composingText = ""
-        InputFeedbackManager.textCommitSpeak(text)
-    }
-
-    /**
-     * Constructs a meta state integer flag which can be used for setting the `metaState` field when sending a KeyEvent
-     * to the input connection. If this method is called without a meta modifier set to true, the default value `0` is
-     * returned.
-     *
-     * @param ctrl Set to true to enable the CTRL meta modifier. Defaults to false.
-     * @param alt Set to true to enable the ALT meta modifier. Defaults to false.
-     * @param shift Set to true to enable the SHIFT meta modifier. Defaults to false.
-     *
-     * @return An integer containing all meta flags passed and formatted for use in a [KeyEvent].
-     */
-    fun meta(
-        alt: Boolean = false,
-        ctrl: Boolean = false,
-        shift: Boolean = false,
-        meta: Boolean = false,
-        sym: Boolean = false,
-    ): Int {
-        var metaState = 0
-        if (alt) metaState = KeyEvent.META_ALT_ON or KeyEvent.META_ALT_LEFT_ON
-        if (ctrl) metaState = metaState or KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
-        if (shift) metaState = metaState or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
-        if (meta) metaState = metaState or KeyEvent.META_META_ON or KeyEvent.META_META_LEFT_ON
-        if (sym) metaState = metaState or KeyEvent.META_SYM_ON
-        return metaState
-    }
-
-    private fun sendDownKeyEvent(
-        eventTime: Long,
-        keyEventCode: Int,
-        metaState: Int = 0,
-    ): Boolean {
-        val ic = currentInputConnection ?: return false
-        return ic.sendKeyEvent(
-            KeyEvent(
-                eventTime,
-                eventTime,
-                KeyEvent.ACTION_DOWN,
-                keyEventCode,
-                0,
-                metaState,
-                KeyCharacterMap.VIRTUAL_KEYBOARD,
-                0,
-                KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE,
-                InputDevice.SOURCE_KEYBOARD,
-            ),
-        )
-    }
-
-    private fun sendUpKeyEvent(
-        eventTime: Long,
-        keyEventCode: Int,
-        metaState: Int = 0,
-    ): Boolean {
-        val ic = currentInputConnection ?: return false
-        return ic.sendKeyEvent(
-            KeyEvent(
-                eventTime,
-                SystemClock.uptimeMillis(),
-                KeyEvent.ACTION_UP,
-                keyEventCode,
-                0,
-                metaState,
-                KeyCharacterMap.VIRTUAL_KEYBOARD,
-                0,
-                KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE,
-                InputDevice.SOURCE_KEYBOARD,
-            ),
-        )
-    }
-
-    /**
-     * Same as [InputMethodService.sendDownUpKeyEvents] but also allows to set meta state.
-     *
-     * @param keyEventCode The key code to send, use a key code defined in Android's [KeyEvent].
-     * @param metaState Flags indicating which meta keys are currently pressed.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
-    fun sendDownUpKeyEvent(
-        keyEventCode: Int,
-        metaState: Int = meta(),
-    ): Boolean {
-        val eventTime = SystemClock.uptimeMillis()
-        if (metaState and KeyEvent.META_ALT_ON != 0) {
-            sendDownKeyEvent(eventTime, KeyEvent.KEYCODE_ALT_LEFT)
-        }
-        if (metaState and KeyEvent.META_CTRL_ON != 0) {
-            sendDownKeyEvent(eventTime, KeyEvent.KEYCODE_CTRL_LEFT)
-        }
-        if (metaState and KeyEvent.META_SHIFT_ON != 0) {
-            sendDownKeyEvent(eventTime, KeyEvent.KEYCODE_SHIFT_LEFT)
-        }
-        if (metaState and KeyEvent.META_META_ON != 0) {
-            sendDownKeyEvent(eventTime, KeyEvent.KEYCODE_META_LEFT)
-        }
-        if (metaState and KeyEvent.META_SYM_ON != 0) {
-            sendDownKeyEvent(eventTime, KeyEvent.KEYCODE_SYM)
-        }
-        sendDownKeyEvent(eventTime, keyEventCode, metaState)
-        sendUpKeyEvent(eventTime, keyEventCode, metaState)
-        if (metaState and KeyEvent.META_SYM_ON != 0) {
-            sendUpKeyEvent(eventTime, KeyEvent.KEYCODE_SYM)
-        }
-        if (metaState and KeyEvent.META_META_ON != 0) {
-            sendUpKeyEvent(eventTime, KeyEvent.KEYCODE_META_LEFT)
-        }
-        if (metaState and KeyEvent.META_SHIFT_ON != 0) {
-            sendUpKeyEvent(eventTime, KeyEvent.KEYCODE_SHIFT_LEFT)
-        }
-        if (metaState and KeyEvent.META_CTRL_ON != 0) {
-            sendUpKeyEvent(eventTime, KeyEvent.KEYCODE_CTRL_LEFT)
-        }
-        if (metaState and KeyEvent.META_ALT_ON != 0) {
-            sendUpKeyEvent(eventTime, KeyEvent.KEYCODE_ALT_LEFT)
-        }
-        return true
-    }
-
     private fun forwardKeyEvent(event: KeyEvent): Boolean {
-        val keyVal = KeyValue.fromKeyEvent(event)
+        // Block typing while an IME package is being replaced/deployed.
+        if (ImePackageManager.isActivating()) return true
+        // If the engine is not ready (startup/deploy in progress or failed),
+        // fall through to the framework instead of swallowing the key forever.
+        if (!rime.isReady) return false
+        val keyVal = event.toKeyValue()
         if (keyVal.value != RimeKeyMapping.RimeKey_VoidSymbol) {
-            val modifiers = KeyModifiers.fromKeyEvent(event)
+            val modifiers = event.toKeyModifiers()
             postRimeJob {
                 processKey(keyVal, modifiers, isVirtual = false)
             }
@@ -776,195 +649,6 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         } catch (e: Exception) {
             Timber.e(e, "Unable to switch to the next IME.")
             inputMethodManager.showInputMethodPicker()
-        }
-    }
-
-    fun shareText(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val ic = currentInputConnection ?: return false
-            val cs = ic.getSelectedText(0)
-            if (cs == null) ic.performContextMenuAction(android.R.id.selectAll)
-            return ic.performContextMenuAction(android.R.id.shareText)
-        }
-        return false
-    }
-
-    /** 編輯操作 */
-    fun hookKeyboard(
-        code: Int,
-        mask: Int,
-    ): Boolean {
-        val ic = currentInputConnection ?: return false
-        // 没按下 Ctrl 键
-        if (mask != KeyEvent.META_CTRL_ON) {
-            return false
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (prefs.keyboard.hookCtrlZY.getValue()) {
-                when (code) {
-                    KeyEvent.KEYCODE_Y -> return ic.performContextMenuAction(android.R.id.redo)
-                    KeyEvent.KEYCODE_Z -> return ic.performContextMenuAction(android.R.id.undo)
-                }
-            }
-        }
-
-        when (code) {
-            KeyEvent.KEYCODE_A -> {
-                // 全选
-                return if (prefs.keyboard.hookCtrlA.getValue()) {
-                    ic.performContextMenuAction(android.R.id.selectAll)
-                } else {
-                    false
-                }
-            }
-
-            KeyEvent.KEYCODE_X -> {
-                // 剪切
-                if (prefs.keyboard.hookCtrlCV.getValue()) {
-                    val etr = ExtractedTextRequest()
-                    etr.token = 0
-                    val et = ic.getExtractedText(etr, 0)
-                    if (et != null) {
-                        if (et.selectionStart != et.selectionEnd) return ic.performContextMenuAction(android.R.id.cut)
-                    }
-                }
-                Timber.w("hookKeyboard cut fail")
-                return false
-            }
-
-            KeyEvent.KEYCODE_C -> {
-                // 复制
-                if (prefs.keyboard.hookCtrlCV.getValue()) {
-                    val etr = ExtractedTextRequest()
-                    etr.token = 0
-                    val et = ic.getExtractedText(etr, 0)
-                    if (et != null) {
-                        if (et.selectionStart != et.selectionEnd) {
-                            ic.performContextMenuAction(android.R.id.copy).also { result ->
-                                if (result) {
-                                    clearTextSelection()
-                                }
-                                return result
-                            }
-                        }
-                    }
-                }
-                Timber.w("hookKeyboard copy fail")
-                return false
-            }
-
-            KeyEvent.KEYCODE_V -> {
-                // 粘贴
-                if (prefs.keyboard.hookCtrlCV.getValue()) {
-                    val etr = ExtractedTextRequest()
-                    etr.token = 0
-                    val et = ic.getExtractedText(etr, 0)
-                    if (et == null) {
-                        Timber.d("hookKeyboard paste, et == null, try commitText")
-                        val clipboardText = clipboardManager.primaryClip?.getItemAt(0)?.coerceToText(this)
-                        if (ic.commitText(clipboardText, 1)) {
-                            return true
-                        }
-                    } else if (ic.performContextMenuAction(android.R.id.paste)) {
-                        return true
-                    }
-                    Timber.w("hookKeyboard paste fail")
-                }
-                return false
-            }
-
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (prefs.keyboard.hookCtrlLR.getValue()) {
-                    val etr = ExtractedTextRequest()
-                    etr.token = 0
-                    val et = ic.getExtractedText(etr, 0)
-                    if (et != null) {
-                        val moveTo = et.text.findSectionFrom(et.startOffset + et.selectionEnd)
-                        ic.setSelection(moveTo, moveTo)
-                        return true
-                    }
-                }
-            }
-
-            KeyEvent.KEYCODE_DPAD_LEFT ->
-                if (prefs.keyboard.hookCtrlLR.getValue()) {
-                    val etr = ExtractedTextRequest()
-                    etr.token = 0
-                    val et = ic.getExtractedText(etr, 0)
-                    if (et != null) {
-                        val moveTo = et.text.findSectionFrom(et.startOffset + et.selectionStart, true)
-                        ic.setSelection(moveTo, moveTo)
-                        return true
-                    }
-                }
-        }
-        return false
-    }
-
-    fun clearTextSelection() {
-        val ic = currentInputConnection ?: return
-        val etr = ExtractedTextRequest().apply { token = 0 }
-        val et = currentInputConnection.getExtractedText(etr, 0)
-        et?.let {
-            if (it.selectionStart != it.selectionEnd) {
-                ic.setSelection(it.selectionEnd, it.selectionEnd)
-            }
-        }
-    }
-
-    internal fun updateComposingText(text: String) {
-        val ic = currentInputConnection ?: return
-        ic.beginBatchEdit()
-        if (composingText.isNotEmpty() || text.isNotEmpty()) {
-            if (!ic.getSelectedText(0).isNullOrEmpty()) {
-                ic.deleteSurroundingText(1, 0)
-            }
-            ic.setComposingText(text, 1)
-            if (text.isEmpty()) {
-                ic.finishComposingText()
-            }
-        }
-        composingText = text
-        ic.endBatchEdit()
-    }
-
-    fun getActiveText(type: Int): String {
-        val rimeComposition = rime.run { compositionCached }
-        val selected = currentInputConnection?.getSelectedText(0)?.toString()
-        val commitPreview = rimeComposition.commitTextPreview
-        val preedit = rimeComposition.preedit ?: ""
-        val beforeCursor = getTextAroundCursor(1024, before = true) ?: ""
-        val afterCursor = getTextAroundCursor(before = false) ?: ""
-        val lastCommitted = lastCommittedText
-
-        return sequenceOf(
-            when (type) {
-                2 -> preedit
-                3 -> selected
-                4 -> beforeCursor
-                1 -> lastCommitted
-                else -> null
-            },
-            commitPreview,
-            selected,
-            lastCommitted,
-            beforeCursor,
-            afterCursor,
-        )
-            .firstOrNull { it?.isNotEmpty() == true } ?: ""
-    }
-
-    private fun getTextAroundCursor(
-        initialStep: Int = 1024,
-        before: Boolean,
-    ): String? {
-        val ic = currentInputConnection ?: return null
-        var step = initialStep
-        while (true) {
-            val text = (if (before) ic.getTextBeforeCursor(step, 0) else ic.getTextAfterCursor(step, 0)) ?: return ""
-            if (text.length < step) return text.toString()
-            step *= 2
         }
     }
 

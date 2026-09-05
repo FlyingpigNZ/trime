@@ -6,13 +6,10 @@ package com.osfans.trime.util
 
 import android.content.res.Resources
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.drawable.NinePatchDrawable
-import android.util.DisplayMetrics
 import timber.log.Timber
-import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -159,22 +156,6 @@ object NinePatchBitmapFactory {
         val width = bitmap.width
         val height = bitmap.height
         return Bitmap.createBitmap(bitmap, 1, 1, width - 2, height - 2)
-    }
-
-    fun loadBitmap(file: File): Bitmap? = runCatching {
-        file.inputStream().buffered().use {
-            BitmapFactory.decodeStream(it)
-        }
-    }.getOrNull()
-
-    fun getDensityPostfix(res: Resources): String? = when (res.displayMetrics.densityDpi) {
-        DisplayMetrics.DENSITY_LOW -> "ldpi"
-        DisplayMetrics.DENSITY_MEDIUM -> "mdpi"
-        DisplayMetrics.DENSITY_HIGH -> "hdpi"
-        DisplayMetrics.DENSITY_XHIGH -> "xhdpi"
-        DisplayMetrics.DENSITY_XXHIGH -> "xxhdpi"
-        DisplayMetrics.DENSITY_XXXHIGH -> "xxxhdpi"
-        else -> null
     }
 
     class RangeLists(

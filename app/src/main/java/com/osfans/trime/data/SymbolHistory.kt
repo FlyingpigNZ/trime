@@ -5,6 +5,10 @@
 package com.osfans.trime.data
 
 import com.osfans.trime.util.appContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import timber.log.Timber
+import java.io.File
 
 class SymbolHistory(
     val capacity: Int,
@@ -13,24 +17,50 @@ class SymbolHistory(
         const val FILE_NAME = "symbol_history"
     }
 
-    private val file = appContext.filesDir.resolve(FILE_NAME).apply { createNewFile() }
+    /** Resolved lazily; no file I/O happens at construction. */
+    private val file: File
+        get() = appContext.filesDir.resolve(FILE_NAME)
 
-    fun load() {
-        val all = file.readLines()
-        all.forEach {
+    /**
+     * All map access is serialized: [insert] runs on the main thread while
+     * [load]/[save] run on Dispatchers.IO, and LinkedHashMap is not
+     * thread-safe (a concurrent put + iteration throws
+     * ConcurrentModificationException).
+     */
+    private fun <T> withHistoryLock(block: () -> T): T = synchronized(this) { block() }
+
+    /** Load the persisted history from disk (off the main thread). */
+    suspend fun load() = withContext(Dispatchers.IO) {
+        runCatching { file.readLines() }.getOrElse { t ->
+            Timber.w(t, "Failed to read symbol history")
+            emptyList()
+        }.forEach {
             if (it.isNotBlank()) {
-                put(it, it)
+                withHistoryLock { put(it, it) }
             }
         }
     }
 
-    fun save() {
-        file.writeText(values.joinToString("\n"))
+    /** Persist the current history atomically (off the main thread). */
+    suspend fun save() = withContext(Dispatchers.IO) {
+        val content = withHistoryLock { values.joinToString("\n") }
+        runCatching {
+            // Unique temp name so two rapid save() launches cannot race the
+            // same temp file.
+            val tmp = File(file.parentFile, "${file.name}.${System.nanoTime()}.tmp")
+            tmp.writeText(content)
+            if (!tmp.renameTo(file)) {
+                // renameTo can fail across some filesystems; fall back to a
+                // direct write so the history is still persisted.
+                file.writeText(content)
+                tmp.delete()
+            }
+        }.onFailure { t -> Timber.w(t, "Failed to write symbol history") }
     }
 
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > capacity
 
-    fun insert(s: String) = put(s, s)
+    fun insert(s: String) = withHistoryLock { put(s, s) }
 
-    fun toOrderedList() = values.toList().reversed()
+    fun toOrderedList() = withHistoryLock { values.toList().reversed() }
 }

@@ -14,6 +14,7 @@ import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
 import com.osfans.trime.ime.core.TouchEventReceiverWindow
 import com.osfans.trime.ime.dependency.InputDependencyManager
@@ -39,7 +40,7 @@ class PreeditDelegate : InputBroadcastReceiver {
                     floatArrayOf(radiusSize, radiusSize, 0f, 0f, 0f, 0f, 0f, 0f)
                 }
                 background = GradientDrawable().apply {
-                    setColor(ColorManager.getColor("text_back_color"))
+                    setColor(ColorManager.getColor(ThemeColor.TEXT_BACK_COLOR))
                     shape = GradientDrawable.RECTANGLE
                     cornerRadii = radii
                 }

@@ -14,6 +14,7 @@ import com.google.android.flexbox.FlexboxLayout
 import com.google.android.flexbox.JustifyContent
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.ToolBar
+import com.osfans.trime.ime.keyboard.UiScale
 import splitties.dimensions.dp
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.view
@@ -31,7 +32,7 @@ class ButtonsBarUi(
 
     val firstButton: ToolButton?
 
-    private val defaultButtonSize = theme.generalStyle.run { candidateViewHeight + commentHeight }
+    private val defaultButtonSize = (theme.generalStyle.run { candidateViewHeight + commentHeight } * UiScale.factor).toInt()
 
     private fun toolButton(
         buttonConfig: ToolBar.Button?,

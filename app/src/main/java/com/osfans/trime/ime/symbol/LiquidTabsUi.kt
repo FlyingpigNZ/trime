@@ -12,7 +12,9 @@ import com.chad.library.adapter4.BaseQuickAdapter
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.ime.keyboard.GestureFrame
+import com.osfans.trime.ime.keyboard.UiScale
 import com.osfans.trime.util.roundedRippleDrawable
 import splitties.dimensions.dp
 import splitties.views.dsl.core.Ui
@@ -33,14 +35,14 @@ class LiquidTabsUi(
 ) : Ui {
     inner class TabUi : Ui {
         override val ctx = this@LiquidTabsUi.ctx
-        private val textColor = ColorManager.getColor("candidate_text_color")
-        private val hlTextColor = ColorManager.getColor("hilited_candidate_text_color")
-        private val hlBackColor = ColorManager.getColor("hilited_candidate_back_color")
+        private val textColor = ColorManager.getColor(ThemeColor.CANDIDATE_TEXT_COLOR)
+        private val hlTextColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_TEXT_COLOR)
+        private val hlBackColor = ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_BACK_COLOR)
         private val cornerRadius = ctx.dp(theme.generalStyle.candidateCornerRadius)
 
         val text =
             textView {
-                textSize = theme.generalStyle.candidateTextSize
+                textSize = theme.generalStyle.candidateTextSize * UiScale.factor
                 typeface = FontManager.getTypeface("candidate_font")
                 setTextColor(textColor)
             }

@@ -5,7 +5,7 @@
   ~ SPDX-License-Identifier: GPL-3.0-or-later
   -->
 
-<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2" xmlns:tools="http://schemas.android.com/tools">
     <!-- 输入法平台名称  -->
     <string name="app_name_release">同文输入法</string>
     <string name="app_name_debug">同文输入法（调试）</string>
@@ -18,8 +18,8 @@
     <string name="license">许可证</string>
     <string name="privacy_policy">隐私策略</string>
     <string name="build_info_format">构建者：%1$s\n构建 Git 哈希：%2$s\n构建时间：%3$s</string>
-    <string name="selected_theme">主题</string>
-    <string name="selected_theme_summary">选取主题</string>
+    <string name="selected_ime">输入法包</string>
+    <string name="selected_ime_summary">选择自包含输入法包</string>
     <string name="normal_mode_color">配色</string>
     <string name="normal_mode_color_summary">选取配色</string>
     <string name="sound_on_keypress">按键声音</string>
@@ -44,10 +44,8 @@
     <string name="other_ime">其他输入法</string>
     <string name="ui_mode">用户界面模式</string>
     <string name="advanced">高级</string>
-    <string name="user_data_dir">用户文件夹</string>
     <string name="periodic_background_sync">后台定时同步</string>
     <string name="periodic_background_sync_status">上次同步时间（状态）：%1$s（%2$s）</string>
-    <string name="effects">效果</string>
     <string name="show_app_icon">在启动器中显示图标</string>
     <string name="only_available_on_some_roms">此选项仅对部分 ROM 有效</string>
     <string name="default_">默认</string>
@@ -60,9 +58,6 @@
     <string name="system_default">系统默认</string>
     <string name="key_swipe_travel">触发按键滑动手势的距离</string>
     <string name="trime_app_slogan">击响中文之韵</string>
-    <string name="external_storage_permission_not_available">存储权限不可用</string>
-    <string name="external_storage_permission_granted">已授予存储权限</string>
-    <string name="external_storage_permission_denied">已拒绝授权存储权限，部署或读取方案和配置功能或不可用</string>
     <string name="custom_sound_effect_name">自定义按键音效</string>
     <string name="setup__next">下一步</string>
     <string name="done">完成</string>
@@ -86,7 +81,6 @@
     <string name="key_swipe_velocity">触发按键滑动手势的速度（距离/速度满足其一即可）</string>
     <string name="build_info">构建信息</string>
     <string name="telegram">Telegram</string>
-    <string name="quick_bar">快捷栏</string>
     <string name="copy_done">已复制</string>
     <string name="hook_shift_space">点击空格时，忽略Shift的锁定状态</string>
     <string name="test_input">测试输入</string>
@@ -96,7 +90,7 @@
     <string name="type_text">输入文本</string>
     <string name="type_number">输入数字</string>
     <string name="type_password">输入密码</string>
-    <string name="hook_shift_num">点击0-9时，忽略Shift的锁定状态</string>
+    <string name="hook_shift_num">点击0–9时，忽略Shift的锁定状态</string>
     <string name="hook_shift_symbol">点击符号键时，忽略Shift的锁定状态</string>
     <string name="hook_shift_arrow">点击方向键时，保持Shift的锁定状态</string>
     <string name="developer">开发者</string>
@@ -114,8 +108,31 @@
     <string name="about">关于</string>
     <string name="theme">键盘样式</string>
     <string name="profile">配置</string>
-    <string name="storage">存储</string>
     <string name="maintenance">维护</string>
+    <string name="install_schema_layout_package">安装方案键盘布局包</string>
+    <string name="install_schema_layout_package_summary">安装包含 Rime 方案、布局和可选资源的 .zip 文件</string>
+    <string name="install_schema_layout_package_failure">方案键盘布局包安装失败</string>
+    <string name="ime_package_not_compiled">输入方案包尚未编译完成</string>
+    <string name="ime_package_broken">（已损坏：%1$s）</string>
+    <string name="ime_package_compile">编译输入方案包</string>
+    <string name="ime_package_compiled_switch_hint">方案包编译完成，可以切换了</string>
+    <string name="ime_package_compiling_start">开始编译输入法方案包…</string>
+    <string name="ime_package_importing">正在导入输入法方案包…</string>
+    <string name="ime_package_compiling">正在编译输入法方案包…</string>
+    <string name="ime_package_import_in_progress">输入法包导入/编译正在进行中…</string>
+    <string name="ime_package_compiled_active_refreshed">编译完成，当前输入法包已刷新</string>
+    <string name="ime_package_compile_failed">输入法方案包编译失败</string>
+    <string name="ime_package_activation_success">输入方案包切换完成</string>
+    <string name="export_migrated_workspace">导出迁移数据</string>
+    <string name="export_migrated_workspace_summary">导出没有对应输入法包的旧数据</string>
+    <string name="ime_package_deleted">输入方案包已删除</string>
+    <string name="cannot_delete_active_ime_package">请先切换到其他输入方案包再删除当前方案</string>
+    <string name="ime_package_already_active">该输入法包已是当前使用方案</string>
+    <string name="validate_definition_file">校验定义文件</string>
+    <string name="validate_definition_file_summary">按定义规范检查主题/布局/清单 YAML 文件</string>
+    <string name="validate_definition_success">定义文件有效</string>
+    <string name="validate_definition_failure">定义文件存在错误</string>
+    <string name="validate_definition_syntax_only">定义文件语法有效，但无法访问引用的文件，已跳过完整校验。</string>
     <string name="loading">正在加载</string>
     <string name="reset">恢复默认设置</string>
     <string name="success">成功</string>
@@ -140,9 +157,8 @@
     <string name="custom_sound_effect_enabled">使用自定义按键音效</string>
     <string name="enable_landscape_mode">启用横屏模式</string>
     <string name="split_space_percent">自动分割键盘比例</string>
-    <string name="setup__step_three">第 3 步</string>
-    <string name="setup__request_permission_hint">当前同文需要存储权限以访问配置、使得用户容易更改。</string>
-    <string name="setup__request_permission">请求存储权限</string>
+    <string name="keyboard_height_scale">键盘高度</string>
+    <string name="keyboard_height_scale_summary">按比例缩放键盘高度（50%%–150%%），所有按键行同步缩放</string>
     <string name="grant_permission">授予权限</string>
     <string name="notification_permission_title">没有通知权限</string>
     <string name="notification_permission_message">没有发送通知的权限，我们无法在一些耗时操作完成时通知您。</string>
@@ -151,7 +167,6 @@
     <string name="select_current_schema">选择当前方案</string>
     <string name="enable_schemata">启用方案</string>
     <string name="no_schema_to_select">当前没有方案可选择。请前往启用方案。</string>
-    <string name="no_schema_to_enable">没有方案可启用。请确保您已在用户文件夹中放入了前置文件和方案文件。</string>
     <string name="schemata">方案</string>
     <string name="navbar_background">导航栏背景</string>
     <string name="no_theme_to_select">当前没有主题可选择。</string>
@@ -166,7 +181,6 @@
     <string name="general">常规</string>
     <string name="composing_text">编辑中文本</string>
     <string name="commit_text_preview">首选词预览</string>
-    <string name="raw_input">原始输入码</string>
     <string name="inline_preedit_mode">嵌入式预编辑模式</string>
     <string name="depends_on_input_device">根据输入设备而定</string>
     <string name="always_show">始终显示</string>
@@ -208,7 +222,6 @@
     <string name="import_n_entries">已导入 %1$d 个词条</string>
     <string name="restored_from_x">已从 %1$s 中还原</string>
     <string name="backup">备份</string>
-    <string name="restore">还原</string>
     <string name="clipboard_listening">记录剪贴板历史</string>
     <string name="clipboard_return_after_paste">粘贴后返回</string>
     <string name="source_code">源代码</string>
@@ -227,4 +240,6 @@
     <string name="word_segment">分词</string>
     <string name="star_success">收藏成功</string>
     <string name="ignore_system_gesture_insets">忽略系统手势边衬区</string>
+    <string name="pagination_prev_page">上一页</string>
+    <string name="pagination_next_page">下一页</string>
 </resources>
