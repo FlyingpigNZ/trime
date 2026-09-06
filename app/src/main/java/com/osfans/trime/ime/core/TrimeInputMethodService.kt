@@ -163,7 +163,6 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         val intentFilter =
             IntentFilter().apply {
                 addAction(RimeIntentReceiver.ACTION_DEPLOY)
-                addAction(RimeIntentReceiver.ACTION_SYNC_USER_DATA)
             }
         ContextCompat.registerReceiver(
             this,

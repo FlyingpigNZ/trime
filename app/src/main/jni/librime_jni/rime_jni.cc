@@ -298,11 +298,6 @@ class Rime {
     rime->finalize();
   }
 
-  bool sync() {
-    session_.reset();
-    return rime->sync_user_data();
-  }
-
  private:
   RimeApi* rime;
   std::shared_ptr<SessionHolder> session_;
@@ -395,12 +390,6 @@ Java_com_osfans_trime_core_Rime_deployRimeWorkspace(JNIEnv* env,
   return Rime::Instance().deployWorkspace(*CString(env, shared_dir),
                                           *CString(env, user_dir),
                                           *CString(env, version_name));
-}
-
-extern "C" JNIEXPORT jboolean JNICALL
-Java_com_osfans_trime_core_Rime_syncRimeUserData(JNIEnv* env,
-                                                 jclass /* thiz */) {
-  return Rime::Instance().sync();
 }
 
 // input

@@ -22,18 +22,23 @@ plugins {
 }
 
 spotless {
+    // Explicit line endings instead of the default git-attributes handling:
+    // GitAttributesLineEndings walks the whole working tree on every run,
+    // which is unusably slow here (vendored jni/boost alone has ~59k files).
+    lineEndings = com.diffplug.spotless.LineEnding.UNIX
     kotlin {
-        target("**/*.kt", "**/*.kts")
-        targetExclude(
-            // Generated / caches must not be formatted: build outputs and any
-            // GRADLE_USER_HOME variant checked out into the workspace (see
-            // .gitignore and doc/repo-knowledge.md §9.2).
-            "build/**",
-            "**/build/**",
-            ".gradle/**",
-            ".gradle-home/**",
-            ".gradle-test-home/**",
-            ".gradle-home-fix/**",
+        // Scope to real Kotlin source roots instead of repo-wide ** globs:
+        // matching **/*.kt forces Gradle to walk the whole working tree,
+        // including the vendored app/src/main/jni/boost subtree.
+        target(
+            "app/src/*/java/**/*.kt",
+            "codegen/src/*/java/**/*.kt",
+            "codegen/src/*/kotlin/**/*.kt",
+            "build-logic/**/*.kt",
+            "*.kts",
+            "app/*.kts",
+            "codegen/*.kts",
+            "build-logic/**/*.kts",
         )
         ktlint("1.7.1")
     }

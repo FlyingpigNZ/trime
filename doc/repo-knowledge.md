@@ -444,3 +444,39 @@ the second build is fast because the JNI cache persists in `app/build`.
   GIT_CONFIG_VALUE_0=...`) instead. After a container rebuild, `chown` the
   workspace to root if a prior root-run session left it owned by `dsh` (or
   vice versa) so git's dubious-ownership check passes.
+
+### 9.5 spotless 扫描范围（学到的教训：别用全树 `**/*.kt`）
+
+- 历史问题：根 `build.gradle.kts` 曾用 `target("**/*.kt", "**/*.kts")`，Gradle 为匹配必须
+  **从仓库根全量遍历**（每个节点 stat 一次）。本工作树的 vendored
+  `app/src/main/jni/boost`（约 5.9 万文件、661MB）加上默认 git-attributes 行尾处理
+  （`GitAttributesLineEndings` 也要遍历文件集合），使 `:spotlessKotlin*` 在本容器里
+  >7 分钟仍跑不完（CPU 空转在 `stat`/`FileTreeWalker`，见线程栈证据）。
+- 修复（`4abf2df5`，根 `build.gradle.kts`）：
+  - `target` 收窄到真实 Kotlin 源码根：`app/src/*/java/**/*.kt`、
+    `codegen/src/*/java/**/*.kt`、`codegen/src/*/kotlin/**/*.kt`、`build-logic/**/*.kt`、
+    `*.kts`、`app/*.kts`、`codegen/*.kts`、`build-logic/**/*.kts`；
+  - 删除巨型 `targetExclude`（减法集合仍要遍历被排除树，`.gradle-home/**` 同样上万文件）；
+  - `lineEndings = com.diffplug.spotless.LineEnding.UNIX`，绕开 git-attributes 整树扫描。
+  - 效果：`:spotlessKotlinCheck` 从 >420s 卡死降到 ~5s。
+- **覆盖规则**：repo 自管（`git ls-files '*.kt' '*.kts'`，共 ~314 个）全部落在上述 target 内；
+  子模块（gitlink）天然不在 `ls-files` 范围，无需处理。**新增 Kotlin/KTS 若放标准位置之外**
+  （如 `app/src/*/kotlin`、`scripts/foo.kt` 等），必须同步扩展 `build.gradle.kts` 的 target，
+  否则不会被格式化检查覆盖。
+
+### 9.6 assembleDebug 4-ABI 在本容器的限制（上游问题 + 单 ABI 绕过）
+
+- 完整 `:app:assembleDebug` 会失败在 32 位 `armeabi-v7a`：上游
+  `librime/plugins/librime-lua/thirdparty/lua5.4/liolib.c` 在 NDK r28 报
+  `fseeko/ftello` undeclared（32 位 bionic 需 `_LARGEFILE_SOURCE`）。这是**上游子模块**问题，
+  按 CLAUDE 规则不 patch 子模块；需要时走上游修复或换 NDK。
+- 绕过（模拟器 x86_64 可用）：
+  ```bash
+  ANDROID_USER_HOME="$PWD/.android-home" \
+  GRADLE_USER_HOME="$PWD/.gradle-home" \
+  ./gradlew :app:assembleDebug -Pandroid.injected.build.abi=x86_64 --offline
+  ```
+  - `ANDROID_USER_HOME` 必须指向可写目录（默认 `/root/.android` 只读，签名会失败）；
+  - 单 ABI 注入时 APK 落在 `app/build/intermediates/apk/debug/*-x86_64-debug.apk`
+    （`outputs/apk/debug` 的 listing 是旧的），需要时自行 copy 到 outputs。
+

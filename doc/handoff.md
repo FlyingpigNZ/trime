@@ -1,8 +1,61 @@
 # Handoff — 键盘背景动态更换（in-app keyboard background editor）
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
-> 顶部的必读条款），再决定下一步。最后更新于：提交 `dc303fbf` 之后的方案 A 迭代
-> （本地已提交，尚未 push，见 §5）。
+> 顶部的必读条款），再决定下一步。
+> **最后更新于**：分支 `feat/scheduled-workspace-backup`（备份功能改造 + spotless 修复，
+> 见下方 **§0 最新状态**）。`dc303fbf` 之后的「键盘背景编辑器」内容保留于 §1–§7 作为历史记录。
+
+## 0. 最新状态（当前分支：feat/scheduled-workspace-backup）
+
+- Git：基于 `main`（`0664a758`，#18 已合入）的分支，已 push 两个提交：
+  - `a4c943f9` feat(backup): scheduled workspace zip export replacing periodic rime sync
+  - `4abf2df5` build: scope spotless to kotlin source roots and fix formatting
+  - 远端：`origin`（`git@192.168.1.50:Home/trime.git`），PR 入口：
+    http://192.168.1.50:3000/Home/trime/pulls/new/feat/scheduled-workspace-backup
+- 备份功能改造：
+  - 删除 `BackgroundSyncWork`（周期 Rime 同步）及其设置 UI/偏好/文案；
+    手动「立即同步用户数据」设置行与 `SYNC_USER_DATA` 广播一并移除。
+  - 新增 `worker/WorkspaceBackupWorker.kt`：`WorkspaceBackupRunner.runOnce()`（一次备份）
+    + 周期 Worker + `WorkspaceBackupFiles` 命名/保留策略；把当前激活包 workspace 打包 zip
+    （含用户数据、排除 build/编译标记）写入 SAF 目录；间隔按小时（默认 24=每天）、
+    保留 1–5 份（默认 3）自动清理；开启时 >100MB 弹确认。
+  - 备份 UI 唯一新入口：`ImeSettingsFragment`「定时备份工作区」（开关/间隔/保留/目录/上次状态）。
+  - **键盘 `Sync` 键保留并复用**：`SYNC_USER_DATA` 现在触发一次工作区备份
+    （未配置目录 → toast + 跳「输入法方案」设置）。旧包/第三方包无需改包。
+  - Manifest 用 `tools:node="remove"` 剔除 `ACCESS_NETWORK_STATE`（保留 `WAKE_LOCK`）。
+  - 偏好：`AppPrefs.Profile` 新增 `workspace_backup_*`。
+- 验证：`spotlessCheck` + 全量 `testDebugUnitTest` PASS；`compileDebugKotlin` PASS；
+  x86_64 debug APK 构建成功（`app/build/outputs/apk/debug/com.osfans.trime-v3.4.1-8-g4abf2df5-x86_64-debug.apk`）。
+  **完整 4-ABI assemble 目前不可用**：上游 librime-lua 自带 Lua5.4 在 NDK r28 编 32 位
+  armeabi-v7a 报 `fseeko/ftello` undeclared（勿改子模块；详见 `doc/repo-knowledge.md` §9.6）。
+- spotless 扫描范围改动及“新代码放哪需扩 target”规则：见 `doc/repo-knowledge.md` §9.5。
+- 代码审查修复（本 session，工作区未提交）：
+  - `ImeSettingsFragment`：备份目录行改为始终可点（否则新装用户无法在开启前选目录，形成死锁）；
+    大小警告的 “MB” 单位改走三语 `workspace_backup_size_mb`（本地化小数点/单位）。
+  - `WorkspaceBackupWorker`：`runOnce` 串行化（`@Synchronized`）；所有失败路径回写
+    `last_workspace_backup_status/time`（此前 IO/安全异常不回写，设置页会显示过期成功）；
+    无效/失效 SAF URI 归为 `NOT_CONFIGURED`（周期调度随之取消）；文件名时间戳改用
+    ThreadLocal `SimpleDateFormat`（API 安全，避免 `withInitial` 需 API 26）。
+  - 移除 `BackgroundSyncWork` 移除后残留的死代码：`RimeApi.syncUserData` /
+    `Rime.syncUserData` / `Rime.syncRimeUserData`（external）与 JNI `RimeJni::sync`
+    （`rime_jni.cc` 中 `sync()` 方法及其 `Java_..._syncRimeUserData` 绑定）。
+  - 移除「配置/Profile」设置页（设置主菜单「配置」入口、`ProfileSettingsFragment`、
+    `NavigationRoute.Profile` 路由）：该页「维护」分组下仅剩旧架构遗留的
+    「校验定义文件」（单文件 picker 校验，已无意义）与「恢复默认设置」（只重拷
+    app 自管 shared 暂存区，启动时 `DataManager.sync()` 已按 checksums 差异自动维护）
+    两行，均已删除。连带清理：三语 11 个 strings、孤儿图标
+    `ic_baseline_snippet_folder_24`、仅此页引用的 `util/Uri.kt`
+    （`Context.getFileFromUri`）、`DefinitionValidator.validateComponentManifest`
+    （syntax-only 便捷分支仅服务该 picker）；其完整清单校验用例迁移到新
+    `ComponentValidatorTest`（`ComponentValidator.validate` 仍被主题装载运行期使用）。
+    保留：`DataManager.sync()`/`checksums.json` 启动同步、`DefinitionValidator`
+    其余校验 API。
+  - 验证（本次移除）：`spotlessApply/Check` + `compileDebugKotlin` + 全量
+    `testDebugUnitTest` PASS（新增 `ComponentValidatorTest` 全绿）。
+- 待验证（备份功能，独立于本次移除）：模拟器真机冒烟（输入法方案 → 定时备份工作区；
+  键盘 Sync 键；权限列表应无「查看网络连接」）；通过后可开 PR 合入。
+- 下一步（待办）：模拟器真机冒烟（输入法方案 → 定时备份工作区；键盘 Sync 键；
+  权限列表应无「查看网络连接」）；通过后可开 PR 合入。
 
 ## 1. 状态摘要
 

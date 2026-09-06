@@ -40,8 +40,6 @@
         <item>rime</item>
         <item>type</item>
     </string-array>
-    <string name="reset">Reset</string>
-    <string name="reset_hint">Overwrite the same files in shared directory with default built-in assets</string>
     <string name="sound_on_keypress">Sound on key press</string>
     <string name="sound_volume">Sound volume on key press</string>
     <string name="vibrate_on_key_press">Vibrate on key press</string>
@@ -57,15 +55,10 @@
     <string name="expand_keypress_area_to_edge">Expand keypress area to edge</string>
     <string name="use_soft_cursor">Use soft cursor (^) in preedit</string>
     <string name="deploy">Deploy</string>
-    <string name="sync_user_data_immediately">Sync user data immediately</string>
-    <string name="reset_success">Reset Succeeded!</string>
-    <string name="reset_failure">Reset Failed!</string>
     <string name="deploy_progress">Deploying…</string>
     <string name="other_ime">Other IMEs</string>
     <string name="ui_mode">UI mode</string>
     <string name="advanced">Advanced</string>
-    <string name="periodic_background_sync">Periodic background sync</string>
-    <string name="periodic_background_sync_status">Last: %1$s (%2$s)</string>
     <string name="show_app_icon">Show app icon in launcher</string>
     <string name="only_available_on_some_roms">This option is only available on some ROMs</string>
     <string name="default_">Default</string>
@@ -125,11 +118,9 @@
     <string name="export">Export</string>
     <string name="scroll_to_bottom">Jump to Bottom</string>
     <string name="developer">Developer</string>
-    <string name="profile">Profile</string>
     <string name="virtual_keyboard">Virtual Keyboard</string>
     <string name="theme">Keyboard Style</string>
     <string name="about">About</string>
-    <string name="maintenance">Maintenance</string>
     <string name="install_schema_layout_package">Install schema layout package</string>
     <string name="install_schema_layout_package_summary">Install a .zip containing a Rime schema, layouts, and optional resources</string>
     <string name="install_schema_layout_package_failure">Failed to install schema layout package</string>
@@ -149,11 +140,6 @@
     <string name="ime_package_deleted">IME package deleted</string>
     <string name="cannot_delete_active_ime_package">Switch to another IME package before deleting this one</string>
     <string name="ime_package_already_active">This IME package is already active</string>
-    <string name="validate_definition_file">Validate definition file</string>
-    <string name="validate_definition_file_summary">Check a theme/layout/manifest YAML against the definition schema</string>
-    <string name="validate_definition_success">Definition is valid</string>
-    <string name="validate_definition_failure">Definition has errors</string>
-    <string name="validate_definition_syntax_only">Definition syntax is valid, but referenced files are not available; full package validation was skipped.</string>
     <string name="loading">Loading</string>
     <string name="success">success</string>
     <string name="failure">failure</string>
@@ -192,8 +178,6 @@
     <string name="no_effect_to_select">Currently there is no key sound effect to select.</string>
     <string name="setup_channel">Setup Wizard</string>
     <string name="forget_this_word">Forget this word</string>
-    <string name="synchronization">Synchronization</string>
-    <string name="periodic_background_sync_interval">Interval of background syncing (in minutes)</string>
     <string name="candidates_window">Candidates Window</string>
     <string name="show_candidates_window">Show candidates window</string>
     <string name="general">General</string>
@@ -240,6 +224,21 @@
     <string name="backed_up_x_to_sync_dir">Backed up %1$s to sync dir</string>
     <string name="restored_from_x">Restored from %1$s</string>
     <string name="backup">Backup</string>
+    <string name="workspace_backup_category">Scheduled workspace backup</string>
+    <string name="workspace_backup_enable">Enable scheduled backup</string>
+    <string name="workspace_backup_last">Last backup: %1$s (%2$s)</string>
+    <string name="workspace_backup_interval">Backup interval</string>
+    <string name="workspace_backup_hours_unit">hours</string>
+    <string name="workspace_backup_retention_title">Keep backup copies</string>
+    <string name="workspace_backup_retention_summary">Keep the latest %1$d backup(s)</string>
+    <string name="workspace_backup_folder">Backup folder</string>
+    <string name="workspace_backup_folder_unset">Not selected — tap to choose a folder</string>
+    <string name="workspace_backup_folder_required">Please choose a backup folder first</string>
+    <string name="workspace_backup_size_warning_title">Large workspace</string>
+    <string name="workspace_backup_size_warning">The current workspace is about %1$s. Every run writes a zip of that size and up to the configured retention count is kept. Enable anyway?</string>
+    <string name="workspace_backup_size_mb">%1$.1f MB</string>
+    <string name="workspace_backup_immediate_success">Workspace backup completed</string>
+    <string name="workspace_backup_immediate_failure">Workspace backup failed. Retry or check the backup folder.</string>
     <string name="clipboard_listening">Clipboard listening</string>
     <string name="clipboard_return_after_paste">Return after pasting</string>
     <string name="source_code">Source code</string>

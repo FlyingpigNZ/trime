@@ -40,8 +40,6 @@
         <item>輸入法</item>
         <item>打字</item>
     </string-array>
-    <string name="reset">回廠</string>
-    <string name="reset_hint">使用預設的內建設置覆蓋共享資料夾下相同檔案</string>
     <string name="sound_on_keypress">按鍵聲音</string>
     <string name="sound_volume">按鍵音量</string>
     <string name="vibrate_on_key_press">按鍵時振動</string>
@@ -57,15 +55,10 @@
     <string name="expand_keypress_area_to_edge">將按鍵範圍擴展至邊緣</string>
     <string name="use_soft_cursor">預編輯區使用插入符號（^）</string>
     <string name="deploy">部署</string>
-    <string name="sync_user_data_immediately">立即同步使用者資料</string>
-    <string name="reset_success">回廠成功</string>
-    <string name="reset_failure">回廠失敗</string>
     <string name="deploy_progress">正在部署…</string>
     <string name="other_ime">其他輸入法</string>
     <string name="ui_mode">使用者界面模式</string>
     <string name="advanced">高級</string>
-    <string name="periodic_background_sync">後台定時同步</string>
-    <string name="periodic_background_sync_status">上次同步時間（狀態）：%1$s（%2$s）</string>
     <string name="only_available_on_some_roms">此選項僅對部分 ROM 有效</string>
     <string name="show_app_icon">在啟動器中顯示圖示</string>
     <string name="default_">預設</string>
@@ -127,9 +120,7 @@
     <string name="exception_logcat_created">Logcat 行程已建立</string>
     <string name="about">關於</string>
     <string name="theme">鍵盤樣式</string>
-    <string name="profile">配置</string>
     <string name="virtual_keyboard">虛擬鍵盤</string>
-    <string name="maintenance">維護</string>
     <string name="install_schema_layout_package">安裝方案鍵盤佈局包</string>
     <string name="install_schema_layout_package_summary">安裝包含 Rime 方案、佈局和可選資源的 .zip 檔案</string>
     <string name="install_schema_layout_package_failure">方案鍵盤佈局包安裝失敗</string>
@@ -149,11 +140,6 @@
     <string name="ime_package_deleted">輸入方案包已刪除</string>
     <string name="cannot_delete_active_ime_package">請先切換到其他輸入方案包再刪除目前方案</string>
     <string name="ime_package_already_active">此輸入法包已是目前使用的方案</string>
-    <string name="validate_definition_file">校驗定義檔</string>
-    <string name="validate_definition_file_summary">依定義規範檢查主題/佈局/清單 YAML 檔</string>
-    <string name="validate_definition_success">定義檔有效</string>
-    <string name="validate_definition_failure">定義檔存在錯誤</string>
-    <string name="validate_definition_syntax_only">定義檔語法有效，但無法存取引用的檔案，已跳過完整驗證。</string>
     <string name="loading">正在載入</string>
     <string name="success">成功</string>
     <string name="failure">失敗</string>
@@ -192,8 +178,6 @@
     <string name="no_effect_to_select">當前沒有按鍵音效可選擇。</string>
     <string name="setup_channel">設定精靈</string>
     <string name="forget_this_word">忘記該詞</string>
-    <string name="synchronization">同步</string>
-    <string name="periodic_background_sync_interval">後台同步時間間隔（以分鐘為單位）</string>
     <string name="candidates_window">候选視窗</string>
     <string name="show_candidates_window">顯示候選詞視窗</string>
     <string name="general">常規</string>
@@ -240,6 +224,21 @@
     <string name="import_n_entries">已匯入 %1$d 個詞條</string>
     <string name="restored_from_x">已從 %1$s 還原</string>
     <string name="backup">備份</string>
+    <string name="workspace_backup_category">定時備份工作區</string>
+    <string name="workspace_backup_enable">啟用定時備份</string>
+    <string name="workspace_backup_last">上次備份時間（狀態）：%1$s（%2$s）</string>
+    <string name="workspace_backup_interval">備份間隔</string>
+    <string name="workspace_backup_hours_unit">小時</string>
+    <string name="workspace_backup_retention_title">保留備份份數</string>
+    <string name="workspace_backup_retention_summary">保留最近 %1$d 份</string>
+    <string name="workspace_backup_folder">備份目錄</string>
+    <string name="workspace_backup_folder_unset">未選擇，點擊選擇目錄</string>
+    <string name="workspace_backup_folder_required">請先選擇備份目錄</string>
+    <string name="workspace_backup_size_warning_title">工作區較大</string>
+    <string name="workspace_backup_size_warning">目前工作區約 %1$s，每次備份都會產生該體積的 zip，並依保留份數自動清理舊檔。仍要啟用？</string>
+    <string name="workspace_backup_size_mb">%1$.1f MB</string>
+    <string name="workspace_backup_immediate_success">工作區備份完成</string>
+    <string name="workspace_backup_immediate_failure">工作區備份失敗，請重試或檢查備份目錄</string>
     <string name="clipboard_listening">監聽剪貼簿</string>
     <string name="clipboard_return_after_paste">貼上後返回</string>
     <string name="source_code">原始碼</string>

@@ -4,20 +4,20 @@
 
 package com.osfans.trime.data.theme
 
-import com.osfans.trime.data.theme.component.ComponentManifest
-import com.osfans.trime.data.theme.component.ComponentSource
-import com.osfans.trime.data.theme.component.ComponentValidator
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.string
 
 /**
- * Pure validation core for self-contained IME package component manifests.
+ * Pure validation core for resolved component sections and the app-owned
+ * customization overlay.
  *
- * The same checks are used by the in-app validator, the CLI tool, and CI.
- * It intentionally returns a list of error messages instead of throwing, so
- * callers can show all problems at once.
+ * Full package-manifest validation (manifest plus its referenced component
+ * files) lives in `ComponentValidator` and runs when a package or theme is
+ * loaded; the desktop CLI mirrors these checks in `script/`. Checks return a
+ * list of error messages instead of throwing, so callers can surface all
+ * problems at once.
  */
 object DefinitionValidator {
     /** Palette keys that accept a drawable value (image file name or color). */
@@ -30,21 +30,6 @@ object DefinitionValidator {
         )
 
     private val CUSTOMIZATION_MODES = setOf("light", "dark")
-
-    fun validateComponentManifest(
-        yaml: String,
-        source: ComponentSource? = null,
-    ): List<String> {
-        if (source == null) {
-            return try {
-                ComponentManifest.parse(parseMapping(yaml) ?: return listOf("Component manifest must be a YAML mapping"))
-                emptyList()
-            } catch (e: Exception) {
-                listOf(e.message ?: "Invalid component manifest")
-            }
-        }
-        return ComponentValidator.validate(yaml, source)
-    }
 
     /** Validate color literal formats in resolved component sections. */
     fun validateColorLiterals(sections: Map<String, Node.Mapping>): List<String> {

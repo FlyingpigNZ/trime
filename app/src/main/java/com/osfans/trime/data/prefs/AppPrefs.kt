@@ -384,16 +384,32 @@ class AppPrefs(
     ) : PreferenceDelegateOwner(shared) {
         companion object {
             const val USER_DATA_DIR = "profile_user_data_dir"
-            const val PERIODIC_BACKGROUND_SYNC = "periodic_background_sync"
-            const val PERIODIC_BACKGROUND_SYNC_INTERVAL = "periodic_background_sync_interval"
-            const val LAST_BACKGROUND_SYNC_STATUS = "last_background_sync_status"
-            const val LAST_BACKGROUND_SYNC_TIME = "last_background_sync_time"
+
+            // Scheduled whole-workspace zip backup (see ImeSettingsFragment).
+            const val WORKSPACE_BACKUP_ENABLED = "workspace_backup_enabled"
+            const val WORKSPACE_BACKUP_INTERVAL_HOURS = "workspace_backup_interval_hours"
+            const val WORKSPACE_BACKUP_RETENTION = "workspace_backup_retention_count"
+            const val WORKSPACE_BACKUP_TREE_URI = "workspace_backup_tree_uri"
+            const val WORKSPACE_BACKUP_DIR_NAME = "workspace_backup_dir_display_name"
+            const val LAST_WORKSPACE_BACKUP_STATUS = "last_workspace_backup_status"
+            const val LAST_WORKSPACE_BACKUP_TIME = "last_workspace_backup_time"
+
+            /** Default interval for [WORKSPACE_BACKUP_INTERVAL_HOURS]: 24 h = daily. */
+            const val DEFAULT_WORKSPACE_BACKUP_INTERVAL_HOURS = 24
+
+            /** Default number of zip copies kept for [WORKSPACE_BACKUP_RETENTION]. */
+            const val DEFAULT_WORKSPACE_BACKUP_RETENTION = 3
         }
 
-        val periodicBackgroundSync = bool(PERIODIC_BACKGROUND_SYNC, false)
-        val periodicBackgroundSyncInterval = int(PERIODIC_BACKGROUND_SYNC_INTERVAL, 30)
-        val lastBackgroundSyncStatus = bool(LAST_BACKGROUND_SYNC_STATUS, false)
-        val lastBackgroundSyncTime = long(LAST_BACKGROUND_SYNC_TIME, 0L)
+        val workspaceBackupEnabled = bool(WORKSPACE_BACKUP_ENABLED, false)
+        val workspaceBackupIntervalHours =
+            int(WORKSPACE_BACKUP_INTERVAL_HOURS, DEFAULT_WORKSPACE_BACKUP_INTERVAL_HOURS)
+        val workspaceBackupRetention =
+            int(WORKSPACE_BACKUP_RETENTION, DEFAULT_WORKSPACE_BACKUP_RETENTION)
+        val workspaceBackupTreeUri = string(WORKSPACE_BACKUP_TREE_URI, "")
+        val workspaceBackupDirName = string(WORKSPACE_BACKUP_DIR_NAME, "")
+        val lastWorkspaceBackupStatus = bool(LAST_WORKSPACE_BACKUP_STATUS, false)
+        val lastWorkspaceBackupTime = long(LAST_WORKSPACE_BACKUP_TIME, 0L)
     }
 
     class Clipboard(

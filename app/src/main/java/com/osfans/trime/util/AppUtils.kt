@@ -64,6 +64,8 @@ object AppUtils {
 
     fun launchMainToKeyboard(context: Context) = launchMainToDest(context, NavigationRoute.VirtualKeyboard)
 
+    fun launchMainToImePackages(context: Context) = launchMainToDest(context, NavigationRoute.ImePackages)
+
     fun launchLogActivity(context: Context) {
         context.startActivity<LogActivity>()
     }
