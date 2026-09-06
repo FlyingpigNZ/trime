@@ -41,8 +41,8 @@ android {
         applicationId = "com.osfans.trime"
         minSdk = 21
         targetSdk = 36
-        versionCode = 20260905
-        versionName = "3.4.3"
+        versionCode = 20260906
+        versionName = "3.4.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         multiDexEnabled = true
