@@ -41,7 +41,10 @@ import com.osfans.trime.util.buildIntentFromArgument
 import com.osfans.trime.util.customFormatDateTime
 import com.osfans.trime.util.isAsciiPrintable
 import com.osfans.trime.util.toast
+import com.osfans.trime.worker.WorkspaceBackupRunner
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.kodein.di.instance
 import splitties.systemservices.clipboardManager
 import splitties.systemservices.inputMethodManager
@@ -244,8 +247,39 @@ class CommonKeyboardActionListener {
                         rime.launchOnReady { RimeDaemon.restartRime(fullCheck = true) }
                     }
                     "SYNC_USER_DATA" -> {
-                        Timber.i("try to sync rime user data via command ...")
-                        rime.launchOnReady { api -> api.syncUserData() }
+                        Timber.i("run one-shot workspace backup via Sync key ...")
+                        service.lifecycleScope.launch {
+                            val outcome =
+                                withContext(Dispatchers.IO) {
+                                    runCatching { WorkspaceBackupRunner.runOnce(service) }
+                                        .getOrElse {
+                                            Timber.e(it, "One-shot workspace backup failed")
+                                            WorkspaceBackupRunner.Outcome.FAILURE
+                                        }
+                                }
+                            when (outcome) {
+                                WorkspaceBackupRunner.Outcome.SUCCESS ->
+                                    Toast.makeText(
+                                        service,
+                                        R.string.workspace_backup_immediate_success,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                WorkspaceBackupRunner.Outcome.NOT_CONFIGURED -> {
+                                    Toast.makeText(
+                                        service,
+                                        R.string.workspace_backup_folder_required,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                    AppUtils.launchMainToImePackages(service)
+                                }
+                                WorkspaceBackupRunner.Outcome.FAILURE ->
+                                    Toast.makeText(
+                                        service,
+                                        R.string.workspace_backup_immediate_failure,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                            }
+                        }
                     }
                     "UPDATE_CONFIG" -> {
                         Timber.i("try to update rime config via command ...")

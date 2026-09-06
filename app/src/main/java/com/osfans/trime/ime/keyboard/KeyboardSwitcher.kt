@@ -9,6 +9,7 @@ import android.text.InputType
 import android.view.inputmethod.EditorInfo
 import com.osfans.trime.core.RimeUiState
 import com.osfans.trime.daemon.RimeSession
+import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.schema.DefaultKeyboardRegistry
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.TextKeyboard
@@ -142,6 +143,13 @@ class KeyboardSwitcher(
      */
     fun selectKeyboard(target: String): Keyboard {
         val resolved = resolveKeyboard(target)
+        // Persist the resolved keyboard so the settings UI (which has no Rime
+        // session) can preview the layout the user last typed on — a schema
+        // switch that resolves to another keyboard is reflected there too.
+        // Only write on an actual change (reselects are no-ops).
+        if (resolved.isNotEmpty() && resolved != currentKeyboardId) {
+            AppPrefs.defaultInstance().session.lastKeyboard.setValue(resolved)
+        }
         // ".last" returns to the keyboard that was current before the last
         // real switch; navigation commands and no-op reselects must not
         // overwrite that memory.

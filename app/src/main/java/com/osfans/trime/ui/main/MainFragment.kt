@@ -60,11 +60,6 @@ class MainFragment : PaddingPreferenceFragment() {
                 R.drawable.ic_baseline_book_24,
                 NavigationRoute.UserDict,
             )
-            addDestinationPreference(
-                R.string.profile,
-                R.drawable.ic_baseline_snippet_folder_24,
-                NavigationRoute.Profile,
-            )
             addCategory("") {
                 isIconSpaceReserved = false
                 addDestinationPreference(

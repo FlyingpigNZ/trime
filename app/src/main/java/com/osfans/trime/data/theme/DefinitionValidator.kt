@@ -4,20 +4,20 @@
 
 package com.osfans.trime.data.theme
 
-import com.osfans.trime.data.theme.component.ComponentManifest
-import com.osfans.trime.data.theme.component.ComponentSource
-import com.osfans.trime.data.theme.component.ComponentValidator
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.string
 
 /**
- * Pure validation core for self-contained IME package component manifests.
+ * Pure validation core for resolved component sections and the app-owned
+ * customization overlay.
  *
- * The same checks are used by the in-app validator, the CLI tool, and CI.
- * It intentionally returns a list of error messages instead of throwing, so
- * callers can show all problems at once.
+ * Full package-manifest validation (manifest plus its referenced component
+ * files) lives in `ComponentValidator` and runs when a package or theme is
+ * loaded; the desktop CLI mirrors these checks in `script/`. Checks return a
+ * list of error messages instead of throwing, so callers can surface all
+ * problems at once.
  */
 object DefinitionValidator {
     /** Palette keys that accept a drawable value (image file name or color). */
@@ -29,20 +29,7 @@ object DefinitionValidator {
             "liquid_keyboard_background",
         )
 
-    fun validateComponentManifest(
-        yaml: String,
-        source: ComponentSource? = null,
-    ): List<String> {
-        if (source == null) {
-            return try {
-                ComponentManifest.parse(parseMapping(yaml) ?: return listOf("Component manifest must be a YAML mapping"))
-                emptyList()
-            } catch (e: Exception) {
-                listOf(e.message ?: "Invalid component manifest")
-            }
-        }
-        return ComponentValidator.validate(yaml, source)
-    }
+    private val CUSTOMIZATION_MODES = setOf("light", "dark")
 
     /** Validate color literal formats in resolved component sections. */
     fun validateColorLiterals(sections: Map<String, Node.Mapping>): List<String> {
@@ -91,6 +78,93 @@ object DefinitionValidator {
 
         sections["tool_bar"]?.let { validateColorFields(it, "tool_bar", knownColorKeys, errors) }
         return errors
+    }
+
+    /**
+     * Validate the app-owned `customization.yaml` overlay against the resolved
+     * component [sections]. Mirrors the palette value rules used for
+     * color.yaml (drawable keys may carry image file names, other keys must be
+     * hex literals) and rejects unknown schemes / modes / keys loudly instead
+     * of silently dropping them.
+     */
+    fun validateCustomization(
+        sections: Map<String, Node.Mapping>,
+        customization: Node.Mapping,
+    ): List<String> {
+        val errors = mutableListOf<String>()
+        val rootKey = ThemeCustomization.COLOR_SCHEMES_KEY
+        customization.pairs.keys.mapNotNull { it.string }
+            .filterNot { it == rootKey }
+            .forEach { errors += "customization.yaml: unknown key '$it'" }
+        val overrides = customization[rootKey]?.mapping ?: return errors
+        val preset = sections["preset_color_schemes"]?.mapping
+            ?: run {
+                errors += "customization.yaml: theme has no 'preset_color_schemes' to customize"
+                return errors
+            }
+        overrides.pairs.forEach { (idNode, overrideNode) ->
+            val id = idNode.string
+            if (id == null) {
+                errors += "customization.yaml: scheme id must be a string"
+                return@forEach
+            }
+            val override = overrideNode.mapping
+            if (override == null) {
+                errors += "customization.yaml: color_schemes.$id must be a mapping"
+                return@forEach
+            }
+            val scheme = preset[Node.Scalar(id)]?.mapping
+            if (scheme == null) {
+                errors += "customization.yaml: unknown color scheme '$id'"
+                return@forEach
+            }
+            val allowedKeys = schemeOverrideKeys(scheme)
+            override.pairs.forEach { (modeNode, paletteNode) ->
+                val mode = modeNode.string
+                if (mode == null || mode !in CUSTOMIZATION_MODES) {
+                    errors += "customization.yaml: color_schemes.$id: mode must be 'light' or 'dark'"
+                    return@forEach
+                }
+                val palette = paletteNode.mapping
+                if (palette == null) {
+                    errors += "customization.yaml: color_schemes.$id.$mode must be a mapping"
+                    return@forEach
+                }
+                palette.pairs.forEach { (keyNode, valueNode) ->
+                    val key = keyNode.string ?: return@forEach
+                    if (key !in allowedKeys) {
+                        errors += "customization.yaml: color_schemes.$id.$mode: unknown key '$key'"
+                    }
+                    if (key in DRAWABLE_KEYS) return@forEach
+                    val value = valueNode.string
+                    if (value == null || !isHexColor(value)) {
+                        errors += "customization.yaml: color_schemes.$id.$mode.$key: invalid color '$value'"
+                    }
+                }
+            }
+        }
+        return errors
+    }
+
+    /**
+     * Keys a customization entry may override for [scheme]: the scheme's own
+     * palette keys (light and/or dark; for legacy flat schemes the flat map
+     * itself) plus every known theme color key and builtin fallback key, so a
+     * scheme that currently falls back can still gain an explicit value.
+     */
+    private fun schemeOverrideKeys(scheme: Node.Mapping): Set<String> {
+        val keys = mutableSetOf<String>()
+        fun collect(palette: Node.Mapping) {
+            palette.pairs.keys.mapNotNull { it.string }
+                .filterNot { it == "name" || it == "author" }
+                .forEach { keys += it }
+        }
+        scheme["light"]?.mapping?.let { collect(it) }
+        scheme["dark"]?.mapping?.let { collect(it) }
+        if (scheme["light"]?.mapping == null && scheme["dark"]?.mapping == null) collect(scheme)
+        keys += ThemeColor.entries.map { it.key }
+        keys += BuiltinFallbackColors.keys
+        return keys
     }
 
     /**

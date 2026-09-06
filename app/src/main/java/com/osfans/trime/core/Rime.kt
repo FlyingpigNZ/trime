@@ -105,10 +105,6 @@ class Rime(
         getCurrentRimeSchema() == ".default" // 無方案
     }
 
-    override suspend fun syncUserData(): Boolean = withRimeContext {
-        syncRimeUserData()
-    }
-
     override suspend fun processKey(
         value: Int,
         modifiers: UInt,
@@ -499,9 +495,6 @@ class Rime(
             userDir: String,
             versionName: String,
         ): Boolean
-
-        @JvmStatic
-        external fun syncRimeUserData(): Boolean
 
         // input
         @JvmStatic

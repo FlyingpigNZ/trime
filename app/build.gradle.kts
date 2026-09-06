@@ -41,8 +41,8 @@ android {
         applicationId = "com.osfans.trime"
         minSdk = 21
         targetSdk = 36
-        versionCode = 20260901
-        versionName = "3.4.1"
+        versionCode = 20260906
+        versionName = "3.4.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         multiDexEnabled = true
@@ -154,6 +154,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.appcompat)
+    implementation("com.google.android.material:material:1.4.0")
     implementation(libs.androidx.autofill)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core.ktx)
@@ -168,6 +169,9 @@ dependencies {
     implementation(libs.androidx.room.paging)
     implementation(libs.androidx.viewpager2)
     implementation(libs.androidx.work.runtime.ktx)
+    // SAF tree access for the scheduled workspace backup (same version already
+    // resolved transitively in this dependency graph).
+    implementation("androidx.documentfile:documentfile:1.0.0")
     implementation(libs.flexbox)
     implementation(libs.bravh)
     implementation(libs.timber)

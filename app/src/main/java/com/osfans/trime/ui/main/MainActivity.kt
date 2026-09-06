@@ -40,7 +40,6 @@ import com.osfans.trime.ui.setup.SetupActivity
 import com.osfans.trime.util.item
 import com.osfans.trime.util.parcelable
 import com.osfans.trime.util.startActivity
-import com.osfans.trime.worker.BackgroundSyncWork
 import splitties.views.topPadding
 
 class MainActivity : AppCompatActivity() {
@@ -198,14 +197,6 @@ class MainActivity : AppCompatActivity() {
         menu.forEach { item ->
             // show menu item on demand
             item.isVisible = false
-        }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        if (viewModel.restartBackgroundSyncWork.value == true) {
-            viewModel.restartBackgroundSyncWork.value = false
-            BackgroundSyncWork.forceStart(this)
         }
     }
 

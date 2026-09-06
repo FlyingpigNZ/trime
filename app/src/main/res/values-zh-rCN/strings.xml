@@ -22,6 +22,23 @@
     <string name="selected_ime_summary">选择自包含输入法包</string>
     <string name="normal_mode_color">配色</string>
     <string name="normal_mode_color_summary">选取配色</string>
+    <string name="keyboard_background_editor">键盘背景</string>
+    <string name="keyboard_background_editor_summary">更换或恢复当前配色的键盘背景图片</string>
+    <string name="keyboard_background_mode_light">日间</string>
+    <string name="keyboard_background_mode_dark">夜间</string>
+    <string name="keyboard_background_change">选取</string>
+    <string name="keyboard_background_default">缺省</string>
+    <string name="keyboard_background_crop">裁剪</string>
+    <string name="keyboard_background_reset">复位</string>
+    <string name="keyboard_background_apply">应用</string>
+    <string name="keyboard_background_no_scheme">未找到配色方案</string>
+    <string name="keyboard_background_decode_failed">无法读取所选图片</string>
+    <!-- 编辑器预览候选栏内展示的示例候选词 -->
+    <string-array name="keyboard_background_preview_candidates">
+        <item>同文</item>
+        <item>输入法</item>
+        <item>打字</item>
+    </string-array>
     <string name="sound_on_keypress">按键声音</string>
     <string name="sound_volume">按键音量</string>
     <string name="vibrate_on_key_press">按键时振动</string>
@@ -37,15 +54,10 @@
     <string name="expand_keypress_area_to_edge">将按键范围扩展至边缘</string>
     <string name="use_soft_cursor">预编辑区使用插入符号（^）</string>
     <string name="deploy">部署</string>
-    <string name="sync_user_data_immediately">立即同步用户数据</string>
-    <string name="reset_success">重置成功</string>
-    <string name="reset_failure">重置失败</string>
     <string name="deploy_progress">正在部署…</string>
     <string name="other_ime">其他输入法</string>
     <string name="ui_mode">用户界面模式</string>
     <string name="advanced">高级</string>
-    <string name="periodic_background_sync">后台定时同步</string>
-    <string name="periodic_background_sync_status">上次同步时间（状态）：%1$s（%2$s）</string>
     <string name="show_app_icon">在启动器中显示图标</string>
     <string name="only_available_on_some_roms">此选项仅对部分 ROM 有效</string>
     <string name="default_">默认</string>
@@ -107,8 +119,6 @@
     <string name="virtual_keyboard">虚拟键盘</string>
     <string name="about">关于</string>
     <string name="theme">键盘样式</string>
-    <string name="profile">配置</string>
-    <string name="maintenance">维护</string>
     <string name="install_schema_layout_package">安装方案键盘布局包</string>
     <string name="install_schema_layout_package_summary">安装包含 Rime 方案、布局和可选资源的 .zip 文件</string>
     <string name="install_schema_layout_package_failure">方案键盘布局包安装失败</string>
@@ -128,16 +138,9 @@
     <string name="ime_package_deleted">输入方案包已删除</string>
     <string name="cannot_delete_active_ime_package">请先切换到其他输入方案包再删除当前方案</string>
     <string name="ime_package_already_active">该输入法包已是当前使用方案</string>
-    <string name="validate_definition_file">校验定义文件</string>
-    <string name="validate_definition_file_summary">按定义规范检查主题/布局/清单 YAML 文件</string>
-    <string name="validate_definition_success">定义文件有效</string>
-    <string name="validate_definition_failure">定义文件存在错误</string>
-    <string name="validate_definition_syntax_only">定义文件语法有效，但无法访问引用的文件，已跳过完整校验。</string>
     <string name="loading">正在加载</string>
-    <string name="reset">恢复默认设置</string>
     <string name="success">成功</string>
     <string name="failure">失败</string>
-    <string name="reset_hint">用默认的内置配置覆盖共享目录中的相同文件</string>
     <string name="delete">删除</string>
     <string name="edit">编辑</string>
     <string name="collect">收藏</string>
@@ -174,8 +177,6 @@
     <string name="no_effect_to_select">当前没有按键音效可选择。</string>
     <string name="setup_channel">设置向导</string>
     <string name="forget_this_word">忘记该词</string>
-    <string name="synchronization">同步</string>
-    <string name="periodic_background_sync_interval">后台同步时间间隔（以分钟为单位）</string>
     <string name="candidates_window">候选窗口</string>
     <string name="show_candidates_window">显示候选词窗口</string>
     <string name="general">常规</string>
@@ -222,6 +223,21 @@
     <string name="import_n_entries">已导入 %1$d 个词条</string>
     <string name="restored_from_x">已从 %1$s 中还原</string>
     <string name="backup">备份</string>
+    <string name="workspace_backup_category">定时备份工作区</string>
+    <string name="workspace_backup_enable">启用定时备份</string>
+    <string name="workspace_backup_last">上次备份时间（状态）：%1$s（%2$s）</string>
+    <string name="workspace_backup_interval">备份间隔</string>
+    <string name="workspace_backup_hours_unit">小时</string>
+    <string name="workspace_backup_retention_title">保留备份份数</string>
+    <string name="workspace_backup_retention_summary">保留最近 %1$d 份</string>
+    <string name="workspace_backup_folder">备份目录</string>
+    <string name="workspace_backup_folder_unset">未选择，点击选择目录</string>
+    <string name="workspace_backup_folder_required">请先选择备份目录</string>
+    <string name="workspace_backup_size_warning_title">工作区较大</string>
+    <string name="workspace_backup_size_warning">当前工作区约 %1$s，每次备份都会生成该体积的 zip，并按保留份数自动清理旧文件。仍要启用？</string>
+    <string name="workspace_backup_size_mb">%1$.1f MB</string>
+    <string name="workspace_backup_immediate_success">工作区备份完成</string>
+    <string name="workspace_backup_immediate_failure">工作区备份失败，请重试或检查备份目录</string>
     <string name="clipboard_listening">记录剪贴板历史</string>
     <string name="clipboard_return_after_paste">粘贴后返回</string>
     <string name="source_code">源代码</string>

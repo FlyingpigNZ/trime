@@ -15,7 +15,6 @@ import com.osfans.trime.ui.main.settings.CandidatesSettingsFragment
 import com.osfans.trime.ui.main.settings.ClipboardSettingsFragment
 import com.osfans.trime.ui.main.settings.GeneralSettingsFragment
 import com.osfans.trime.ui.main.settings.KeyboardSettingsFragment
-import com.osfans.trime.ui.main.settings.ProfileSettingsFragment
 import com.osfans.trime.ui.main.settings.ime.ImeSettingsFragment
 import com.osfans.trime.ui.main.settings.schema.SchemaListFragment
 import com.osfans.trime.ui.main.settings.theme.ThemeSettingsFragment
@@ -37,9 +36,6 @@ sealed class NavigationRoute : Parcelable {
 
     @Serializable
     data object UserDict : NavigationRoute()
-
-    @Serializable
-    data object Profile : NavigationRoute()
 
     @Serializable
     data object General : NavigationRoute()
@@ -85,9 +81,6 @@ sealed class NavigationRoute : Parcelable {
             }
             fragment<UserDictionaryFragment, UserDict> {
                 label = ctx.getString(R.string.user_dictionary)
-            }
-            fragment<ProfileSettingsFragment, Profile> {
-                label = ctx.getString(R.string.profile)
             }
 
             fragment<GeneralSettingsFragment, General> {

@@ -170,7 +170,7 @@
         "preset_color_schemes": {
           "type": "object",
           "patternProperties": {
-            "\\w+": {
+            "[\\w/]+": {
               "oneOf": [
                 {
                   "type": "object",
@@ -752,7 +752,7 @@
     "preset_color_schemes": {
       "type": "object",
       "patternProperties": {
-        "\\w+": {
+        "[\\w/]+": {
           "oneOf": [
             {
               "type": "object",

@@ -25,7 +25,7 @@ import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.receiver.RimeIntentReceiver
 import com.osfans.trime.ui.main.LogActivity
 import com.osfans.trime.util.isNightMode
-import com.osfans.trime.worker.BackgroundSyncWork
+import com.osfans.trime.worker.WorkspaceBackupWorker
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -48,7 +48,6 @@ class TrimeApplication : Application() {
         val intentFilter =
             IntentFilter().apply {
                 addAction(RimeIntentReceiver.ACTION_DEPLOY)
-                addAction(RimeIntentReceiver.ACTION_SYNC_USER_DATA)
             }
         ContextCompat.registerReceiver(
             this,
@@ -103,8 +102,8 @@ class TrimeApplication : Application() {
         instance = this
         // The :compile process only deploys a package workspace: it must not
         // run the one-time user-data migration (which would race the main
-        // process on the same files) or start clipboard/collection/broadcast/
-        // WorkManager machinery.
+        // process on the same files) or start clipboard/collection/broadcast
+        // machinery.
         val isCompileProcess = currentProcessName()?.endsWith(":compile") == true
         try {
             if (BuildConfig.DEBUG) {
@@ -158,7 +157,7 @@ class TrimeApplication : Application() {
                 ClipboardHelper.init(applicationContext)
                 CollectionHelper.init(applicationContext)
                 registerBroadcastReceiver()
-                startWorkManager()
+                ensureWorkspaceBackupSchedule()
                 // Compile the startup workspace (Default on a fresh install)
                 // via the isolated :compile process before the engine's first
                 // start; the engine start is gated on it so the main process
@@ -183,9 +182,9 @@ class TrimeApplication : Application() {
         }
     }
 
-    private fun startWorkManager() {
+    private fun ensureWorkspaceBackupSchedule() {
         coroutineScope.launch {
-            BackgroundSyncWork.start(applicationContext)
+            WorkspaceBackupWorker.syncSchedule(applicationContext)
         }
     }
 

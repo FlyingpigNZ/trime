@@ -6,6 +6,7 @@ package com.osfans.trime.data.theme.component
 
 import com.osfans.trime.data.theme.DefinitionValidator
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.data.theme.ThemeCustomization
 import com.osfans.trime.util.yaml.Node
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
@@ -42,8 +43,21 @@ object ComponentThemeLoader {
                 "Invalid component theme:\n" + validationErrors.joinToString("\n"),
             )
         }
+        // App-owned `customization.yaml` is merged after component resolution
+        // and validated against the resolved sections before the theme node is
+        // built (see ThemeCustomization for the merge semantics).
+        val resolved = ComponentResolver(source).resolve(manifest)
+        val sections =
+            ThemeCustomization.load(manifestFile.parentFile ?: File("."))?.let { customization ->
+                val errors = DefinitionValidator.validateCustomization(resolved, customization)
+                if (errors.isNotEmpty()) {
+                    throw IllegalArgumentException(
+                        "Invalid ${ThemeCustomization.FILE_NAME}:\n" + errors.joinToString("\n"),
+                    )
+                }
+                ThemeCustomization.applyColorSchemeOverrides(resolved, customization)
+            } ?: resolved
         // Per-schema `<schemaId>.extended.yaml` files (app-owned directives).
-        val sections = ComponentResolver(source).resolve(manifest)
         val extendedErrors =
             DefinitionValidator.validateExtendedFiles(
                 manifestFile.parentFile ?: File("."),

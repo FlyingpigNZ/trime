@@ -25,16 +25,11 @@ class RimeIntentReceiver : BroadcastReceiver() {
                 Timber.i("try to start maintenance ...")
                 rime.launchOnReady { RimeDaemon.restartRime(fullCheck = true) }
             }
-            ACTION_SYNC_USER_DATA -> {
-                Timber.i("try to sync rime user data ...")
-                rime.launchOnReady { it.syncUserData() }
-            }
             else -> {}
         }
     }
 
     companion object {
         const val ACTION_DEPLOY = "${BuildConfig.APPLICATION_ID}.action.DEPLOY"
-        const val ACTION_SYNC_USER_DATA = "${BuildConfig.APPLICATION_ID}.action.SYNC_USER_DATA"
     }
 }
