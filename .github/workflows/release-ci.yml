@@ -70,21 +70,40 @@ jobs:
         if: ${{ !steps.jni-cache.outputs.cache-hit }}
         run: cp -R app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib app/prebuilt
 
-      - name: Resolve changelog base
+      # One workflow serves both remotes: GitHub (origin = github.com, where the
+      # upstream `develop` branch exists) and origin_home/Gitea (no `develop`).
+      # Outputs: is_github (true/false) and base (changelog comparison point).
+      - name: Resolve changelog base & runner profile
         id: changelog_base
         run: |
-          # Compare against the previous release tag instead of the GitHub-only
-          # `develop` branch: this workflow also runs on origin_home/Gitea, whose
-          # origin has no `develop` ref (git fetch origin develop would fail).
-          PREV=$(git tag --merged HEAD --sort=-version:refname \
-            | grep -v "^${GITHUB_REF_NAME}$" | head -n 1 || true)
-          if [ -n "$PREV" ]; then
-            echo "base=$PREV" >> "$GITHUB_OUTPUT"
+          URL=$(git config --get remote.origin.url)
+          case "$URL" in
+            *github.com*|*git@github.com*) GH=1 ;;
+            *) GH=0 ;;
+          esac
+          if [ "$GH" = 1 ]; then
+            echo "is_github=true" >> "$GITHUB_OUTPUT"
           else
-            echo "base=$(git rev-parse HEAD~1)" >> "$GITHUB_OUTPUT"
+            echo "is_github=false" >> "$GITHUB_OUTPUT"
           fi
+          if [ "$GH" = 1 ] && git fetch origin develop --quiet 2>/dev/null \
+              && git rev-parse --verify origin/develop >/dev/null 2>&1; then
+            BASE=$(git merge-base HEAD origin/develop)
+          else
+            # Gitea has no develop ref: compare against the previous release tag.
+            PREV=$(git tag --merged HEAD --sort=-version:refname \
+              | grep -v "^${GITHUB_REF_NAME}$" | head -n 1 || true)
+            if [ -n "$PREV" ]; then
+              BASE="$PREV"
+            else
+              BASE=$(git rev-parse HEAD~1)
+            fi
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
-      - name: Build changelog
+      # ── GitHub: third-party changelog/release actions (GitHub-API based) ──
+      - name: Build changelog (GitHub)
+        if: ${{ steps.changelog_base.outputs.is_github == 'true' }}
         id: build_changelog
         uses: mikepenz/release-changelog-builder-action@v4
         with:
@@ -100,7 +119,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Stable release
+      - name: Create Stable release (GitHub)
+        if: ${{ steps.changelog_base.outputs.is_github == 'true' }}
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
@@ -109,3 +129,53 @@ jobs:
           body: |
             ${{ steps.build_changelog.outputs.changelog }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Gitea (origin_home): local changelog + API release upload ────────
+      - name: Create Stable release (Gitea)
+        if: ${{ steps.changelog_base.outputs.is_github == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REF="${GITHUB_REF_NAME}"
+          BASE="${{ steps.changelog_base.outputs.base }}"
+          URL=$(git config --get remote.origin.url)
+          API_BASE=$(python3 -c 'import sys;u=sys.argv[1];p=u.split("://",1);s=p[0] if len(p)>1 else "https";rest=p[1] if len(p)>1 else u;host=(rest.split("/")[0] if len(p)>1 else rest.split(":",1)[0]).split("@")[-1];print(f"{s}://{host}/api/v1")' "$URL")
+          REPO="${GITHUB_REPOSITORY}"
+          { echo "Change log from ${BASE} to ${REF}:"
+            echo
+            git log --no-merges --pretty=format:"- %s" "${BASE}..HEAD"
+          } > /tmp/changelog.txt
+          python3 - "$REF" /tmp/changelog.txt /tmp/payload.json <<'PY'
+          import json, sys
+          ref, log_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+          body = open(log_path, encoding='utf-8').read()
+          payload = {
+              "tag_name": ref,
+              "target_commitish": "main",
+              "name": "Trime " + ref,
+              "body": body,
+          }
+          open(out_path, "w", encoding="utf-8").write(json.dumps(payload))
+          PY
+          AUTH="Authorization: token ${GITHUB_TOKEN}"
+          # Upsert: reuse an existing release for the tag when re-running.
+          HTTP=$(curl -sS -o /tmp/existing.json -w '%{http_code}' -H "$AUTH" \
+            "${API_BASE}/repos/${REPO}/releases/tags/${REF}" || true)
+          if [ "$HTTP" = "200" ]; then
+            ID=$(python3 -c "import json;print(json.load(open('/tmp/existing.json'))['id'])")
+            curl -fsS -X PATCH -H "$AUTH" -H "Content-Type: application/json" \
+              --data-binary @/tmp/payload.json \
+              "${API_BASE}/repos/${REPO}/releases/${ID}" >/dev/null
+          else
+            RESP=$(curl -fsS -X POST -H "$AUTH" -H "Content-Type: application/json" \
+              --data-binary @/tmp/payload.json \
+              "${API_BASE}/repos/${REPO}/releases")
+            ID=$(python3 -c "import json,sys;print(json.load(sys.stdin)['id'])" <<< "$RESP")
+          fi
+          for f in app/build/outputs/apk/release/*.apk; do
+            [ -f "$f" ] || continue
+            curl -fsS -X POST -H "$AUTH" \
+              -F "attachment=@${f}" \
+              "${API_BASE}/repos/${REPO}/releases/${ID}/assets" >/dev/null
+          done
