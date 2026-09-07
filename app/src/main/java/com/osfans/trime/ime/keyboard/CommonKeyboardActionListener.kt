@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.R
 import com.osfans.trime.core.RimeApi
 import com.osfans.trime.core.RimeKeyEvent
+import com.osfans.trime.core.RimeKeyMapping
 import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.daemon.launchOnReady
@@ -49,6 +50,17 @@ import org.kodein.di.instance
 import splitties.systemservices.clipboardManager
 import splitties.systemservices.inputMethodManager
 import timber.log.Timber
+
+/**
+ * Trime's upper-letter key codes: `send: A`..`send: Z` parse through
+ * [RimeKeyMapping.upperNameToCode] into a dedicated 20000+ code space
+ * (distinct from Android [KeyEvent.KEYCODE_A]..[KeyEvent.KEYCODE_Z]). The
+ * uppercase-token 14键 keyboard sends its tokens through these codes, and
+ * Rime receives them as their own XK_* keysyms (uppercase, disjoint from
+ * a-z) via [RimeKeyEvent.getKeycodeByName].
+ */
+private val rimeUpperLetterCodes: IntRange =
+    requireNotNull(RimeKeyMapping.upperNameToCode("A"))..requireNotNull(RimeKeyMapping.upperNameToCode("Z"))
 
 class CommonKeyboardActionListener {
     private val di = InputDependencyManager.getInstance().di
@@ -390,10 +402,19 @@ class CommonKeyboardActionListener {
                     keyboardWindow.pinyinDisambiguation.onDigitKey(digit)
                 } else if (keyEventCode in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z) {
                     // 小鹤双拼14键 disambiguation: observe the letter keys the
-                    // 14-key keyboard sends (Q W→q, E R→e, …). onKeyLetter
-                    // filters to the 14 representatives and only acts in the
-                    // flypy14 mode; the key still reaches Rime's fold path.
+                    // classic 14-key keyboard sends (Q W→q, E R→e, …).
+                    // onKeyLetter filters to the 14 representatives and only
+                    // acts in the flypy14 mode; the key still reaches Rime's
+                    // fold path.
                     val letter = 'a' + (keyEventCode - KeyEvent.KEYCODE_A)
+                    keyboardWindow.pinyinDisambiguation.onKeyLetter(letter)
+                } else if (keyEventCode in rimeUpperLetterCodes) {
+                    // 大写 token 试点 14键: `send: A`..`send: Z` parse to Trime's
+                    // upper-letter codes (upperNameToCode 20000+), not Android
+                    // KEYCODE_A..Z. onKeyLetter keeps only the 14 flypy14 tokens
+                    // (QW->A ... M->N) and ignores the rest; the key still reaches
+                    // Rime as its own XK_* keysym (uppercase, disjoint from a-z).
+                    val letter = 'A' + (keyEventCode - rimeUpperLetterCodes.first)
                     keyboardWindow.pinyinDisambiguation.onKeyLetter(letter)
                 } else if (keyEventCode == KeyEvent.KEYCODE_DEL) {
                     if (keyboardWindow.pinyinDisambiguation.onBackspace()) {

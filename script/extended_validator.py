@@ -14,8 +14,9 @@ Mirrors the Kotlin parser in
 - every `syllables` entry must carry `pinyin` + `t9_code`, and the codes must
   be consistent (a syllable's `t9_code` must equal the T9 fold of its pinyin;
   the flypy codes must match the 双拼 key table when provided; a present
-  `flypy_14_code` must equal the `/14jian` fold of the `flypy_code`; a
-  `flypy14` table must carry `flypy_14_code` on every entry)
+  `flypy_14_code` must equal the `/14jian` fold of the `flypy_code` and a
+  present `flypy_14_token` must equal the `/14jian-token` fold; a `flypy14`
+  table must carry `flypy_14_code` and `flypy_14_token` on every entry)
 
 The pinyin/T9 fold logic is shared with the generator
 (`generate_pinyin_syllables.py`) so the shipped data and the validator can
@@ -29,7 +30,12 @@ from typing import Any
 
 import yaml
 
-from generate_pinyin_syllables import flypy14_code, flypy_code, t9_code
+from generate_pinyin_syllables import (
+    flypy14_code,
+    flypy14_token_code,
+    flypy_code,
+    t9_code,
+)
 
 EXTENDED_SUFFIX = ".extended.yaml"
 
@@ -110,13 +116,17 @@ def _validate_t9(t9: Any, prefix: str) -> list[str]:
                     entry.get("pinyin")
                     for entry in syllables
                     if isinstance(entry, dict)
-                    and (not entry.get("flypy_code") or not entry.get("flypy_14_code"))
+                    and (
+                        not entry.get("flypy_code")
+                        or not entry.get("flypy_14_code")
+                        or not entry.get("flypy_14_token")
+                    )
                 ]
                 if missing:
                     errors.append(
                         f"{prefix} t9_disambiguation.input_method 'flypy14' requires "
-                        f"'flypy_code' and 'flypy_14_code' on every syllable; "
-                        f"missing for {missing!r}"
+                        f"'flypy_code', 'flypy_14_code' and 'flypy_14_token' on every "
+                        f"syllable; missing for {missing!r}"
                     )
             for i, entry in enumerate(syllables):
                 errors += _validate_syllable(entry, i, prefix)
@@ -176,6 +186,15 @@ def _validate_syllable(entry: Any, index: int, prefix: str) -> list[str]:
             errors.append(
                 f"{prefix} t9_disambiguation.syllables[{index}] pinyin '{pinyin}' "
                 f"flypy_14_code '{flypy14}' is inconsistent"
+            )
+    # The uppercase-token fold (`/14jian-token`) is checked the same way.
+    token14 = entry.get("flypy_14_token")
+    if token14 is not None and isinstance(token14, str) and token14:
+        expected_token = flypy14_token_code(flypy or "")
+        if not flypy or expected_token != token14:
+            errors.append(
+                f"{prefix} t9_disambiguation.syllables[{index}] pinyin '{pinyin}' "
+                f"flypy_14_token '{token14}' is inconsistent"
             )
     return errors
 

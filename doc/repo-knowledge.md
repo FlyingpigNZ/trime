@@ -259,10 +259,30 @@ Data:
   two keys like everything else, per the Rime `/base/小鹤双拼` algebra:
   two-letter finals keep their natural spelling (`ai`, `an`, `ao`, `ei`, `en`,
   `ou`), single-letter finals double (`a → aa`), longer finals take a vowel
-  guide + final key (`ang → ah`, `eng → eg`).
+  guide + final key (`ang → ah`, `eng → eg`). Codes are canonical for
+  j/q/x/y + bare `u` (`qu → qv`), mirroring the `/base/小鹤双拼` derivation.
+  With `--flypy14` it additionally emits `flypy_14_code` (letter fold,
+  `/14jian`) and `flypy_14_token` (uppercase-token fold, `/14jian-token`).
+- Uppercase-token 14键 试点 (uncommitted worktree, see `doc/handoff.md` §0):
+  the 14键 keyboard sends uppercase ASCII tokens QW→A … M→N; the schema folds
+  dictionary spellings into the same token space via the `/14jian-token`
+  preset in `wanxiang_algebra.yaml` (tagged with the Lua marker ⅳ), so typed
+  tokens never equal a lowercase 双拼 code and a panel pick always narrows
+  (fixes the old "选 GE 无法收窄" fixed point). librime applies
+  `speller/algebra` only to dict codes when building the prism
+  (`dict_compiler.cc`), so typed text is matched verbatim — tokens are never
+  re-folded. The Kotlin decoder picks the letter or token lookup table by the
+  case of the typed characters; old representative-letter packages stay
+  supported (their `flypy_14_token` column is empty and their keyboards never
+  send uppercase). The loader enforces the column all-or-none: legacy letter
+  tables ship no token column at all, token 试点 tables ship it on every
+  syllable, and a half-populated column fails loudly (`SchemaExtension`
+  `T9Disambiguation.decode` and `validate`).
 - `script/extended_validator.py` — validates `<schemaId>.extended.yaml`
   files; wired into `script/validate-definitions.py` (`--check-shipped` and
-  zip validation).
+  zip validation). A `flypy14` table must carry `flypy_14_code` **and**
+  `flypy_14_token` on every entry, each checked against the corresponding
+  generator fold.
 - The 万象14键-nogram sample package ships
   `wanxiang_t9.extended.yaml` and `wanxiang_flypy_t9.extended.yaml`.
 

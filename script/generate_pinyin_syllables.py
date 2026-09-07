@@ -14,10 +14,15 @@ codes used by the app-side disambiguation decoder
 - flypy_14_code: the 小鹤双拼 code folded to the 14-key letters (mirroring the
   Rime `/14jian` preset); emitted only with `--flypy14` for the 小鹤双拼14键
   disambiguation table (`wanxiang_14jian.extended.yaml`)
+- flypy_14_token: the 小鹤双拼 code folded to the 14-key **uppercase token**
+  space (mirroring the Rime `/14jian-token` preset: QW->A ... M->N); emitted
+  with `--flypy14` alongside `flypy_14_code` for the 大写 token 试点包
 
 The syllable list is extracted from the built-in luna_pinyin dictionary so it
 matches the actual pinyin space of the bundled Rime data. 小鹤双拼 key mapping
-is the standard one (initial table + final table).
+is the standard one (initial table + final table). The 双拼 code is canonical:
+a bare `u` final after j/q/x/y is phonetically ü and keys to the `v` key
+(`qu` -> `qv`), mirroring the Rime `/base/小鹤双拼` derivation.
 
 Usage:
   python3 script/generate_pinyin_syllables.py [--flypy14] > syllables.yaml
@@ -78,6 +83,24 @@ LETTER_TO_14 = {
     "n": "b", "m": "m",
 }
 
+# Uppercase-token 14-key fold (试点), mirrored from the Rime `/14jian-token`
+# preset (wanxiang_algebra.yaml): QWERTYUIOPASDFGHJKLZXCVBNM ->
+# AABBCCDDEEFFGGHHIIJKKLLMMN. Each physical key sends one uppercase ASCII token
+# disjoint from a-z (QW->A ... M->N), so a 双拼 code folds onto the same token
+# space the keyboard sends and typed tokens never equal a lowercase code.
+LETTER_TO_14_TOKEN = {
+    "q": "A", "w": "A", "e": "B", "r": "B", "t": "C", "y": "C",
+    "u": "D", "i": "D", "o": "E", "p": "E", "a": "F", "s": "F",
+    "d": "G", "f": "G", "g": "H", "h": "H", "j": "I", "k": "I",
+    "l": "J", "z": "K", "x": "K", "c": "L", "v": "L", "b": "M",
+    "n": "M", "m": "N",
+}
+
+# After these initials a bare `u` final is phonetically ü and its canonical
+# 小鹤 key is `v` (`qu` -> `qv`), mirroring Rime's `/base/小鹤双拼` derivation
+# `^([jqxy])u... -> ...v...`.
+JQXY_INITIALS = frozenset({"j", "q", "x", "y"})
+
 
 # Bare YAML words that PyYAML parses as booleans/null. A 双拼 code like `no`
 # (nuo) must be quoted, or the validator would see False instead of the code.
@@ -98,13 +121,22 @@ def flypy14_code(code: str) -> str:
     return "".join(LETTER_TO_14[ch] for ch in code.lower())
 
 
+def flypy14_token_code(code: str) -> str:
+    """小鹤双拼 key code -> 14-key uppercase-token fold (mirrors `/14jian-token`)."""
+    return "".join(LETTER_TO_14_TOKEN[ch] for ch in code.lower())
+
+
 def flypy_code(pinyin: str) -> str:
     """Full pinyin -> 小鹤双拼 key code (initial + final)."""
     for init_len in (2, 1):
         initial = pinyin[:init_len]
         final = pinyin[init_len:]
         if initial in XIAOHE_INITIALS and final in XIAOHE_FINALS:
-            return XIAOHE_INITIALS[initial] + XIAOHE_FINALS[final]
+            initial_key = XIAOHE_INITIALS[initial]
+            # j/q/x/y + bare `u` is phonetically ü; canonical key is `v`.
+            if final == "u" and initial in JQXY_INITIALS:
+                return initial_key + XIAOHE_FINALS["v"]
+            return initial_key + XIAOHE_FINALS[final]
     # Zero-initial syllables (a, ai, ao, ...): mirror the Rime /base/小鹤双拼
     # algebra, where every syllable is exactly two keys but the guide+key form
     # is only used when the natural spelling is not already two keys:
@@ -151,8 +183,8 @@ def main(argv: list[str] | None = None) -> int:
             # Quote the 双拼 code: bare YAML words such as `no` (nuo's code)
             # would otherwise parse as booleans under PyYAML.
             print(
-                "    - {pinyin: %s, t9_code: %s, flypy_code: '%s', flypy_t9_code: %s, flypy_14_code: '%s'}"
-                % (py, t9_code(py), fp, t9_code(fp), flypy14_code(fp))
+                "    - {pinyin: %s, t9_code: %s, flypy_code: '%s', flypy_t9_code: %s, flypy_14_code: '%s', flypy_14_token: '%s'}"
+                % (py, t9_code(py), fp, t9_code(fp), flypy14_code(fp), flypy14_token_code(fp))
             )
         else:
             # Quote only the risky words here so existing T9 tables regenerate

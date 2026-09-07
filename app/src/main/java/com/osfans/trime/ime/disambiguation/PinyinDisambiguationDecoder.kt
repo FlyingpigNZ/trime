@@ -22,9 +22,15 @@ import com.osfans.trime.data.theme.SchemaExtension
  * - **flypy** (`wanxiang_flypy_t9`): the digit string is a 小鹤双拼 code
  *   folded to digits, two digits per syllable. Each pair decodes via the
  *   双拼 key mapping to a full pinyin syllable.
- * - **flypy14** (`wanxiang_14jian`): the letter string is a 小鹤双拼 code
- *   folded to the 14-key letters the keyboard sends, two letters per
- *   syllable; each pair decodes via the `flypy_14_code` column.
+ * - **flypy14** (`wanxiang_14jian`): the key string is a 小鹤双拼 code
+ *   folded to the 14 keys' output, two characters per syllable; each pair
+ *   decodes via the syllable table. The output space is data-driven: the
+ *   classic 14-key keyboard sends the 14 representative **letters** and is
+ *   decoded through the `flypy_14_code` column (mirroring Rime `/14jian`);
+ *   the 大写 token 试点 keyboard sends uppercase ASCII tokens (QW->A ... M->N)
+ *   and is decoded through the `flypy_14_token` column (mirroring Rime
+ *   `/14jian-token`). Which column applies is chosen by the case of the
+ *   typed characters, so both packages share this decoder.
  */
 class PinyinDisambiguationDecoder(
     private val extension: SchemaExtension.T9Disambiguation,
@@ -38,6 +44,23 @@ class PinyinDisambiguationDecoder(
     private val syllablesByFlypy14: Map<String, List<SchemaExtension.T9Disambiguation.Syllable>> =
         extension.syllables.groupBy { it.flypy14Code }
 
+    private val syllablesByFlypy14Token: Map<String, List<SchemaExtension.T9Disambiguation.Syllable>> =
+        extension.syllables.groupBy { it.flypy14Token }
+
+    /**
+     * The flypy14 lookup table matching [code]: the uppercase-token table when
+     * the extension ships one (any syllable has a non-empty token) and the
+     * code is made of token letters; otherwise the classic
+     * representative-letter table. Both share the same fold structure, so a
+     * typed token pair and its letter twin always decode to the same syllable
+     * union.
+     */
+    private fun flypy14SyllablesFor(code: String): Map<String, List<SchemaExtension.T9Disambiguation.Syllable>> = if (extension.syllables.any { it.flypy14Token.isNotEmpty() } && code.firstOrNull()?.isUpperCase() == true) {
+        syllablesByFlypy14Token
+    } else {
+        syllablesByFlypy14
+    }
+
     /**
      * Decode [digits] into legal pinyin sequences. Returns an empty list when
      * the input is empty, the extension is disabled, or nothing decodes.
@@ -47,7 +70,8 @@ class PinyinDisambiguationDecoder(
         return when (extension.inputMethod) {
             SchemaExtension.T9Disambiguation.InputMethod.FULL -> decodeFull(digits)
             SchemaExtension.T9Disambiguation.InputMethod.FLYPY -> decodeFlypy(digits, syllablesByFlypyT9)
-            SchemaExtension.T9Disambiguation.InputMethod.FLYPY14 -> decodeFlypy(digits, syllablesByFlypy14)
+            SchemaExtension.T9Disambiguation.InputMethod.FLYPY14 ->
+                decodeFlypy(digits, flypy14SyllablesFor(digits))
         }
     }
 
@@ -135,7 +159,8 @@ class PinyinDisambiguationDecoder(
     private fun matchesFor(code: String): List<Pair<String, String>>? = when (extension.inputMethod) {
         SchemaExtension.T9Disambiguation.InputMethod.FULL -> syllablesByT9[code]?.map { it.pinyin to it.pinyin }
         SchemaExtension.T9Disambiguation.InputMethod.FLYPY -> syllablesByFlypyT9[code]?.map { it.pinyin to it.flypyCode }
-        SchemaExtension.T9Disambiguation.InputMethod.FLYPY14 -> syllablesByFlypy14[code]?.map { it.pinyin to it.flypyCode }
+        SchemaExtension.T9Disambiguation.InputMethod.FLYPY14 ->
+            flypy14SyllablesFor(code)[code]?.map { it.pinyin to it.flypyCode }
     }
 
     /** digit → the pinyin-start letters (initials) that the T9 key carries. */

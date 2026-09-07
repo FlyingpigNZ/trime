@@ -2,10 +2,95 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：分支 `feat/14key-pinyin-filter`（14键拼音过滤 + disambiguation 通用化命名，
-> 见下方 **§0 最新状态**）。更早的备份/键盘背景内容保留于 **§0a、§1–§7** 作为历史记录。
+> **最后更新于**：`main = 1a940dd9` 之上，分支 **`feat/14key-token-mirror`**；
+> **大写 ASCII token 版 14键 试点包已实现并提交/push 至 origin_home**
+> （数据/脚本/app/Lua + zip；见 §0）**。
+> 更早内容：§0a（14键拼音过滤功能）、§0b（备份功能）、§1–§7（键盘背景）为历史记录。
 
-## 0. 最新状态（当前分支：feat/14key-pinyin-filter）
+## 0. 最新状态：大写 token 试点包（已 push `feat/14key-token-mirror`；评审项已处理，见下）
+
+### 新改动（未合）：preedit 原码回显键位首字母（分支 `feat/14key-preedit-echo`）
+- 动机：token 试点下 `原编码` preedit 直显 token（单敲 QW 键显示 `A`），与键帽
+  视觉不一致。改为**整个原码回显键位首字母（大写）**：A..N -> Q/E/.../M，两键码
+  `HB` 回显 `GE`；有声调/无声调仍走拼音转换。
+- 位置：`super_comment_preedit.lua`（仅 token 方案，ⅳ 标记 gate；26键/九键/旧包
+  路径不变）；纯显示层，不改 token 语义/引擎/解码。
+- 待真机确认：无候选（零候选回退原始输入）状态是否仍直显 token——Lua 只能改
+  候选 preedit 路径；若有此残留再议（可能需引擎侧 preedit_format 或接受）。
+
+### 本会话完成（worktree diff 见 git status）
+- 动机落定：14键 折叠输出从「14 个代表字母」换成与 a–z 不相交的 ASCII 大写
+  token（QW→A ER→B … BN→M M→N，键帽不变），使点选回填的小写双拼码总能
+  收窄（原理同 T9 数字镜子）。GE 组（ge/he/guan/huan 折叠同码）因此从
+  「结构不可收窄」变为可收窄：ge/he/gr/hr 四个小鹤码互异、与键入 token 不相交。
+- 改动清单（tracked）：`script/generate_pinyin_syllables.py`（--flypy14 增发
+  `flypy_14_token` 列；`flypy_code()` 补 jqxy-u→v 规范化：ju/qu/xu/yu → jv/qv/xv/yv）、
+  `script/extended_validator.py` + 单测（flypy14 必填并一致性校验 token 列）、
+  `SchemaExtension.kt`（Syllable.flypy14Token，可选兼容旧包）、
+  `PinyinDisambiguationDecoder.kt`（键入大小写自动选 token/字母折叠表）、
+  `PinyinDisambiguationController.kt`（onKeyLetter/isOwnedCodeChar 接受 A..N）、
+  `CommonKeyboardActionListener.kt`（20000+ 上档大写码 hook 进 flypy14 观察）、
+  单测更新、`sample_theme_schemas/万象14键-nogram.zip`（tracked）刷新。
+- 改动清单（ignored 源目录 `sample_theme_schemas/万象14键-nogram/`，zip 为跟踪产物）：
+  `rime/wanxiang_algebra.yaml` 新增 `/14jian-token` 折叠 preset（含 ⅳ Lua 标记载体）；
+  `wanxiang_14jian.schema.yaml` 引用 `/14jian-token`；`behavior.yaml` 14key* 发送改
+  A..N；三份 `*.extended.yaml` 数据再生（token 列 + 规范化）；Lua `wanxiang.lua`
+  （`is_14jian_token` 检测 ⅳ 标记）与 `super_processor.lua`（重复限制覆盖 token，
+  仅 token 方案生效，26键路径 gate 不变）。本地 `万象14键.zip`（untracked，389MB，
+  含 gram）已按同源刷新同 8 个成员。
+- 验证（本会话已跑，全绿）：`py_compile`/luac 语法；python 校验器套件 33 用例；
+  `python3 script/validate-definitions.py --check-shipped`（源目录+全部 zip）；
+  数据级语义断言（token 形状/与 feed 码字符集不相交/HB 并集=4 音节/回填码唯一/
+  qu→qv AL、AD=qi+wu/字母-token 并集同构）；`:app:testDebugUnitTest` 全量 +
+  spotlessApply/Check。**真机冒烟未做（本容器无设备），见下**。
+
+### 代码评审处理（静态审查发现，已按级修复）
+- **P2-1（已修）**：Kotlin `T9Disambiguation.decode` 对 `flypy_14_token` 加
+  **all-or-none** 校验（全空=旧代表字母包放行 / 全有=token 包 / 半新半旧=抛
+  `IllegalArgumentException` 响亮失败）；`SchemaExtension.validate()` 也补同款
+  行级检查；新增 3 个单测（旧包全空放行、半新半旧拒载、validate 检出）。
+- **P3-1（已修）**：Decoder token 表判定从 `map.isNotEmpty()`（旧包 groupBy ""
+  也非空，语义与注释不符）改为 `syllables.any { flypy14Token.isNotEmpty() }`。
+- **P3-2（已补强）**：`SchemaExtension.validate()` 已成为 `decode()` 结构校验的
+  **完整镜像**（flypy14 缺 `flypy_code`/`flypy_14_code` + token 列 all-or-none，
+  只收集不抛错）；与生成器对表的深度一致性仍由 `extended_validator.py` /
+  `validate-definitions.py` 承担（职责分工已写注释），未在 Kotlin 重复生成器逻辑。
+- **P2-2（论证 + 冒烟必查）**：`is_14jian_token` 依赖 `config:get_list` 已展开
+  `__patch/preset`——与 prism 构建（`dict_compiler.cc`）用同一 get_list 机制；
+  真机候选正确即证明 algebra 已展开（token 折叠生效），故 ⅳ 扫描必然可见。
+  已在 `wanxiang.lua` helper 注释中写明该论证；**真机冒烟须顺带确认
+  `env.is_token14 == true`**（见下一步 1）。
+
+### 引擎机制依据（勿再推翻）
+- librime prism 只把 `speller/algebra` 作用在**词典码**上（`dict_compiler.cc`
+  BuildPrism），键入/`setInput` 文本按原样查拼写表 → token 不会被折叠规则回写，
+  点选回填小写码即按词典原码唯一命中。
+- 大写字母按键经 `upperNameToCode`（20000+）→ `RimeKeyEvent.getKeycodeByName`
+  得独立 XK_0x41..0x4E（≠ 0x61..0x7A），speller 按字符收码，可行性坐实。
+
+### 行为判定（沿用 §0a 之前结论 + 本会话新变化）
+- **14键 QU**：数据已规范化，qu 行 = qv（flypy_code/折叠 qc/token AL）；QW+CV 是
+  去/区规范键位。**行为变化（真机需复核）**：QW+UI(AD) 的拼音过滤面板不再列出
+  QU（引擎仍经 u 形拼写容忍直出候选），QW+CV(AL) 面板提供 qu。旧代表字母包
+  不受影响（数据/键盘各自闭环）。
+- **14键 GE**：字母空间不动点结论不变，但 token 试点已消除：union(HB)=4 音节，
+  回填 ge/he/gr/hr 各自唯一。T9/26键/英文键盘路径未触碰（改动按 schema 条件 gate）。
+- 遗留已知缺口（不改）：`/base/小鹤双拼` 中 jqxy-u→v 的 u 形拼写仍存在（26键
+  兼容输入所需），14键 AD 并集面板与引擎容忍语义的细微不对称见上条，接受。
+
+### 下一步（待办）
+1. **真机冒烟收尾**（maintainer 已确认：面板点选收窄 ✓、「有声调」preedit 转全拼 ✓）。
+   仍待确认/补测：
+   - 冒烟时确认 `env.is_token14 == true`（P2-2 必查项；加日志或断点）；
+   - 26键完整小鹤键盘、英文键盘、T9 无回归（本轮未在真机覆盖）；
+   - `原编码` 默认下顶栏显示大写 token 原码（如 HB）为设计行为，与旧字母版
+     显 `ge` 语义一致（maintainer 已接受）。
+2. 本分支已 push `origin_home`（feat/14key-token-mirror：docs 基底 + feat + docs +
+   style + 评审修复），可开 PR 或按需合入；源树在 ignored 目录，只提交 tracked
+   清单 + zip（提交时用显式文件清单）。
+3. 全量带 gram 包 `万象14键.zip`（untracked）如需对外发布，按既有流程重出。
+
+## 0a. 已合入：14键拼音过滤功能（PR #22–#25）
 
 - 功能：给小鹤双拼14键（schema `wanxiang_14jian`，键盘 `14jian`）加与 T9 一致的
   「拼音过滤」面板：
@@ -47,10 +132,10 @@
   - Minor：生成器两个分支都对 YAML 布尔词（如 nuo→`'no'`）加引号并刷新
     T9 extended 数据；校验器对未加引号的布尔标量报错而非静默跳过；
     KDoc 示例 `hg`→`gc`；日志去 T9 字样。
-- 待办（已收尾）：分支 `feat/14key-pinyin-filter` → commit → push `origin_home` → PR #22
-  （base `main`）。后续可选：数据层改名迁移（如用户改主意）。
+- 收尾：`feat/14key-pinyin-filter` 已合入 main（PR #22）；此后 #23 版本号、#24/#25 CI
+  已另合入（当前状态见 §0）。
 
-## 0a. 上一轮最新状态（备份功能，已并入 main #19）
+## 0b. 上一轮最新状态（备份功能，已并入 main #19）
 
 - Git：基于 `main`（`0664a758`，#18 已合入）的分支，已 push 两个提交：
   - `a4c943f9` feat(backup): scheduled workspace zip export replacing periodic rime sync

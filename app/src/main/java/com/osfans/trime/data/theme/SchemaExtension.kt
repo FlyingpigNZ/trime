@@ -82,6 +82,14 @@ data class SchemaExtension(
             val flypyT9Code: String,
             /** 小鹤双拼 code folded to the 14-key letters, e.g. `gc` (flypy14 only). */
             val flypy14Code: String = "",
+            /**
+             * 小鹤双拼 code folded to the 14-key uppercase-token space, e.g.
+             * `AL` (mirroring the Rime `/14jian-token` preset). The 大写 token
+             * 试点包 ships this column; older 14-key packages that send the
+             * representative letters leave it empty, which is fine because
+             * their keyboards never produce token keystrokes.
+             */
+            val flypy14Token: String = "",
         )
 
         /** 小鹤双拼 initial/final key mapping (方案特定数据). */
@@ -114,6 +122,7 @@ data class SchemaExtension(
                         flypyCode = it["flypy_code"]?.string ?: "",
                         flypyT9Code = it["flypy_t9_code"]?.string ?: "",
                         flypy14Code = it["flypy_14_code"]?.string ?: "",
+                        flypy14Token = it["flypy_14_token"]?.string ?: "",
                     )
                 } ?: emptyList()
                 if (inputMethod == InputMethod.FLYPY14) {
@@ -125,6 +134,24 @@ data class SchemaExtension(
                             "t9_disambiguation.input_method 'flypy14' requires 'flypy_code' " +
                                 "and 'flypy_14_code' on every syllable; " +
                                 "missing for: ${missing.joinToString(", ")}",
+                        )
+                    }
+                    // 'flypy_14_token' is all-or-none: a legacy representative-letter
+                    // package ships no token column (every value empty, decoded via
+                    // the letter fold), while the token 试点 package ships it on
+                    // every row. A half-populated column is a hand-broken definition
+                    // whose token-less syllables would silently never appear in the
+                    // panel for typed uppercase tokens — fail loudly (schema-first).
+                    val halfPopulated = syllables.filter {
+                        it.flypy14Token.isEmpty()
+                    }.map { it.pinyin }
+                    if (halfPopulated.isNotEmpty() &&
+                        syllables.any { it.flypy14Token.isNotEmpty() }
+                    ) {
+                        throw IllegalArgumentException(
+                            "t9_disambiguation.input_method 'flypy14': 'flypy_14_token' must be " +
+                                "present on every syllable or on none (legacy letter package), " +
+                                "missing for: ${halfPopulated.joinToString(", ")}",
                         )
                     }
                 }
@@ -220,6 +247,38 @@ data class SchemaExtension(
                             errors +=
                                 "$prefix t9_disambiguation.input_method must be " +
                                 "'full', 'flypy' or 'flypy14', got '$value'"
+                        } else if (value == "flypy14") {
+                            // Structure checks mirrored from T9Disambiguation.decode
+                            // (collect-only, never throws): every flypy14 syllable
+                            // must carry 'flypy_code' + 'flypy_14_code', and the
+                            // 'flypy_14_token' column is all-or-none. Code/canonical
+                            // consistency with the generator stays with
+                            // script/extended_validator.py / validate-definitions.py.
+                            val rows = t9["syllables"]?.sequence?.nodes
+                                ?.mapNotNull { it.mapping }
+                                ?: emptyList()
+                            if (rows.isNotEmpty()) {
+                                val missingCodes = rows
+                                    .filter {
+                                        (it["flypy_code"]?.string ?: "").isEmpty() ||
+                                            (it["flypy_14_code"]?.string ?: "").isEmpty()
+                                    }
+                                    .mapNotNull { it["pinyin"]?.string }
+                                if (missingCodes.isNotEmpty()) {
+                                    errors +=
+                                        "$prefix t9_disambiguation.input_method 'flypy14' requires " +
+                                        "'flypy_code' and 'flypy_14_code' on every syllable; " +
+                                        "missing for: ${missingCodes.joinToString(", ")}"
+                                }
+                                val tokenCells = rows.map { it["flypy_14_token"]?.string.orEmpty() }
+                                if (tokenCells.any { it.isNotEmpty() } &&
+                                    tokenCells.any { it.isEmpty() }
+                                ) {
+                                    errors +=
+                                        "$prefix t9_disambiguation.input_method 'flypy14': " +
+                                        "'flypy_14_token' must be present on every syllable or on none"
+                                }
+                            }
                         }
                     }
                 }

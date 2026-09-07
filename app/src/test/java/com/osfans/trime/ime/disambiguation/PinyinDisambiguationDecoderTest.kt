@@ -177,12 +177,14 @@ class PinyinDisambiguationDecoderTest :
             pinyin: String,
             flypy: String,
             flypy14: String,
+            flypy14Token: String = "",
         ) = SchemaExtension.T9Disambiguation.Syllable(
             pinyin = pinyin,
             t9Code = "",
             flypyCode = flypy,
             flypyT9Code = "",
             flypy14Code = flypy14,
+            flypy14Token = flypy14Token,
         )
 
         val flypy14Sample = listOf(
@@ -212,5 +214,66 @@ class PinyinDisambiguationDecoderTest :
 
         "flypy14: odd-length input yields empty" {
             flypy14(flypy14Sample).decode("aac") shouldBe emptyList()
+        }
+
+        // ── 大写 token 试点（/14jian-token 镜像）──────────────────────────
+        // token 按键：QW->A ER->B ... GH->H ... CV->L BN->M M->N。a/sa 在 AS 键
+        // -> token `FF`；zhong(vs)/ca(ca) -> `LF`。折叠结构同字母版，仅字形不同。
+
+        val flypy14TokenSample = listOf(
+            syl14("a", "aa", "aa", "FF"),
+            syl14("sa", "sa", "aa", "FF"),
+            syl14("zhong", "vs", "ca", "LF"),
+            syl14("ca", "ca", "ca", "LF"),
+            // ge/he/guan/huan 折叠组：ge 的小鹤码就是词典拼写；token 版点选
+            // 回填的小写码与键入 token 不相交，故总能唯一收窄（见数据级验证）。
+            syl14("ge", "ge", "ge", "HB"),
+            syl14("he", "he", "ge", "HB"),
+            syl14("guan", "gr", "ge", "HB"),
+            syl14("huan", "hr", "ge", "HB"),
+        )
+
+        "flypy14 token: decodeLeading decodes the uppercase token column" {
+            flypy14(flypy14TokenSample).decodeLeading("FF").map { it.pinyin[0] to it.code } shouldContainExactly
+                listOf("sa" to "sa", "a" to "aa")
+            flypy14(flypy14TokenSample).decodeLeading("LF").map { it.pinyin[0] to it.code } shouldContainExactly
+                listOf("zhong" to "vs", "ca" to "ca")
+        }
+
+        "flypy14 token: the ge/he/guan/huan fold group still decodes to all four pinyin" {
+            flypy14(flypy14TokenSample).decodeLeading("HB").map { it.pinyin[0] } shouldContainExactlyInAnyOrder
+                listOf("ge", "he", "guan", "huan")
+        }
+
+        "flypy14 token: decode pairs two-letter syllables across the input" {
+            flypy14(flypy14TokenSample).decodeToDisplay("FFLF") shouldContainExactlyInAnyOrder listOf(
+                "a zhong",
+                "a ca",
+                "sa zhong",
+                "sa ca",
+            )
+        }
+
+        "flypy14: token and letter columns coexist; the typed case selects the table" {
+            // Same syllable with a deliberately different letter/token fold:
+            // lowercase typing decodes via flypy_14_code, uppercase via
+            // flypy_14_token, and each maps to the same 双拼 feed code.
+            val dual = listOf(
+                syl14("zhong", "vs", "ca", "LF"),
+                syl14("zuo", "zo", "zo", "KE"),
+            )
+            flypy14(dual).decodeLeading("ca").map { it.pinyin[0] } shouldContainExactly listOf("zhong")
+            flypy14(dual).decodeLeading("LF").map { it.pinyin[0] } shouldContainExactly listOf("zhong")
+            flypy14(dual).decodeLeading("zo").map { it.pinyin[0] } shouldContainExactly listOf("zuo")
+            flypy14(dual).decodeLeading("KE").map { it.pinyin[0] } shouldContainExactly listOf("zuo")
+        }
+
+        "flypy14: an old package without the token column decodes letters but not uppercase" {
+            // Letter-only rows (flypy14Token = "") must still decode lowercase
+            // typed letters; uppercase tokens find nothing (their keyboard never
+            // sends tokens).
+            flypy14(flypy14Sample).decodeLeading("ca").map { it.pinyin[0] } shouldContainExactlyInAnyOrder
+                listOf("zhong", "ca")
+            flypy14(flypy14Sample).decodeLeading("CA") shouldBe emptyList()
         }
     })

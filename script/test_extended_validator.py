@@ -148,8 +148,8 @@ t9_disambiguation:
   input_method: flypy14
   keyboard: 14jian
   syllables:
-    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc}
-    - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca}
+    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc, flypy_14_token: HL}
+    - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca, flypy_14_token: LF}
 """,
                 name="wanxiang_14jian.extended.yaml",
             )
@@ -167,7 +167,8 @@ t9_disambiguation:
 """,
             )
             errors = validate_extended_file(path)
-            self.assertTrue(any("requires 'flypy_code' and 'flypy_14_code'" in e for e in errors))
+            self.assertTrue(any("requires 'flypy_code'" in e for e in errors))
+            self.assertTrue(any("'flypy_14_token'" in e for e in errors))
 
     def test_inconsistent_flypy14_code(self) -> None:
         with tempfile.TemporaryDirectory() as d:
@@ -177,11 +178,25 @@ t9_disambiguation:
 t9_disambiguation:
   input_method: flypy14
   syllables:
-    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: ca}
+    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: ca, flypy_14_token: HL}
 """,
             )
             errors = validate_extended_file(path)
             self.assertTrue(any("flypy_14_code 'ca' is inconsistent" in e for e in errors))
+
+    def test_inconsistent_flypy14_token(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            path = write(
+                Path(d),
+                """
+t9_disambiguation:
+  input_method: flypy14
+  syllables:
+    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc, flypy_14_token: CA}
+""",
+            )
+            errors = validate_extended_file(path)
+            self.assertTrue(any("flypy_14_token 'CA' is inconsistent" in e for e in errors))
 
     def test_flypy14_malformed_syllable_does_not_crash(self) -> None:
         with tempfile.TemporaryDirectory() as d:
@@ -191,7 +206,7 @@ t9_disambiguation:
 t9_disambiguation:
   input_method: flypy14
   syllables:
-    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc}
+    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc, flypy_14_token: HL}
     - not_a_mapping
 """,
             )
