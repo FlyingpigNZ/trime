@@ -9,14 +9,22 @@
 
 ## 0. 最新状态：大写 token 试点包（已 push `feat/14key-token-mirror`；评审项已处理，见下）
 
-### 新改动（未合）：preedit 原码回显键位首字母（分支 `feat/14key-preedit-echo`）
+### 新改动（已合 main #28）：preedit 原码回显键位首字母
 - 动机：token 试点下 `原编码` preedit 直显 token（单敲 QW 键显示 `A`），与键帽
   视觉不一致。改为**整个原码回显键位首字母（大写）**：A..N -> Q/E/.../M，两键码
   `HB` 回显 `GE`；有声调/无声调仍走拼音转换。
 - 位置：`super_comment_preedit.lua`（仅 token 方案，ⅳ 标记 gate；26键/九键/旧包
   路径不变）；纯显示层，不改 token 语义/引擎/解码。
-- 待真机确认：无候选（零候选回退原始输入）状态是否仍直显 token——Lua 只能改
-  候选 preedit 路径；若有此残留再议（可能需引擎侧 preedit_format 或接受）。
+- 已知边界（已接受）：无候选（零候选回退原始输入）状态 Lua 改不到 raw；有候选
+  时已用 context.input 兜底回填回显。
+
+### 新改动（未合）：单字符键 L/M 字重对齐（分支 `feat/14key-key-text-size`）
+- 现象：键面 label 长度>1（Q W…）走 `key_long_text_size`(16)，单字符键（L、M）
+  走 `key_text_size`(20)，导致 L/M 显得更大。
+- 修法（纯数据）：14jian 键盘 L/M 两键行内加 `key_text_size: 16`，与双字符键视觉
+  一致；26键/英文键盘单字符键不受影响（各自行内无覆盖），app 无改动。
+- 链路：行内 `key_text_size` 经 TextKeyboard.TextKey.decode -> Key.keyTextSize ->
+  KeyView.drawLabel 运行时生效（已确认）。
 
 ### 本会话完成（worktree diff 见 git status）
 - 动机落定：14键 折叠输出从「14 个代表字母」换成与 a–z 不相交的 ASCII 大写
