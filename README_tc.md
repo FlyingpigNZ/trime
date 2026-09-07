@@ -20,6 +20,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 [查看文檔](https://github.com/osfans/trime/wiki)
 
+- 本 fork 的客製功能與使用說明：[doc/custom-features.md](doc/custom-features.md)
+  （拼音過濾 · 14鍵 大寫 token 鏡像 · 鍵盤背景編輯器 · 定時備份工作區 · 套件分發約定）
+
 ## 下載
 
 - 穩定版 <br>

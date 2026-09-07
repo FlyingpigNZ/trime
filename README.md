@@ -22,6 +22,9 @@ Trime is originally a frontend of open-source [Android Traditional Chinese IME],
 
 [Documentation](https://github.com/osfans/trime/wiki)
 
+- Custom features of this fork: [doc/custom-features.md](doc/custom-features.md)
+  (pinyin filter · 14-key uppercase-token mirror · keyboard background editor · scheduled workspace backup · package distribution conventions)
+
 ## Download
 
 - Stable Channel <br>
