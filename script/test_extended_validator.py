@@ -103,7 +103,7 @@ t9_disambiguation:
 """,
             )
             errors = validate_extended_file(path)
-            self.assertTrue(any("input_method must be 'full' or 'flypy'" in e for e in errors))
+            self.assertTrue(any("input_method must be" in e for e in errors))
 
     def test_inconsistent_t9_code(self) -> None:
         with tempfile.TemporaryDirectory() as d:
@@ -136,6 +136,82 @@ t9_disambiguation:
             path = write(Path(d), "tool_bar: [unclosed\n")
             errors = validate_extended_file(path)
             self.assertTrue(any("invalid YAML" in e for e in errors))
+
+    def test_valid_flypy14_file(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            path = write(
+                Path(d),
+                """
+schema_id: wanxiang_14jian
+t9_disambiguation:
+  enabled: true
+  input_method: flypy14
+  keyboard: 14jian
+  syllables:
+    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc}
+    - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca}
+""",
+                name="wanxiang_14jian.extended.yaml",
+            )
+            self.assertEqual(validate_extended_file(path), [])
+
+    def test_flypy14_missing_fold_code(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            path = write(
+                Path(d),
+                """
+t9_disambiguation:
+  input_method: flypy14
+  syllables:
+    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42'}
+""",
+            )
+            errors = validate_extended_file(path)
+            self.assertTrue(any("requires 'flypy_code' and 'flypy_14_code'" in e for e in errors))
+
+    def test_inconsistent_flypy14_code(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            path = write(
+                Path(d),
+                """
+t9_disambiguation:
+  input_method: flypy14
+  syllables:
+    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: ca}
+""",
+            )
+            errors = validate_extended_file(path)
+            self.assertTrue(any("flypy_14_code 'ca' is inconsistent" in e for e in errors))
+
+    def test_flypy14_malformed_syllable_does_not_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            path = write(
+                Path(d),
+                """
+t9_disambiguation:
+  input_method: flypy14
+  syllables:
+    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc}
+    - not_a_mapping
+""",
+            )
+            errors = validate_extended_file(path)
+            self.assertTrue(any("syllables[1] must be a mapping" in e for e in errors))
+
+    def test_unquoted_boolean_flypy_code_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            # PyYAML parses bare `no` as False (nuo's 双拼 code) — the validator
+            # must flag the scalar instead of silently skipping the check.
+            path = write(
+                Path(d),
+                """
+t9_disambiguation:
+  syllables:
+    - {pinyin: nuo, t9_code: '686', flypy_code: no, flypy_t9_code: '66'}
+""",
+            )
+            errors = validate_extended_file(path)
+            self.assertTrue(any("flypy_code must be a quoted string" in e for e in errors))
 
 
 if __name__ == "__main__":

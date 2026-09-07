@@ -174,13 +174,34 @@ tool_bar:                     # per-schema toolbar override (Feature ①)
 
 t9_disambiguation:            # T9 pinyin disambiguation column (Feature ②)
   enabled: true               # default on for t9=true schemas
-  input_method: full          # full | flypy
+  input_method: full          # full | flypy | flypy14
+  keyboard: wanxiang_t9       # optional; restrict the overlay to one keyboard id
   syllables:                  # standard pinyin syllable table (no tone)
     - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42'}
     - ...
   flypy_keys:                 # 小鹤双拼 key mapping (flypy only)
     initials: { zh: v, ch: i, sh: u, ... }
     finals:   { ao: c, ai: d, ... }
+```
+
+`t9_disambiguation` drives the app-side pinyin disambiguation overlay. For
+`input_method: full` / `flypy` (T9 keyboards) the overlay is a **column** over
+the keyboard's first punctuation-key column; for `input_method: flypy14`
+(小鹤双拼14键, `wanxiang_14jian`) the same table is decoded against the
+**first digit row** of the `wanxiang_14jian` keyboard. `flypy14` syllables must
+additionally carry `flypy_14_code` — the 小鹤双拼 code folded to the 14 key
+letters the keyboard sends (mirror of the Rime `/14jian` algebra):
+
+```yaml
+# wanxiang_14jian.extended.yaml (syllables generated with --flypy14)
+schema_id: wanxiang_14jian
+t9_disambiguation:
+  enabled: true
+  input_method: flypy14
+  keyboard: 14jian
+  syllables:
+    - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc}
+    - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca}
 ```
 
 Rules:
@@ -191,10 +212,13 @@ Rules:
   matching the component resolver's `mergeMappings` semantics for scalar/map
   sections — an explicit leaf in the extension wins, absent leaves keep the
   package value).
-- `t9_disambiguation.input_method` must be `full` or `flypy`.
+- `t9_disambiguation.input_method` must be `full`, `flypy` or `flypy14`.
 - Every `syllables` entry needs a `pinyin` and a `t9_code`; the code must
   equal the deterministic T9 fold of the pinyin (`A-Z → 222333444…`), and a
   present `flypy_code` must decode via the `flypy_keys` tables.
+- For `input_method: flypy14` every syllable must also carry `flypy_code` and
+  `flypy_14_code`; a present `flypy_14_code` must equal the `/14jian` fold of
+  the `flypy_code` (so the decoder and the Rime schema can never disagree).
 - 小鹤 zero-initial syllables (a, ai, an, ang, ao, e, ei, en, eng, er, o, ou)
   encode to exactly two keys, mirroring the Rime `/base/小鹤双拼` algebra:
   two-letter finals keep their natural spelling (`ai`, `an`, `ao`, `ei`, `en`,

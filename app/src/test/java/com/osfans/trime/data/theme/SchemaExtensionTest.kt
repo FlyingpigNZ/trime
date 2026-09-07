@@ -345,6 +345,63 @@ class SchemaExtensionTest :
             file.delete()
         }
 
+        "SchemaExtension.load parses flypy14 with 14-key fold codes" {
+            val file = java.io.File.createTempFile("ext", ".yaml")
+            file.writeText(
+                """
+                schema_id: wanxiang_14jian
+                t9_disambiguation:
+                  enabled: true
+                  input_method: flypy14
+                  keyboard: 14jian
+                  syllables:
+                  - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc}
+                  - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca}
+                """.trimIndent(),
+            )
+            val ext = SchemaExtension.load(file)!!
+            val t9 = ext.t9Disambiguation!!
+            t9.inputMethod shouldBe SchemaExtension.T9Disambiguation.InputMethod.FLYPY14
+            t9.keyboard shouldBe "14jian"
+            t9.syllables.first().flypy14Code shouldBe "gc"
+            t9.syllables.last().flypy14Code shouldBe "ca"
+            file.delete()
+        }
+
+        "SchemaExtension.load rejects flypy14 syllables without flypy_14_code" {
+            val file = java.io.File.createTempFile("ext", ".yaml")
+            file.writeText(
+                """
+                schema_id: wanxiang_14jian
+                t9_disambiguation:
+                  input_method: flypy14
+                  syllables:
+                  - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42'}
+                """.trimIndent(),
+            )
+            io.kotest.assertions.throwables.shouldThrow<IllegalArgumentException> {
+                SchemaExtension.load(file)
+            }
+            file.delete()
+        }
+
+        "SchemaExtension.load rejects non-canonical input_method aliases" {
+            listOf("quanpin", "xiaoe", "xiaoe14").forEach { alias ->
+                val file = java.io.File.createTempFile("ext", ".yaml")
+                file.writeText(
+                    """
+                    schema_id: wanxiang_14jian
+                    t9_disambiguation:
+                      input_method: $alias
+                    """.trimIndent(),
+                )
+                io.kotest.assertions.throwables.shouldThrow<IllegalArgumentException> {
+                    SchemaExtension.load(file)
+                }
+                file.delete()
+            }
+        }
+
         "SchemaExtension.load returns null when file absent" {
             SchemaExtension.load(java.io.File("/nonexistent/x.extended.yaml")) shouldBe null
         }
@@ -374,7 +431,7 @@ class SchemaExtensionTest :
                 "test.extended.yaml",
             )
             errors.any { it.contains("__replace must be a boolean") } shouldBe true
-            errors.any { it.contains("input_method must be 'full' or 'flypy'") } shouldBe true
+            errors.any { it.contains("input_method must be 'full', 'flypy' or 'flypy14'") } shouldBe true
         }
 
         "SchemaExtension.validate accepts a valid file" {

@@ -56,9 +56,24 @@ class ThemePrefs(
             false,
         )
 
+    /**
+     * Master switch for the on-keyboard pinyin disambiguation overlay — both
+     * the T9 first-column strip and the 小鹤双拼14键 first-row strip. Defaults
+     * to on; users who replaced the 14-key layout's digit row (or otherwise
+     * want the strips hidden) turn it off.
+     */
+    val pinyinFilter =
+        switch(
+            R.string.pinyin_filter,
+            PINYIN_FILTER,
+            true,
+            R.string.pinyin_filter_summary,
+        )
+
     companion object {
         const val NORMAL_MODE_COLOR = "normal_mode_color"
         const val FOLLOW_SYSTEM_DAY_NIGHT = "follow_system_day_night"
         const val NAVBAR_BACKGROUND = "navbar_background"
+        const val PINYIN_FILTER = "pinyin_filter"
     }
 }

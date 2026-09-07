@@ -20,7 +20,7 @@ import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.ime.broadcast.EnterKeyDisplayDelegate
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
 import com.osfans.trime.ime.core.TrimeInputMethodService
-import com.osfans.trime.ime.disambiguation.T9DisambiguationController
+import com.osfans.trime.ime.disambiguation.PinyinDisambiguationController
 import com.osfans.trime.ime.popup.PopupDelegate
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.ResidentWindow
@@ -83,12 +83,14 @@ class KeyboardWindow :
     private val keyboardActionListener = commonKeyboardActionListener.listener
 
     /**
-     * T9 pinyin disambiguation (feature ②): a floating column over the
-     * keyboard's first punctuation column listing every legal pinyin parse
-     * of the current digit input. Exposed (internal) so the key listener can
-     * route T9 digit keys / Backspace to it before they reach Rime.
+     * Pinyin disambiguation (feature ②): a floating strip over the active
+     * keyboard — the T9 keyboards' first punctuation column, or the
+     * 小鹤双拼14键 keyboards' first digit row — listing every legal pinyin
+     * parse of the current key code. Exposed (internal) so the key listener
+     * can route T9 digit keys, 14-key letter keys and Backspace to it before
+     * they reach Rime.
      */
-    val t9Disambiguation = T9DisambiguationController(rime, theme)
+    val pinyinDisambiguation = PinyinDisambiguationController(rime, theme)
 
     override fun onCreateView(): View {
         keyboardView = context.frameLayout(R.id.keyboard_view)
@@ -138,10 +140,12 @@ class KeyboardWindow :
         }
 
         // Attach the disambiguation panel on top of the keyboard view so it
-        // covers the first (punctuation) column of a T9 keyboard. The current
-        // keyboard id is passed so the controller can gate the overlay on the
-        // keyboard id the schema declares (`t9_disambiguation.keyboard`).
-        t9Disambiguation.attach(keyboardView, keyboard, keyboardId)
+        // covers the strip the active extension targets (the first punctuation
+        // column of a T9 keyboard, or the first digit row of a 14-key
+        // keyboard). The current keyboard id is passed so the controller can
+        // gate the overlay on the keyboard id the schema declares
+        // (`t9_disambiguation.keyboard`).
+        pinyinDisambiguation.attach(keyboardView, keyboard, keyboardId)
     }
 
     fun switchKeyboard(
@@ -201,12 +205,12 @@ class KeyboardWindow :
         // Apply the schema-level toolbar override (feature ①) before
         // rebuilding the keyboard so the toolbar follows the current schema.
         ThemeManager.applySchemaToolBar(schema.id)
-        t9Disambiguation.onRimeSchemaUpdated(schema)
+        pinyinDisambiguation.onRimeSchemaUpdated(schema)
         switchKeyboard(".default")
     }
 
     override fun onCompositionUpdate(data: CompositionProto) {
-        t9Disambiguation.onCompositionUpdate(data)
+        pinyinDisambiguation.onCompositionUpdate(data)
     }
 
     override fun onRimeOptionUpdated(value: RimeMessage.OptionMessage.Data) {
@@ -237,13 +241,13 @@ class KeyboardWindow :
         // the window comes back, otherwise the panel never reappears until the
         // next schema switch re-runs attachKeyboard via switchKeyboard.
         val keyboard = currentKeyboard ?: return
-        if (!t9Disambiguation.isAttached) {
-            t9Disambiguation.attach(keyboardView, keyboard, switcher.currentKeyboardId)
+        if (!pinyinDisambiguation.isAttached) {
+            pinyinDisambiguation.attach(keyboardView, keyboard, switcher.currentKeyboardId)
         }
     }
 
     override fun onDetached() {
         currentKeyboardView?.onDetach()
-        t9Disambiguation.detach()
+        pinyinDisambiguation.detach()
     }
 }

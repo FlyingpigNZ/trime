@@ -373,11 +373,12 @@ class CommonKeyboardActionListener {
             ) {
                 if (ImePackageManager.isActivating()) return
 
-                // T9 disambiguation: observe T9 digit keys and Backspace so the
-                // controller keeps its own digit string (Rime's raw is not pure
-                // digits once a pinyin is confirmed). Digit keys are NOT
-                // consumed — they must still reach Rime's fold path. Backspace,
-                // when it would undo a confirmed pinyin, IS consumed.
+                // Pinyin disambiguation: observe the T9 digit keys / 14-key
+                // letter keys and Backspace so the controller keeps its own
+                // code string (Rime's raw is not pure typed code once a pinyin
+                // is confirmed). Digit/letter keys are NOT consumed — they must
+                // still reach Rime's fold path. Backspace, when it would undo a
+                // confirmed pinyin, IS consumed.
                 if (keyEventCode in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 ||
                     keyEventCode in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9
                 ) {
@@ -386,10 +387,17 @@ class CommonKeyboardActionListener {
                             '0' + (keyEventCode - KeyEvent.KEYCODE_0)
                         else -> '0' + (keyEventCode - KeyEvent.KEYCODE_NUMPAD_0)
                     }
-                    keyboardWindow.t9Disambiguation.onDigitKey(digit)
+                    keyboardWindow.pinyinDisambiguation.onDigitKey(digit)
+                } else if (keyEventCode in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z) {
+                    // 小鹤双拼14键 disambiguation: observe the letter keys the
+                    // 14-key keyboard sends (Q W→q, E R→e, …). onKeyLetter
+                    // filters to the 14 representatives and only acts in the
+                    // flypy14 mode; the key still reaches Rime's fold path.
+                    val letter = 'a' + (keyEventCode - KeyEvent.KEYCODE_A)
+                    keyboardWindow.pinyinDisambiguation.onKeyLetter(letter)
                 } else if (keyEventCode == KeyEvent.KEYCODE_DEL) {
-                    if (keyboardWindow.t9Disambiguation.onBackspace()) {
-                        Timber.d("handleKey: t9 backspace intercepted (undo pinyin)")
+                    if (keyboardWindow.pinyinDisambiguation.onBackspace()) {
+                        Timber.d("handleKey: disambiguation backspace intercepted (undo pinyin)")
                         return
                     }
                 }
