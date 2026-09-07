@@ -10,10 +10,12 @@ Mirrors the Kotlin parser in
 - it must declare at least one of `schema_id` / `tool_bar` /
   `t9_disambiguation`
 - `tool_bar.__replace` must be a boolean
-- `t9_disambiguation.input_method` must be `full` or `flypy`
+- `t9_disambiguation.input_method` must be `full`, `flypy` or `flypy14`
 - every `syllables` entry must carry `pinyin` + `t9_code`, and the codes must
   be consistent (a syllable's `t9_code` must equal the T9 fold of its pinyin;
-  the flypy codes must match the 双拼 key table when provided)
+  the flypy codes must match the 双拼 key table when provided; a present
+  `flypy_14_code` must equal the `/14jian` fold of the `flypy_code`; a
+  `flypy14` table must carry `flypy_14_code` on every entry)
 
 The pinyin/T9 fold logic is shared with the generator
 (`generate_pinyin_syllables.py`) so the shipped data and the validator can
@@ -27,7 +29,7 @@ from typing import Any
 
 import yaml
 
-from generate_pinyin_syllables import flypy_code, t9_code
+from generate_pinyin_syllables import flypy14_code, flypy_code, t9_code
 
 EXTENDED_SUFFIX = ".extended.yaml"
 
@@ -93,16 +95,29 @@ def _validate_t9(t9: Any, prefix: str) -> list[str]:
     if enabled is not None and not isinstance(enabled, bool):
         errors.append(f"{prefix} t9_disambiguation.enabled must be a boolean")
     input_method = t9.get("input_method")
-    if input_method is not None and input_method not in ("full", "flypy"):
+    if input_method is not None and input_method not in ("full", "flypy", "flypy14"):
         errors.append(
-            f"{prefix} t9_disambiguation.input_method must be 'full' or 'flypy', "
-            f"got {input_method!r}"
+            f"{prefix} t9_disambiguation.input_method must be 'full', 'flypy' or "
+            f"'flypy14', got {input_method!r}"
         )
     syllables = t9.get("syllables")
     if syllables is not None:
         if not isinstance(syllables, list):
             errors.append(f"{prefix} t9_disambiguation.syllables must be a list")
         else:
+            if input_method == "flypy14":
+                missing = [
+                    entry.get("pinyin")
+                    for entry in syllables
+                    if isinstance(entry, dict)
+                    and (not entry.get("flypy_code") or not entry.get("flypy_14_code"))
+                ]
+                if missing:
+                    errors.append(
+                        f"{prefix} t9_disambiguation.input_method 'flypy14' requires "
+                        f"'flypy_code' and 'flypy_14_code' on every syllable; "
+                        f"missing for {missing!r}"
+                    )
             for i, entry in enumerate(syllables):
                 errors += _validate_syllable(entry, i, prefix)
     flypy_keys = t9.get("flypy_keys")
@@ -135,13 +150,32 @@ def _validate_syllable(entry: Any, index: int, prefix: str) -> list[str]:
             f"{prefix} t9_disambiguation.syllables[{index}] pinyin '{pinyin}' "
             f"t9_code '{t9}' != derived '{expected}'"
         )
-    # If a flypy code is present, it must decode via the key tables.
+    # If a flypy code is present, it must decode via the key tables. Bare
+    # letter codes that look like YAML booleans (`no` for nuo) must be quoted
+    # in the data — PyYAML parses them as False, so flag the scalar instead of
+    # silently skipping the consistency check.
     flypy = entry.get("flypy_code")
-    if flypy is not None and isinstance(flypy, str) and flypy:
+    if flypy is not None and not isinstance(flypy, str):
+        errors.append(
+            f"{prefix} t9_disambiguation.syllables[{index}] pinyin '{pinyin}' "
+            f"flypy_code must be a quoted string, got {flypy!r} "
+            f"(quote letter codes such as 'no')"
+        )
+    elif flypy:
         if not _is_valid_flypy(pinyin, flypy):
             errors.append(
                 f"{prefix} t9_disambiguation.syllables[{index}] pinyin '{pinyin}' "
                 f"flypy_code '{flypy}' is inconsistent"
+            )
+    # If a 14-key fold is present, it must equal the `/14jian` fold of the
+    # 双拼 code (only meaningful when the 双拼 code itself is consistent).
+    flypy14 = entry.get("flypy_14_code")
+    if flypy14 is not None and isinstance(flypy14, str) and flypy14:
+        expected14 = flypy14_code(flypy or "")
+        if not flypy or expected14 != flypy14:
+            errors.append(
+                f"{prefix} t9_disambiguation.syllables[{index}] pinyin '{pinyin}' "
+                f"flypy_14_code '{flypy14}' is inconsistent"
             )
     return errors
 

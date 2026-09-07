@@ -24,6 +24,8 @@
     <string name="normal_mode_color_summary">选取配色</string>
     <string name="keyboard_background_editor">键盘背景</string>
     <string name="keyboard_background_editor_summary">更换或恢复当前配色的键盘背景图片</string>
+    <string name="pinyin_filter">拼音过滤</string>
+    <string name="pinyin_filter_summary">输入时在键盘覆盖条上显示可选拼音拼写（T9 第一列 / 14键第一行）；关闭后不再显示</string>
     <string name="keyboard_background_mode_light">日间</string>
     <string name="keyboard_background_mode_dark">夜间</string>
     <string name="keyboard_background_change">选取</string>

@@ -25,6 +25,8 @@
     <string name="normal_mode_color_summary">Select desired color</string>
     <string name="keyboard_background_editor">Keyboard background</string>
     <string name="keyboard_background_editor_summary">Change or restore the background image of the current color scheme</string>
+    <string name="pinyin_filter">Pinyin filter</string>
+    <string name="pinyin_filter_summary">Show pinyin choices over the keyboard while typing (T9 first column / 14-key first row); turn off to hide them</string>
     <string name="keyboard_background_mode_light">Light</string>
     <string name="keyboard_background_mode_dark">Dark</string>
     <string name="keyboard_background_change">Pick</string>

@@ -60,6 +60,14 @@ data class SchemaExtension(
         enum class InputMethod {
             FULL,
             FLYPY,
+
+            /**
+             * 小鹤双拼 14 键 (`wanxiang_14jian`): each syllable's 双拼 code is
+             * folded to the 14-key letter set the keyboard actually sends
+             * (mirroring the Rime `/14jian` algebra). The overlay covers the
+             * keyboard's first row instead of the T9 first column.
+             */
+            FLYPY14,
         }
 
         /** One pinyin syllable (no tone) with its derived codes. */
@@ -72,6 +80,8 @@ data class SchemaExtension(
             val flypyCode: String,
             /** 小鹤双拼 code folded to T9 digits, e.g. `42`. */
             val flypyT9Code: String,
+            /** 小鹤双拼 code folded to the 14-key letters, e.g. `gc` (flypy14 only). */
+            val flypy14Code: String = "",
         )
 
         /** 小鹤双拼 initial/final key mapping (方案特定数据). */
@@ -87,11 +97,12 @@ data class SchemaExtension(
                 if (node == null) return null
                 val enabled = node["enabled"]?.boolean ?: true
                 val inputMethod = when (val raw = node["input_method"]?.string) {
-                    null, "full", "quanpin" -> InputMethod.FULL
-                    "flypy", "xiaoe" -> InputMethod.FLYPY
+                    null, "full" -> InputMethod.FULL
+                    "flypy" -> InputMethod.FLYPY
+                    "flypy14" -> InputMethod.FLYPY14
                     else -> throw IllegalArgumentException(
                         "t9_disambiguation.input_method: unknown value '$raw' " +
-                            "(expected 'full' or 'flypy')",
+                            "(expected 'full', 'flypy' or 'flypy14')",
                     )
                 }
                 val syllables = node["syllables"]?.sequence?.nodes?.mapNotNull { it.mapping }?.map {
@@ -102,8 +113,21 @@ data class SchemaExtension(
                             ?: throw IllegalArgumentException("t9_disambiguation.syllables: missing 't9_code'"),
                         flypyCode = it["flypy_code"]?.string ?: "",
                         flypyT9Code = it["flypy_t9_code"]?.string ?: "",
+                        flypy14Code = it["flypy_14_code"]?.string ?: "",
                     )
                 } ?: emptyList()
+                if (inputMethod == InputMethod.FLYPY14) {
+                    val missing = syllables.filter {
+                        it.flypyCode.isEmpty() || it.flypy14Code.isEmpty()
+                    }.map { it.pinyin }
+                    if (missing.isNotEmpty()) {
+                        throw IllegalArgumentException(
+                            "t9_disambiguation.input_method 'flypy14' requires 'flypy_code' " +
+                                "and 'flypy_14_code' on every syllable; " +
+                                "missing for: ${missing.joinToString(", ")}",
+                        )
+                    }
+                }
                 val flypy = node["flypy_keys"]?.mapping
                 return T9Disambiguation(
                     enabled = enabled,
@@ -192,8 +216,10 @@ data class SchemaExtension(
                     }
                     t9["input_method"]?.let { im ->
                         val value = im.string
-                        if (value != "full" && value != "flypy") {
-                            errors += "$prefix t9_disambiguation.input_method must be 'full' or 'flypy', got '$value'"
+                        if (value != "full" && value != "flypy" && value != "flypy14") {
+                            errors +=
+                                "$prefix t9_disambiguation.input_method must be " +
+                                "'full', 'flypy' or 'flypy14', got '$value'"
                         }
                     }
                 }

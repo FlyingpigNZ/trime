@@ -200,9 +200,11 @@ rime/wanxiang_t9.extended.yaml
 ```
 
 It carries (a) the per-schema `tool_bar` override (`__replace: false`/`true`,
-default merge) and (b) `t9_disambiguation` (`enabled`, `input_method`, the
-pinyin syllable table and the 双拼 key mapping). The app parses it with `Yaml`;
-the Rime engine never touches it.
+default merge), (b) `t9_disambiguation` (`enabled`, `input_method`, the
+pinyin syllable table and the 双拼 key mapping) and, for the same section in
+`wanxiang_14jian.extended.yaml`, per-syllable `flypy_14_code` (the `/14jian`
+fold of each `flypy_code`). The app parses it with `Yaml`; the Rime engine
+never touches it.
 
 Kotlin wiring:
 - `data/theme/SchemaExtension.kt` — the file model (`tool_bar`,
@@ -215,17 +217,40 @@ Kotlin wiring:
   toolbar on schema switch (called from
   `KeyboardWindow.onRimeSchemaUpdated`); keeps `baseToolBar` so switching away
   from an overridden schema restores the package toolbar.
-- `ime/disambiguation/` — `T9PinyinDecoder` (digit string → legal pinyin
-  sequences, full-pinyin DP + flypy two-digit grouping),
-  `T9DisambiguationPanel` (scrollable column over the keyboard's first
-  punctuation column, intercepts touches), `T9DisambiguationController`
-  (drives the panel from composition updates via `rime.getRawInput()`, sends
-  the picked pinyin back via `clearComposition` + `simulateKeySequence`).
-- While the panel is showing, the keyboard draws nothing for the covered
-  first column (`Keyboard.pinyinOverlayVisible`; `KeyView.onDraw` returns
-  early for column-0 keys) — neither the button backgrounds nor the
-  labels/symbols show through behind the transparent panel; the pinyin items
-  render over the plain keyboard backdrop.
+- `ime/disambiguation/` — `PinyinDisambiguationDecoder` (key-code string →
+  legal pinyin sequences; full-pinyin DP over digits, 双拼 two-character
+  grouping for T9 digits (`flypy`) and for the 14-key letters (`flypy14`)),
+  `PinyinDisambiguationPanel` (scrollable strip over the keyboard — a column
+  over T9's first punctuation column, or a row over the 14-key keyboards'
+  first digit row — intercepts touches), `PinyinDisambiguationController`
+  (drives the panel from the owned key-code string, feeds the picked pinyin /
+  双拼 code back via `setInput` / `clearAndSetInput` (mixed composition),
+  Backspace rolls the last confirmation back). The「键盘样式」`pinyin_filter`
+  master switch (default on) gates both flows.
+- Naming decision (2026-09): the Kotlin types/files use the generic
+  `PinyinDisambiguation*` names (`PinyinDisambiguationController/Panel/Adapter/
+  Decoder`, field `KeyboardWindow.pinyinDisambiguation`); the **data** layer
+  deliberately keeps its T9 name — yaml key `t9_disambiguation` and
+  `SchemaExtension.T9Disambiguation` — because the feature now also serves
+  14-key but renaming the data key would break shipped packages/data (decided:
+  no rename; would need a migration if ever revisited).
+- Gotcha: a package's `manifest.default_keyboard` binding wins over the
+  same-name schema alias in `KeyboardSwitcher.resolveDefaultKeyboard()`, so the
+  `wanxiang_14jian` schema actually resolves to keyboard id **`14jian`**; the
+  flypy14 extended file must declare `keyboard: 14jian` (an earlier
+  `wanxiang_14jian` value never matched and hid the panel).
+- Validation rules to keep in mind:
+  - `input_method` is canonical-only (`full` / `flypy` / `flypy14`); the loader
+    rejects the legacy aliases `quanpin` / `xiaoe` / `xiaoe14` so Kotlin,
+    Python and the docs cannot drift again.
+  - The generator quotes YAML-risky 双拼 codes (e.g. nuo → `'no'`) in both
+    output branches; the validator flags unquoted boolean scalars instead of
+    silently skipping the row, so a code table must quote `no`.
+- While the panel is showing, the keyboard draws nothing for the covered key
+  strip (`Keyboard.pinyinOverlay` = first column for T9 / first row for
+  `flypy14`; `KeyView.onDraw` returns early for the covered keys) — neither the
+  button backgrounds nor the labels/symbols show through behind the
+  transparent panel; the pinyin items render over the plain keyboard backdrop.
 
 Data:
 - `script/generate_pinyin_syllables.py` — generates the syllable table
@@ -296,8 +321,10 @@ Data:
   pinyin from the candidate comment.
 - The old `t9_preedit.lua` (in `简纯+14键`) is the simple "replace the preedit
   digits with their pinyin/english" filter.
-- There is **no user-facing "list of all legal pinyin parses for this digit
-  string"** today. That is the gap feature ② fills.
+- The user-facing "list of all legal pinyin parses for this key-code string"
+  is feature ②, implemented app-side as the disambiguation strip (T9 first
+  column / 小鹤双拼14键 first row; see §4.1 and
+  `ime/disambiguation/`).
 
 ### Rime text/send APIs available to the app
 

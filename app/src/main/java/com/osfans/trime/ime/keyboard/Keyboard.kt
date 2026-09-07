@@ -30,6 +30,18 @@ class Keyboard(
     private val rime: RimeSession,
 ) {
 
+    /** Which key strip a pinyin-disambiguation overlay covers (see [pinyinOverlay]). */
+    enum class PinyinOverlay {
+        /** No disambiguation overlay is showing. */
+        NONE,
+
+        /** The first column of keys (T9 keyboards' punctuation column). */
+        FIRST_COLUMN,
+
+        /** The first row of keys (the 14-key keyboards' digit row). */
+        FIRST_ROW,
+    }
+
     /** 按鍵默認水平間距 (scaled with the keyboard height) */
     internal val horizontalGap: Int
         get() = (
@@ -78,15 +90,24 @@ class Keyboard(
     var mSymKey: Key? = null
 
     /**
-     * Whether the T9 pinyin-disambiguation panel is currently overlaying the
-     * keyboard's first column. When true, the first-column (punctuation) keys
-     * are not drawn at all (button background and label/symbol/hint alike) so
-     * nothing of the covered column shows through behind the transparent
-     * panel. Mutated by the disambiguation controller, read by each [KeyView]
-     * on draw.
+     * Which strip of keys the pinyin-disambiguation overlay currently covers,
+     * if any. When an overlay is showing, the covered keys are not drawn at
+     * all (button background and label/symbol/hint alike) so nothing of them
+     * shows through behind the transparent panel:
+     *
+     * - [PinyinOverlay.FIRST_COLUMN] — the T9 keyboards' first punctuation
+     *   column;
+     * - [PinyinOverlay.FIRST_ROW] — the 14-key keyboards' first (digit) row.
+     *
+     * Mutated by the disambiguation controller, read by each [KeyView] on
+     * draw.
      */
     @Volatile
-    var pinyinOverlayVisible: Boolean = false
+    var pinyinOverlay: PinyinOverlay = PinyinOverlay.NONE
+
+    /** Whether any pinyin-disambiguation overlay strip is showing. */
+    val pinyinOverlayVisible: Boolean
+        get() = pinyinOverlay != PinyinOverlay.NONE
 
     /**
      * Total height of the keyboard, including the padding and keys

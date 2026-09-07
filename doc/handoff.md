@@ -1,11 +1,56 @@
-# Handoff — 键盘背景动态更换（in-app keyboard background editor）
+# Handoff — Trime fork（会话交接）
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：分支 `feat/scheduled-workspace-backup`（备份功能改造 + spotless 修复，
-> 见下方 **§0 最新状态**）。`dc303fbf` 之后的「键盘背景编辑器」内容保留于 §1–§7 作为历史记录。
+> **最后更新于**：分支 `feat/14key-pinyin-filter`（14键拼音过滤 + disambiguation 通用化命名，
+> 见下方 **§0 最新状态**）。更早的备份/键盘背景内容保留于 **§0a、§1–§7** 作为历史记录。
 
-## 0. 最新状态（当前分支：feat/scheduled-workspace-backup）
+## 0. 最新状态（当前分支：feat/14key-pinyin-filter）
+
+- 功能：给小鹤双拼14键（schema `wanxiang_14jian`，键盘 `14jian`）加与 T9 一致的
+  「拼音过滤」面板：
+  - 参考既有 T9 实现，把 `ime/disambiguation/` 泛化为两种覆盖形态：
+    T9 键盘**第一列**标点列（full/flypy）与 14键 键盘**第一行**数字键（flypy14，
+    横向条带、可横滑）；
+  - 扩展文件新增 `input_method: flypy14` + 音节表 `flypy_14_code`
+    （`/14jian` 折叠码）；生成器 `script/generate_pinyin_syllables.py --flypy14`；
+  - 14键 schema `speller.alphabet/initials` 扩为全 26 字母（键盘仍只发 14 个代表
+    字母；扩集是为了让点选后回填的小鹤码能被引擎解析并收窄候选）；
+  - 「键盘样式」新增全局开关 `pinyin_filter`（缺省开），同时控制 T9 与 14键 两处；
+  - **教训**：方案默认键盘由 `manifest default_keyboard`（`14jian`）绑定，`KeyboardSwitcher`
+    优先解析 registry 绑定、不会落到同名别名 `wanxiang_14jian` → 14键 extended 必须声明
+    `keyboard: 14jian`（首版写成别名导致面板不出现，已修）。
+- 命名决策（用户拍板 2026-09）：
+  - **Kotlin 已更名**：`T9Disambiguation*` / `t9Disambiguation` →
+    `PinyinDisambiguation*` / `pinyinDisambiguation`
+    （Controller/Panel/Adapter/Decoder 文件、类与 `KeyboardWindow` 字段，测试同改）；
+  - **数据层不改名**：yaml 键 `t9_disambiguation`、`SchemaExtension.T9Disambiguation`
+    及其属性、生成器/校验器/extended 数据与 zip 保持原样——用户评估改键名无收益
+    （会破坏已导入包/数据兼容），**暂不改**；若以后要统一成 `pinyin_filter` 需另做迁移。
+- 产物：
+  - app 代码改动（disambiguation 泛化 + 设置开关 + 键路由）；
+  - `万象14键-nogram.zip`（tracked）已刷新：含新 `wanxiang_14jian.extended.yaml`
+    （423 音节）与 14键 schema speller 改动；
+  - `万象14键.zip`（本地 untracked，`.gitignore` 的 `*.zip`）按旧版全量包布局生成：
+    含真实 `wanxiang-lts-zh-hans.gram`（420MB，根目录）+ 最新特性数据，供带词库模型导入；
+  - nogram 源目录 gitignored（仓库只跟踪 zip）。
+- 验证：python 单测 / `validate-definitions.py --check-shipped` / 全量
+  `testDebugUnitTest` / `spotlessApply+Check` 均 PASS；**模拟器真机冒烟**：T9 面板、
+  14键面板、设置开关、切换键工作良好（用户确认）。
+- 评审修复（PR #22 评审后并入本分支）：
+  - P1 `extended_validator.py`：flypy14 缺失检查改为仅对 mapping 条目求值，
+    非 mapping 交给 `_validate_syllable` 报错（此前直接 AttributeError 崩溃）；
+  - P2 loader 去别名：`input_method` 仅接受规范值 `full/flypy/flypy14`
+    （移除 `quanpin/xiaoe/xiaoe14`），与 Python/Kotlin 校验器、文档一致；
+  - P3 `PinyinDisambiguationController.reloadForSchema()` 重算 overlay，变化时
+    原地重建 panel（同 schema 重启改 input_method 不再沿用旧面板方向/尺寸）；
+  - Minor：生成器两个分支都对 YAML 布尔词（如 nuo→`'no'`）加引号并刷新
+    T9 extended 数据；校验器对未加引号的布尔标量报错而非静默跳过；
+    KDoc 示例 `hg`→`gc`；日志去 T9 字样。
+- 待办（已收尾）：分支 `feat/14key-pinyin-filter` → commit → push `origin_home` → PR #22
+  （base `main`）。后续可选：数据层改名迁移（如用户改主意）。
+
+## 0a. 上一轮最新状态（备份功能，已并入 main #19）
 
 - Git：基于 `main`（`0664a758`，#18 已合入）的分支，已 push 两个提交：
   - `a4c943f9` feat(backup): scheduled workspace zip export replacing periodic rime sync
