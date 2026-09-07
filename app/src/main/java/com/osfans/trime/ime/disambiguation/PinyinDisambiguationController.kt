@@ -257,8 +257,9 @@ class PinyinDisambiguationController(
      * the consumed leading segments selected and librime opens a new trailing
      * segment at the consumed offset. With the tone digits removed from the
      * /9jian fold, that trailing segment's raw is exactly the typed code
-     * characters the pick left behind (digits for T9, 14-key letters for
-     * flypy14), so the consumed span, in owned code characters, is
+     * characters the pick left behind (digits for T9, 14-key representative
+     * letters or uppercase tokens for flypy14), so the consumed span, in
+     * owned code characters, is
      * `lastDigits.length - tail.length`. Raw-character arithmetic is not used:
      * a feed head mixes confirmed letter codes (`vi` = two letters plus one
      * delimiter) with digits, so raw characters do not map 1:1 to typed digits
@@ -351,15 +352,17 @@ class PinyinDisambiguationController(
     }
 
     /**
-     * A 小鹤双拼14键 letter key was pressed (the 14 letters the keyboard
-     * sends). Mirror of [onDigitKey] for the `flypy14` mode: append the typed
-     * representative letter to the owned code string so the panel can decode
-     * once the current syllable is complete, and let the key through to Rime
-     * (the normal 14-key fold path). Returns false always.
+     * A 小鹤双拼14键 key was pressed (what the keyboard sends: the 14
+     * representative letters on the classic layout, or the 14 uppercase ASCII
+     * tokens QW->A ... M->N on the token 试点 layout). Mirror of [onDigitKey] for
+     * the `flypy14` mode: append the typed character to the owned code string
+     * so the panel can decode once the current syllable is complete, and let
+     * the key through to Rime (the normal 14-key fold path). Returns false
+     * always.
      */
     fun onKeyLetter(letter: Char): Boolean {
         if (!isActive() || !is14KeyMode()) return false
-        if (letter !in FOURTEEN_KEY_LETTERS) return false
+        if (letter !in FOURTEEN_KEY_LETTERS && letter !in FOURTEEN_KEY_TOKENS) return false
         lastDigits += letter
         refreshPanel()
         return false
@@ -430,7 +433,11 @@ class PinyinDisambiguationController(
     private fun is14KeyMode(): Boolean = extension?.inputMethod == SchemaExtension.T9Disambiguation.InputMethod.FLYPY14
 
     /** Whether [c] is a character of the owned key code for the active mode. */
-    private fun isOwnedCodeChar(c: Char): Boolean = if (isT9Mode()) c.isDigit() else c in FOURTEEN_KEY_LETTERS
+    private fun isOwnedCodeChar(c: Char): Boolean = if (isT9Mode()) {
+        c.isDigit()
+    } else {
+        c in FOURTEEN_KEY_LETTERS || c in FOURTEEN_KEY_TOKENS
+    }
 
     private fun refreshPanel() {
         val panel = panel ?: return
@@ -531,11 +538,18 @@ class PinyinDisambiguationController(
      */
     companion object {
         /**
-         * Letters the 小鹤双拼14键 keyboard sends — the `/14jian` representatives
-         * (Q W→q, E R→e, T Y→t, U I→u, O P→o, A S→a, D F→d, G H→g, J K→j,
-         * L→l, Z X→z, C V→c, B N→b, M→m).
+         * Letters the classic 小鹤双拼14键 keyboard sends — the `/14jian`
+         * representatives (Q W→q, E R→e, T Y→t, U I→u, O P→o, A S→a, D F→d,
+         * G H→g, J K→j, L→l, Z X→z, C V→c, B N→b, M→m).
          */
         const val FOURTEEN_KEY_LETTERS = "qetuoadgjlzcbm"
+
+        /**
+         * The 14 uppercase ASCII tokens the token-试点 14键 keyboard sends,
+         * one per key and disjoint from a-z (Q W->A, E R->B, ... B N->M, M->N),
+         * mirroring the Rime `/14jian-token` fold.
+         */
+        const val FOURTEEN_KEY_TOKENS = "ABCDEFGHIJKLMN"
 
         fun isEligibleKeyboard(
             declaredKeyboard: String?,

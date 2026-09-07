@@ -355,8 +355,8 @@ class SchemaExtensionTest :
                   input_method: flypy14
                   keyboard: 14jian
                   syllables:
-                  - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc}
-                  - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca}
+                  - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc, flypy_14_token: HL}
+                  - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca, flypy_14_token: LF}
                 """.trimIndent(),
             )
             val ext = SchemaExtension.load(file)!!
@@ -365,7 +365,85 @@ class SchemaExtensionTest :
             t9.keyboard shouldBe "14jian"
             t9.syllables.first().flypy14Code shouldBe "gc"
             t9.syllables.last().flypy14Code shouldBe "ca"
+            t9.syllables.first().flypy14Token shouldBe "HL"
+            t9.syllables.last().flypy14Token shouldBe "LF"
             file.delete()
+        }
+
+        "SchemaExtension.load accepts a legacy flypy14 letter table without token column" {
+            // Old representative-letter packages ship no 'flypy_14_token':
+            // every value stays empty and decoding falls back to the letter
+            // fold — this must load (and stays all-or-none friendly).
+            val file = java.io.File.createTempFile("ext", ".yaml")
+            file.writeText(
+                """
+                schema_id: wanxiang_14jian
+                t9_disambiguation:
+                  enabled: true
+                  input_method: flypy14
+                  keyboard: 14jian
+                  syllables:
+                  - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc}
+                  - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca}
+                """.trimIndent(),
+            )
+            val ext = SchemaExtension.load(file)!!
+            val t9 = ext.t9Disambiguation!!
+            t9.syllables.first().flypy14Token shouldBe ""
+            t9.syllables.last().flypy14Token shouldBe ""
+            file.delete()
+        }
+
+        "SchemaExtension.load rejects a half-populated flypy14 token column" {
+            // Some rows carry flypy_14_token, others do not: a hand-broken
+            // definition whose token-less syllables would silently never show
+            // up in the panel for typed uppercase tokens — fail loudly.
+            val file = java.io.File.createTempFile("ext", ".yaml")
+            file.writeText(
+                """
+                schema_id: wanxiang_14jian
+                t9_disambiguation:
+                  input_method: flypy14
+                  syllables:
+                  - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc, flypy_14_token: HL}
+                  - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca}
+                """.trimIndent(),
+            )
+            val ex = io.kotest.assertions.throwables.shouldThrow<IllegalArgumentException> {
+                SchemaExtension.load(file)
+            }
+            ex.message!!.contains("flypy_14_token") shouldBe true
+            file.delete()
+        }
+
+        "SchemaExtension.validate reports a half-populated flypy14 token column" {
+            val errors = SchemaExtension.validate(
+                """
+                schema_id: wanxiang_14jian
+                t9_disambiguation:
+                  input_method: flypy14
+                  syllables:
+                  - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc, flypy_14_token: HL}
+                  - {pinyin: zhong, t9_code: '94664', flypy_code: vs, flypy_t9_code: '87', flypy_14_code: ca}
+                """.trimIndent(),
+            )
+            errors.any { it.contains("flypy_14_token") } shouldBe true
+        }
+
+        "SchemaExtension.validate reports flypy14 syllables missing flypy_code/flypy_14_code" {
+            // validate() mirrors decode()'s structural requirements (collect-only):
+            // a row lacking the mandatory flypy codes must be reported here too.
+            val errors = SchemaExtension.validate(
+                """
+                schema_id: wanxiang_14jian
+                t9_disambiguation:
+                  input_method: flypy14
+                  syllables:
+                  - {pinyin: hao, t9_code: '426', flypy_code: hc, flypy_t9_code: '42', flypy_14_code: gc, flypy_14_token: HL}
+                  - {pinyin: zhong, t9_code: '94664', flypy_t9_code: '87', flypy_14_code: ca, flypy_14_token: LF}
+                """.trimIndent(),
+            )
+            errors.any { it.contains("requires 'flypy_code' and 'flypy_14_code'") } shouldBe true
         }
 
         "SchemaExtension.load rejects flypy14 syllables without flypy_14_code" {
