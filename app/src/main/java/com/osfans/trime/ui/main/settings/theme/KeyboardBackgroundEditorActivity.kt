@@ -851,7 +851,7 @@ class KeyboardBackgroundEditorActivity : AppCompatActivity() {
         const val DEFAULT_CANDIDATE_HEIGHT_DP = 28
         const val DEFAULT_KEYBOARD_HEIGHT_DP = 250
         const val DEFAULT_SCHEME_ID = "default"
-        const val ACTION_BUTTON_WIDTH_DP = 96
+        const val ACTION_BUTTON_WIDTH_DP = 84
 
         // Day/night UI surfaces (tints, not config data).
         val COLOR_WINDOW_DAY = Color.argb(255, 239, 241, 245)
