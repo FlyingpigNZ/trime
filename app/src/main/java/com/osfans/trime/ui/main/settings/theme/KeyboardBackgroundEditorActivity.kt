@@ -22,6 +22,7 @@ import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
@@ -235,8 +236,7 @@ class KeyboardBackgroundEditorActivity : AppCompatActivity() {
      */
     private fun bottomInsetDp(): Float {
         if (AppPrefs.defaultInstance().advanced.ignoreSystemGestureInsets.getValue()) return 0f
-        val rootInsets = window.decorView.rootWindowInsets ?: return 0f
-        val insets = WindowInsetsCompat.toWindowInsetsCompat(rootInsets)
+        val insets = ViewCompat.getRootWindowInsets(window.decorView) ?: return 0f
         val mask = WindowInsetsCompat.Type.navigationBars() or
             WindowInsetsCompat.Type.mandatorySystemGestures() or
             WindowInsetsCompat.Type.systemGestures()
