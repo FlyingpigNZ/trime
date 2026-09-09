@@ -292,7 +292,10 @@ constructor(
                     back = if (isHilited) hilitedBack else null,
                     corner = chipCorner,
                     unit = unit,
-                    showComment = isHilited,
+                    // The sample comment glyph (①) rendered as a stray / clipped
+                    // character next to the candidate text; drop it for a clean
+                    // preview.
+                    showComment = false,
                 )
             cursorX += chipWidth + CANDIDATE_SPACING_DP * unit
             if (cursorX > width - sidePad) return
@@ -350,8 +353,14 @@ constructor(
     ) {
         val keyboard = model.keyboard ?: return
         val unit = unitPx(model)
-        val bandTop = model.candidateHeightDp * unit
-        val bandHeight = height - bandTop
+        // The real input bar is candidate + comment (inputBar themed height);
+        // model it as the band top so the keys start below both.
+        val bandTop = (model.candidateHeightDp + model.commentHeightDp) * unit
+        // The IME lifts the keyboard above the system nav/gesture inset when
+        // 「忽略系统手势边衬区」 is OFF; keep that strip empty in the preview too
+        // (0 when the option is ON), so it stays WYSIWYG with the IME.
+        val bottomInsetPx = model.keyboardBottomInsetDp * unit
+        val bandHeight = height - bandTop - bottomInsetPx
         if (bandHeight <= 0f) return
         val widthPx = width.toFloat()
 
@@ -752,7 +761,7 @@ constructor(
     ): Float = (model.style.keyboardPadding.takeIf { it >= 0 } ?: 0).toFloat() * unit
 
     private fun unitPx(model: RenderModel): Float {
-        val total = model.candidateHeightDp + model.keyboardHeightDp
+        val total = model.candidateHeightDp + model.commentHeightDp + model.keyboardHeightDp + model.keyboardBottomInsetDp
         return if (total > 0 && height > 0) {
             height.toFloat() / total
         } else {
@@ -831,6 +840,20 @@ data class RenderModel(
     val style: GeneralStyle,
     /** Candidate strip height in dp (same value the crop aspect uses). */
     val candidateHeightDp: Int,
+    /**
+     * Comment line height in dp — the real input bar shows candidate + comment
+     * (`candidateViewHeight + commentHeight`), which the preview must model so
+     * the crop/preview height matches the on-screen keyboard.
+     */
+    val commentHeightDp: Int = 0,
     /** Keyboard band height in dp (same value the crop aspect uses). */
     val keyboardHeightDp: Int,
+    /**
+     * Bottom system-nav/gesture inset in dp the IME window adds when it lifts
+     * the keyboard for the gesture area (「忽略系统手势边衬区」= OFF). Kept
+     * separate from [keyboardHeightDp] so the preview adds it to the canvas
+     * height and leaves that strip empty, exactly like the on-screen
+     * keyboard; when the option is ON this stays 0.
+     */
+    val keyboardBottomInsetDp: Int = 0,
 )

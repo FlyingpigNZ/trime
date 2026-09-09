@@ -22,6 +22,7 @@ import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
@@ -96,8 +97,9 @@ class KeyboardBackgroundEditorActivity : AppCompatActivity() {
      * [keyboardAspect] free of theme parsing on the main thread (cold start
      * before the workspace theme finished loading on IO).
      */
-    private var cachedCandidateHeightDp = DEFAULT_CANDIDATE_HEIGHT_DP
-    private var cachedKeyboardHeightDp = DEFAULT_KEYBOARD_HEIGHT_DP
+    private var cachedCandidateHeightDp = (DEFAULT_CANDIDATE_HEIGHT_DP * heightScale()).toInt()
+    private var cachedCommentHeightDp = (DEFAULT_COMMENT_HEIGHT_DP * heightScale()).toInt()
+    private var cachedKeyboardHeightDp = (DEFAULT_KEYBOARD_HEIGHT_DP * heightScale()).toInt()
 
     /**
      * Keyboard layout id chosen when the editor opened/resumed. Snapshotting it
@@ -215,15 +217,47 @@ class KeyboardBackgroundEditorActivity : AppCompatActivity() {
     private fun backgroundDir(): File = File(workspace(), ThemeCustomization.BACKGROUND_DIR_NAME)
 
     /**
+     * User-adjustable keyboard height scale as a multiplier (1f = original).
+     * The real keyboard applies it to both the input bar (candidate + comment)
+     * and the keyboard band (UiScale.factor = heightScale/100, see Keyboard),
+     * so the crop/preview must use the same factor to match the on-screen
+     * keyboard height.
+     */
+    private fun heightScale(): Float = AppPrefs.defaultInstance().keyboard.heightScale.getValue() / 100f
+
+    /**
+     * Bottom system-nav/gesture inset in dp, mirroring the IME window's
+     * [`BaseInputView.getNavBarBottomInset`] semantics: it is added to the
+     * keyboard height only when 「忽略系统手势边衬区」 is OFF (the IME then
+     * accounts for the gesture area and lifts the whole keyboard), and 0 when
+     * it is ON (ignored). The crop/preview follows the same option so toggling
+     * it is WYSIWYG with the on-screen keyboard.
+     */
+    private fun bottomInsetDp(): Float {
+        if (AppPrefs.defaultInstance().advanced.ignoreSystemGestureInsets.getValue()) return 0f
+        val rootInsets = window.decorView.rootWindowInsets ?: return 0f
+        val insets = WindowInsetsCompat.toWindowInsetsCompat(rootInsets)
+        val mask = WindowInsetsCompat.Type.navigationBars() or
+            WindowInsetsCompat.Type.mandatorySystemGestures() or
+            WindowInsetsCompat.Type.systemGestures()
+        return insets.getInsets(mask).bottom / resources.displayMetrics.density
+    }
+
+    /**
      * Width/height ratio of the preview canvas. Reads the style dims snapshot
      * cached by the off-main model build (never parses the theme here, so cold
      * starts stay off the main thread); defaults match the placeholder until
-     * the first IO refresh lands.
+     * the first IO refresh lands. The height models the real IME window:
+     * inputBar (candidate + comment) on top, then the keyboard band, all scaled
+     * by the user height scale, plus the conditional bottom inset the IME adds
+     * when it lifts for the gesture area — so the crop/preview rectangle
+     * matches the actual on-screen keyboard.
      */
     private fun keyboardAspect(): Float {
         val widthPx = minOf(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
         val widthDp = widthPx / resources.displayMetrics.density
-        return widthDp / (cachedCandidateHeightDp + cachedKeyboardHeightDp).toFloat()
+        return widthDp /
+            (cachedCandidateHeightDp + cachedCommentHeightDp + cachedKeyboardHeightDp + bottomInsetDp()).toFloat()
     }
 
     private fun initialMode(): String {
@@ -570,9 +604,18 @@ class KeyboardBackgroundEditorActivity : AppCompatActivity() {
         val theme = resolvedTheme ?: return null
         val scheme = theme.colorSchemes.firstOrNull { it.id == schemeId() } ?: return null
         val style = theme.generalStyle
+        // The real keyboard applies the user-adjustable height scale to both
+        // the input bar (candidate + comment) and the keyboard band
+        // (UiScale.factor = heightScale/100, see Keyboard), so the crop/preview
+        // must use the same scaled heights to match the on-screen keyboard.
+        val heightScale = heightScale()
         // Keep quick-read snapshots for the main-thread aspect/button logic.
-        cachedCandidateHeightDp = style.candidateViewHeight.takeIf { it > 0 } ?: DEFAULT_CANDIDATE_HEIGHT_DP
-        cachedKeyboardHeightDp = style.keyboardHeight.takeIf { it > 0 } ?: DEFAULT_KEYBOARD_HEIGHT_DP
+        cachedCandidateHeightDp =
+            ((style.candidateViewHeight.takeIf { it > 0 } ?: DEFAULT_CANDIDATE_HEIGHT_DP) * heightScale).toInt()
+        cachedCommentHeightDp =
+            ((style.commentHeight.takeIf { it > 0 } ?: DEFAULT_COMMENT_HEIGHT_DP) * heightScale).toInt()
+        cachedKeyboardHeightDp =
+            ((style.keyboardHeight.takeIf { it > 0 } ?: DEFAULT_KEYBOARD_HEIGHT_DP) * heightScale).toInt()
         val palette =
             if (mode == ThemeCustomization.MODE_DARK) scheme.darkColors else scheme.colors
         return RenderModel(
@@ -582,7 +625,9 @@ class KeyboardBackgroundEditorActivity : AppCompatActivity() {
             keyboard = previewKeyboardConfig(theme),
             style = style,
             candidateHeightDp = cachedCandidateHeightDp,
+            commentHeightDp = cachedCommentHeightDp,
             keyboardHeightDp = cachedKeyboardHeightDp,
+            keyboardBottomInsetDp = bottomInsetDp().toInt(),
         )
     }
 
@@ -849,9 +894,10 @@ class KeyboardBackgroundEditorActivity : AppCompatActivity() {
         const val PNG_QUALITY = 100
         const val MAX_DECODE_EDGE = 2048
         const val DEFAULT_CANDIDATE_HEIGHT_DP = 28
+        const val DEFAULT_COMMENT_HEIGHT_DP = 12
         const val DEFAULT_KEYBOARD_HEIGHT_DP = 250
         const val DEFAULT_SCHEME_ID = "default"
-        const val ACTION_BUTTON_WIDTH_DP = 96
+        const val ACTION_BUTTON_WIDTH_DP = 84
 
         // Day/night UI surfaces (tints, not config data).
         val COLOR_WINDOW_DAY = Color.argb(255, 239, 241, 245)
