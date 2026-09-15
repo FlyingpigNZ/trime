@@ -2,9 +2,9 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-09-15；`main` 推进到 **`7ff64e85`（持久化诊断日志）**，另有本文件同
-> commit 的 **release-ci changelog base 回退**，两者均已 push `origin_home/main`；已发布 tag
-> **`v3.4.7`**（Gitea + GitHub 双端 release，各 4 个 ABI APK）。worktree 无未提交的 tracked
+> **最后更新于**：2026-09-15；`main = d6ea981e`——`7ff64e85` 持久化诊断日志 + `d6ea981e`
+> release-ci changelog base 回退（本文件同 commit）；两者均已 push `origin_home/main`；已发布
+> tag **`v3.4.7`**（Gitea + GitHub 双端 release，各 4 个 ABI APK）。worktree 无未提交的 tracked
 > 改动（仅剩仓库既有未跟踪目录，见 §7）。
 > 更早内容：§0a（14键拼音过滤功能）、§0b（备份功能）、§1–§7（键盘背景）为历史记录；
 > §0 的 `feat/14key-token-mirror` 叙述已合入 main，保留为决策记录。
