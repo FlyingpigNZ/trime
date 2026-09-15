@@ -2,12 +2,81 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：`main = 1a940dd9` 之上，分支 **`feat/14key-token-mirror`**；
-> **大写 ASCII token 版 14键 试点包已实现并提交/push 至 origin_home**
-> （数据/脚本/app/Lua + zip；见 §0）**。
-> 更早内容：§0a（14键拼音过滤功能）、§0b（备份功能）、§1–§7（键盘背景）为历史记录。
+> **最后更新于**：2026-09-15；`main` 推进到 **`7ff64e85`（持久化诊断日志）**，另有本文件同
+> commit 的 **release-ci changelog base 回退**，两者均已 push `origin_home/main`；已发布 tag
+> **`v3.4.7`**（Gitea + GitHub 双端 release，各 4 个 ABI APK）。worktree 无未提交的 tracked
+> 改动（仅剩仓库既有未跟踪目录，见 §7）。
+> 更早内容：§0a（14键拼音过滤功能）、§0b（备份功能）、§1–§7（键盘背景）为历史记录；
+> §0 的 `feat/14key-token-mirror` 叙述已合入 main，保留为决策记录。
 
 ## 0. 最新状态：大写 token 试点包（已 push `feat/14key-token-mirror`；评审项已处理，见下）
+
+### 已提交 `7ff64e85` 并 push `origin_home/main`：持久化诊断日志（**只加日志，不改行为**）
+- 动机：`logcat` 路线查不到三个问题——① 闲置时服务为何被重建；② 重建后为何会 Deploy；
+  ③ 缺省包（同文风）为何在使用别的包时从"编译完成"跳回"未编译"。应用内日志页是
+  `logcat --pid=<当前pid>` 的实时 tail，进程一死历史即不可见，且 `DeployNotifier` 会在
+  每次部署开始执行 `logcat --clear`。
+- 新增 `app/src/main/java/com/osfans/trime/util/DiagnosticLog.kt`
+  - append-only 文件日志：`<externalFilesDir>/diagnostics/trime-diagnostics.log`
+    （256KB 轮转，保留 `.1`）。**刻意放在 Rime 的 `user_data_dir`/`shared_data_dir` 之外**，
+    避免日志写入本身改变 `detect_modifications` 比较的 mtime。
+  - 每行 flush，可跨 `exitProcess`/SIGKILL 存活；正常 VM 退出（含 `exitProcess(10)`）由
+    shutdown hook 记 `=== process exit`，被 LMK SIGKILL 则没有 → 由此区分崩溃/正常退出/被系统杀。
+  - `processStarted()` 在 `Application.onCreate` 记 pid/uptime/process，并回看日志尾部判定
+    **同一进程**上次运行如何结束（`previous=CRASH|CLEAN_EXIT|UNKNOWN_KILLED|NONE`）；
+    `:compile` 进程按 `process=` 字段精确匹配，互不误判。
+  - 崩溃处理器 release+debug 都先写文件再走原逻辑；debug 仍委托平台 handler（保持可见崩溃）。
+- 新增 `app/src/main/java/com/osfans/trime/data/diagnostics/WorkspaceDiagnostics.kt`
+  - 在 `onDeployStart`（librime 已决定部署、任务尚未跑）快照：激活包 workspace 根目录 mtime、
+    shared 根目录 mtime、`user.yaml` 的 `var/last_build_time`、两目录顶层条目按 mtime 排序；
+    用秒级比较，与 librime `DetectModifications` 口径一致；且**只对真正的触发项**（根目录
+    自身 mtime、顶层 `*.yaml` 且非 `user.yaml`）打 `TRIGGER`——`*.userdb/` 目录、`compiled.marker`
+    等只列出作参考，不会触发部署（`compiled.marker` 每次引擎启动都会被合成 deploy success 刷新，
+    是纯红鲱鱼）。
+  - 实测（2026-09-12 装新 APK 首次启动）：触发者是 `installation.yaml`——`installation_update`
+    因 `distribution_version` 变化在 `detect_modifications` 之前重写了它（顶层 `.yaml`），
+    属正常一次性行为；该次 Default 的 marker/zip 指纹一致（`result=up-to-date`），未被作废。
+- 日志标签：`ime`（service onCreate/onDestroy）、`engine`（session create/destroy、state、
+  restart-request + app 帧调用链）、`deploy`（cause 快照）、`default-pkg`
+  （`installBundledDefaultPackage` 每次检查的 marker/zip 指纹与分支结果、picker 列表里 Default 的
+  compiled 状态）、`compile`（请求/成功/失败/进程死亡/超时、mark-compiled、服务写 marker）、
+  `pkg`（导入作废 marker）。
+- 查看（无需 adb）：主界面菜单 → **开发者 → 实时日志**，页面底部会追加持久化诊断日志尾部；
+  该页「导出」按钮写出的 txt 里包含完整诊断日志（含轮转文件）。开发者页的「清除日志」只清
+  logcat，不动诊断文件。
+- 验证：`spotlessApply/Check` + `:app:compileDebugKotlin` + 全量 `testDebugUnitTest`（167 用例）PASS；
+  新增 `DiagnosticLogTest` / `WorkspaceDiagnosticsTest`（纯函数）。
+- 实测结论（2026-09-12 ~ 09-15，三次进程事件）：
+  1. **闲置 Deploy 的完整链条已确认**：09-15 16:01 连 Android Auto 时系统 SIGKILL 掉 IME 进程
+     （`previous=UNKNOWN_KILLED`，无 `=== process exit`、无崩溃；服务先 `onDestroy`，4s 后新进程起来），
+     服务重建触发引擎 startup → `detect_modifications` 命中 `dirNewer=true triggers=0`——根目录
+     mtime 来自 **09-14 16:03 新建的 `enreplacer.userdb/`**（与根目录 mtime 同秒、相差 724ms）。
+     即"系统杀进程提供机会 + 新子目录顶 mtime 提供理由"，缺一不可；该次部署本身空跑 2.9s。
+  2. **重启 ≠ Deploy**：16:12–16:14 同一进程内服务 `onDestroy`→`onCreate` 三次、以及无 TRIGGER 的
+     启动，均未部署。
+  3. **Default 跳回未编译未复现**：两次装包 + 多次重启期间 `marker == zip == bd31b4e8…` 始终
+     `up-to-date`；能作废它的只有 `shared/Default.zip` 字节变化（重打包 / 换 checkout）。
+  4. 内存（模拟器 x86_64 debug，万象14键 + gram，键盘隐藏）：RSS 275 MiB / PSS 137 MiB /
+     peak 296 MiB / swap 0。其中 Rime 数据（gram+table+prism+userdb）常驻仅 **11.6 MiB**
+     （gram 本身 3.4 MiB，401 MiB 只是地址空间），Rime 自己的 `librime_jni.so` 10.4 MiB，其余是
+     ART/系统库；`Pss_Anon` 90.9 MiB 是内核收不走的地板。**全仓库无任何 `onTrimMemory` 实现**，
+     trim 全档位（含 COMPLETE）只掉 ~6.8 MiB native 堆。结论：基线 ~275 MiB 与 gram 基本无关。
+- 结论（用户拍板）：**不修**——Deploy 只在系统杀进程时发生且空跑几秒，内存也接受（<300 MiB）。
+  后续若要动，候选：marker 移出 `user_data_dir`、部署成功后主动补写 `last_build_time`、
+  用内容指纹替代 zip 字节指纹、实现 `onTrimMemory` 或在键盘隐藏时 `finalize()` 引擎。
+
+### 已提交并 push `origin_home/main`：release-ci changelog base 回退（**仅 GitHub 分支**）
+- 问题：GitHub release body 长期为 “- no changes”（v3.4.4 / v3.4.5 / v3.4.7 均如此）。
+  根因：main 先同步到 develop、后打 tag，`release-ci` 用
+  `merge-base(HEAD, origin/develop)` 作 changelog base，此时 base 恰好等于 tag 提交
+  → 区间为空。
+- 修法（只改 `is_github == true` 分支）：base == HEAD 时回退到上一个 release tag
+  （`git tag --merged HEAD --sort=-version:refname`，排除当前 tag；没有上一个 tag
+  则用 `HEAD~1`）。Gitea 分支（`else`）本来就用上一个 tag，**未动**。
+- 验证（本地抽取该 step 的 run 脚本 + `GITHUB_REF_NAME=v3.4.7` 模拟）：GitHub 路径
+  base 由 `e98ae04b`（空区间）变为 `v3.4.6`；Gitea 路径仍 `v3.4.6` / `is_github=false`
+  （行为不变）；YAML 解析 + `bash -n` 通过。
+- 生效点：**下一个 tag** 的 Release CI（下次发布时复核 GitHub release body 非空）。
 
 ### 新改动（已合 main #28）：preedit 原码回显键位首字母
 - 动机：token 试点下 `原编码` preedit 直显 token（单敲 QW 键显示 `A`），与键帽

@@ -89,6 +89,19 @@ jobs:
           if [ "$GH" = 1 ] && git fetch origin develop --quiet 2>/dev/null \
               && git rev-parse --verify origin/develop >/dev/null 2>&1; then
             BASE=$(git merge-base HEAD origin/develop)
+            # main is normally synced to develop before tagging, so develop can
+            # already contain the tagged commit: merge-base then equals HEAD
+            # itself and the changelog range is empty (GitHub release body
+            # showed "- no changes"). Fall back to the previous release tag.
+            if [ "$BASE" = "$(git rev-parse HEAD)" ]; then
+              PREV=$(git tag --merged HEAD --sort=-version:refname \
+                | grep -v "^${GITHUB_REF_NAME}$" | head -n 1 || true)
+              if [ -n "$PREV" ]; then
+                BASE="$PREV"
+              else
+                BASE=$(git rev-parse HEAD~1)
+              fi
+            fi
           else
             # Gitea has no develop ref: compare against the previous release tag.
             PREV=$(git tag --merged HEAD --sort=-version:refname \
