@@ -17,10 +17,12 @@ import com.osfans.trime.core.lifecycleScope
 import com.osfans.trime.core.whenReady
 import com.osfans.trime.core.whenReadyOrFailed
 import com.osfans.trime.data.base.DataManager
+import com.osfans.trime.data.diagnostics.WorkspaceDiagnostics
 import com.osfans.trime.data.opencc.OpenCCDictManager
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.ime.core.InlinePreeditMode
+import com.osfans.trime.util.DiagnosticLog
 import com.osfans.trime.util.appContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -79,7 +81,10 @@ object RimeDaemon {
                 DataManager.sync()
                 ImePackageManager.installBundledDefaultPackage()
             },
-            onDeployStart = { OpenCCDictManager.buildOpenCCDict() },
+            onDeployStart = {
+                recordDeployCause()
+                OpenCCDictManager.buildOpenCCDict()
+            },
         )
     }
 
@@ -172,6 +177,11 @@ object RimeDaemon {
         if (name in sessions) {
             return@withLock sessions.getValue(name)
         }
+        DiagnosticLog.i(
+            "engine",
+            "session-create name=$name state=${realRime.lifecycle.currentState} " +
+                "sessions=${sessions.size} userDataDir=${DataManager.userDataDir}",
+        )
         when (realRime.lifecycle.currentState) {
             RimeLifecycle.State.STOPPED -> {
                 if (startupWorkspaceGate.isCompleted) {
@@ -205,6 +215,7 @@ object RimeDaemon {
         if (name !in sessions) {
             return
         }
+        DiagnosticLog.i("engine", "session-destroy name=$name sessions=${sessions.size - 1}")
         sessions -= name
         if (sessions.isEmpty()) {
             realRime.finalize()
@@ -228,6 +239,7 @@ object RimeDaemon {
      * suspend and safe to call from the UI.
      */
     suspend fun restartRime(fullCheck: Boolean = false): Boolean {
+        DiagnosticLog.i("engine", "restart-request fullCheck=$fullCheck caller=${callerSummary()}")
         val restartId = if (fullCheck) null else deployNotifier.notifyRestartStarted()
         val result = restartInternal(fullCheck)
         if (restartId != null) {
@@ -310,6 +322,7 @@ object RimeDaemon {
      * IO.
      */
     private fun onRimeStateChanged(state: RimeLifecycle.State) {
+        DiagnosticLog.i("engine", "state=$state deployState=${realRime.uiState.value.deployState}")
         if (state == RimeLifecycle.State.FAILED) {
             // A live session whose deploy failed gets one automatic retry;
             // repeated failures are left to the user (the deploy-failure
@@ -354,6 +367,32 @@ object RimeDaemon {
 
     /** Serializes engine start/stop transitions across all restart paths. */
     private val transitionMutex = Mutex()
+
+    /**
+     * Persist the mtime facts behind librime's "does this workspace need a
+     * deploy?" decision, so a deploy that happens without an obvious user
+     * action can be explained after the fact.
+     */
+    private fun recordDeployCause() {
+        runCatching {
+            val cause = WorkspaceDiagnostics.capture(DataManager.userDataDir, DataManager.sharedDataDir)
+            WorkspaceDiagnostics.report(cause).forEach { DiagnosticLog.i("deploy", it) }
+        }.onFailure { DiagnosticLog.w("deploy", "cause snapshot failed: $it") }
+    }
+
+    /** Short app-frame call chain, for attributing an engine restart. */
+    private fun callerSummary(): String {
+        val frames = Throwable().stackTrace
+        val first = frames.indexOfFirst { it.className != RimeDaemon::class.java.name }
+        if (first < 0) return ""
+        return frames.drop(first)
+            .filter { it.className.startsWith(APP_PACKAGE_PREFIX) }
+            .take(CALLER_FRAME_LIMIT)
+            .joinToString(" <- ") { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }
+    }
+
+    private const val APP_PACKAGE_PREFIX = "com.osfans.trime"
+    private const val CALLER_FRAME_LIMIT = 6
 
     private val failedAutoRetried = java.util.concurrent.atomic.AtomicBoolean(false)
 

@@ -5,6 +5,7 @@
 package com.osfans.trime.data.schema
 
 import com.osfans.trime.data.theme.PackageThemeLoader
+import com.osfans.trime.util.DiagnosticLog
 import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.string
@@ -46,6 +47,17 @@ object ImePackageManager {
                 } else {
                     runCatching { PackageMetadata.readWorkspaceMeta(PackageStore.workspaceDir(id)) }.getOrNull()
                 }
+            val compiled = PackageStore.isCompiled(id)
+            if (id == PackageStore.DEFAULT_PACKAGE_ID) {
+                // The bundled package is the one observed flipping back to
+                // "not compiled" while another package is active; record the
+                // exact on-disk state each time the list is built.
+                DiagnosticLog.i(
+                    "default-pkg",
+                    "list compiled=$compiled marker=${File(PackageStore.workspaceDir(id), "compiled.marker").isFile} " +
+                        "pkgZip=${File(dir, "package.zip").isFile} metaMissing=${meta == null}",
+                )
+            }
             ImePackage(
                 fileName = "$id.zip",
                 name = meta?.name ?: id,
@@ -53,7 +65,7 @@ object ImePackageManager {
                 error = if (meta == null) "Invalid or missing package.zip" else null,
                 // Precomputed here (caller runs this on IO) so the list
                 // adapter never stats the workspace from the main thread.
-                compiled = PackageStore.isCompiled(id),
+                compiled = compiled,
             )
         }
         ?.sortedBy { it.fileName.lowercase() }

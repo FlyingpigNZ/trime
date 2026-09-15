@@ -4,6 +4,7 @@
 
 package com.osfans.trime.data.schema
 
+import com.osfans.trime.util.DiagnosticLog
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -51,12 +52,17 @@ internal object PackageArchive {
             workspace.mkdirs()
             // Invalidate compile state before overlay extraction: if extraction
             // fails, the workspace must not look compiled.
+            DiagnosticLog.i(
+                "pkg",
+                "import id=${meta.schemaId} invalidate-marker ws=${workspace.absolutePath} isNew=$isNewPackage",
+            )
             File(workspace, "compiled.marker").delete()
             File(workspace, "compiled.error").delete()
             extractZipOverlay(zip, workspace)
             PackageMetadata.writeWorkspaceSchemaList(workspace, schemaIds)
             return zip
         } catch (t: Throwable) {
+            DiagnosticLog.e("pkg", "import failed id=${meta.schemaId} isNew=$isNewPackage", t)
             if (isNewPackage) {
                 runCatching { packageDir.deleteRecursively() }
             } else {

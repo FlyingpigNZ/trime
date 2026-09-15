@@ -15,6 +15,7 @@ import com.osfans.trime.BuildConfig
 import com.osfans.trime.core.Rime
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.schema.PackageStore
+import com.osfans.trime.util.DiagnosticLog
 import timber.log.Timber
 import java.io.File
 
@@ -71,6 +72,7 @@ class PackageCompileService : Service() {
                 notifyFinished(success = true)
             } catch (t: Throwable) {
                 Timber.e(t, "PackageCompileService failed")
+                DiagnosticLog.e("compile", "service failed ws=${workspace?.absolutePath}", t)
                 if (workspace != null) {
                     runCatching { File(workspace, "compiled.error").writeText("failed\n") }
                 }
@@ -88,6 +90,7 @@ class PackageCompileService : Service() {
 
     private fun compile(workspace: File, sharedDir: String, version: String): Boolean {
         if (!workspace.isDirectory) error("workspace dir missing: $workspace")
+        DiagnosticLog.i("compile", "service start ws=${workspace.absolutePath} shared=$sharedDir version=$version")
         // Theme loading does not depend on deploy output, so reject unusable
         // themes before spending time on a full Rime deploy.
         if (!ImePackageManager.hasUsableTheme(workspace)) {
@@ -117,6 +120,7 @@ class PackageCompileService : Service() {
             markerTmp.delete()
         }
         File(workspace, "compiled.error").delete()
+        DiagnosticLog.i("compile", "marker written ws=${workspace.absolutePath} content=${markerContent.take(16)}")
         // The compiled workspace is self-contained; the source zip is no longer
         // needed for switching and can be removed to save space.
         File(workspace.parentFile, "package.zip").delete()

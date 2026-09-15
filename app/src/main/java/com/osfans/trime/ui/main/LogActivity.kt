@@ -24,6 +24,7 @@ import com.osfans.trime.TrimeApplication
 import com.osfans.trime.databinding.ActivityLogBinding
 import com.osfans.trime.ui.main.log.LogView
 import com.osfans.trime.util.DeviceInfo
+import com.osfans.trime.util.DiagnosticLog
 import com.osfans.trime.util.Logcat
 import com.osfans.trime.util.iso8601UTCDateTime
 import com.osfans.trime.util.toast
@@ -60,6 +61,8 @@ class LogActivity : AppCompatActivity() {
                                 os.bufferedWriter().use {
                                     it.write(DeviceInfo.get(this@LogActivity))
                                     it.write(logView.currentLog)
+                                    it.write("\n--------- Diagnostic log\n")
+                                    it.write(DiagnosticLog.readForExport())
                                 }
                             }
                         }
@@ -135,5 +138,19 @@ class LogActivity : AppCompatActivity() {
             }
         }
         registerLauncher()
+        appendDiagnosticLog()
+    }
+
+    /**
+     * Show the persisted diagnostic log. It is written to a file by
+     * [DiagnosticLog], so unlike the live `logcat` stream above it still
+     * contains the events (service restart, crash, deploy cause) that happened
+     * before this screen was opened or before the process died.
+     */
+    private fun appendDiagnosticLog() {
+        val tail = DiagnosticLog.readTail()
+        if (tail.isBlank()) return
+        logView.append("--------- Diagnostic log (${DiagnosticLog.filePath()})")
+        logView.append(tail)
     }
 }

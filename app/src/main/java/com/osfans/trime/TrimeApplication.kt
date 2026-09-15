@@ -24,6 +24,7 @@ import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.receiver.RimeIntentReceiver
 import com.osfans.trime.ui.main.LogActivity
+import com.osfans.trime.util.DiagnosticLog
 import com.osfans.trime.util.isNightMode
 import com.osfans.trime.worker.WorkspaceBackupWorker
 import kotlinx.coroutines.CoroutineName
@@ -59,47 +60,69 @@ class TrimeApplication : Application() {
         )
     }
 
-    override fun onCreate() {
-        super.onCreate()
-        if (!BuildConfig.DEBUG) {
-            // Do NOT delegate to the platform uncaught-exception handler: on
-            // Android that is KillApplicationHandler, which terminates the
-            // process, making the crash screen and crash-loop guard below dead
-            // code. Log explicitly instead so logcat still records the crash.
-            @SuppressLint("DefaultUncaughtExceptionDelegation")
-            Thread.setDefaultUncaughtExceptionHandler { _, e ->
-                Timber.e(e, "Uncaught exception")
-                val crashTime = System.currentTimeMillis()
-                val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
-                val lastCrashTimePrefKey = "last_crash_time"
-                val lastCrashTime = sharedPrefs.getLong(lastCrashTimePrefKey, -1L)
-                sharedPrefs.edit(commit = true) {
-                    putLong(lastCrashTimePrefKey, crashTime)
-                }
-                if (crashTime - lastCrashTime <= 10_000L) {
-                    // continuous crashes within 10 seconds, maybe in a crash loop. just bail
-                    exitProcess(10)
-                }
-                startActivity(
-                    Intent(applicationContext, LogActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        putExtra(LogActivity.FROM_CRASH, true)
-                        // avoid transaction overflow
-                        val truncated =
-                            e.stackTraceToString().let {
-                                if (it.length > MAX_STACKTRACE_SIZE) {
-                                    it.take(MAX_STACKTRACE_SIZE) + "<truncated>"
-                                } else {
-                                    it
-                                }
-                            }
-                        putExtra(LogActivity.CRASH_STACK_TRACE, truncated)
-                    },
-                )
+    /**
+     * Install the global uncaught-exception handler.
+     *
+     * The persistent [DiagnosticLog] record is written first, unconditionally:
+     * in release builds the handler below kills the process with
+     * [exitProcess], and the in-app log view (a live `logcat --pid` tail) does
+     * not survive that.
+     *
+     * In release builds we do NOT delegate to the platform
+     * uncaught-exception handler: on Android that is KillApplicationHandler,
+     * which terminates the process, making the crash screen and crash-loop
+     * guard below dead code. In debug builds we do delegate, so the default
+     * visible crash behavior is preserved.
+     */
+    @SuppressLint("DefaultUncaughtExceptionDelegation")
+    private fun installCrashHandler() {
+        val systemHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, e ->
+            runCatching { DiagnosticLog.crash(e) }
+            if (BuildConfig.DEBUG) {
+                systemHandler?.uncaughtException(thread, e)
+                return@setDefaultUncaughtExceptionHandler
+            }
+            Timber.e(e, "Uncaught exception")
+            val crashTime = System.currentTimeMillis()
+            val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+            val lastCrashTimePrefKey = "last_crash_time"
+            val lastCrashTime = sharedPrefs.getLong(lastCrashTimePrefKey, -1L)
+            sharedPrefs.edit(commit = true) {
+                putLong(lastCrashTimePrefKey, crashTime)
+            }
+            if (crashTime - lastCrashTime <= 10_000L) {
+                // continuous crashes within 10 seconds, maybe in a crash loop. just bail
                 exitProcess(10)
             }
+            startActivity(
+                Intent(applicationContext, LogActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    putExtra(LogActivity.FROM_CRASH, true)
+                    // avoid transaction overflow
+                    val truncated =
+                        e.stackTraceToString().let {
+                            if (it.length > MAX_STACKTRACE_SIZE) {
+                                it.take(MAX_STACKTRACE_SIZE) + "<truncated>"
+                            } else {
+                                it
+                            }
+                        }
+                    putExtra(LogActivity.CRASH_STACK_TRACE, truncated)
+                },
+            )
+            exitProcess(10)
         }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        DiagnosticLog.init(this)
+        installCrashHandler()
         instance = this
+        // Record every process start (main and :compile) plus how the previous
+        // run of this same process ended: crash / clean exit / killed.
+        DiagnosticLog.processStarted(currentProcessName().orEmpty())
         // The :compile process only deploys a package workspace: it must not
         // run the one-time user-data migration (which would race the main
         // process on the same files) or start clipboard/collection/broadcast

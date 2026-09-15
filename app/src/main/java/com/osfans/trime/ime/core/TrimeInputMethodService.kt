@@ -45,6 +45,7 @@ import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.ime.composition.CandidatesView
 import com.osfans.trime.ime.keyboard.InputFeedbackManager
 import com.osfans.trime.receiver.RimeIntentReceiver
+import com.osfans.trime.util.DiagnosticLog
 import com.osfans.trime.util.any
 import com.osfans.trime.util.forceShowSelf
 import com.osfans.trime.util.monitorCursorAnchor
@@ -173,6 +174,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onCreate() {
+        DiagnosticLog.i("ime", "service onCreate")
         rime = RimeDaemon.createSession(javaClass.name)
         lifecycleScope.launch {
             jobs.consumeEach { it.join() }
@@ -257,6 +259,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onDestroy() {
+        DiagnosticLog.i("ime", "service onDestroy")
         InputFeedbackManager.destroy()
         inputView = null
         recreateInputViewPrefs.forEach {
