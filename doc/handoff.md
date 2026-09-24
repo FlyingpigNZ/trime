@@ -2,14 +2,44 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-09-15；`main = d6ea981e`——`7ff64e85` 持久化诊断日志 + `d6ea981e`
-> release-ci changelog base 回退（本文件同 commit）；两者均已 push `origin_home/main`；已发布
-> tag **`v3.4.7`**（Gitea + GitHub 双端 release，各 4 个 ABI APK）。worktree 无未提交的 tracked
-> 改动（仅剩仓库既有未跟踪目录，见 §7）。
-> 更早内容：§0a（14键拼音过滤功能）、§0b（备份功能）、§1–§7（键盘背景）为历史记录；
-> §0 的 `feat/14key-token-mirror` 叙述已合入 main，保留为决策记录。
+> **最后更新于**：2026-09-24；`main = bd3f573c`——`8c5abc30` preedit 点击开关（新功能）+
+> `bd3f573c` versionName `3.4.8` / versionCode `20260924`；两者已 push `origin/main` 并打
+> annotated tag **`v3.4.8`** 触发 Release CI。worktree 无未提交的 tracked 改动（仅剩仓库
+> 既有未跟踪文件，见 §7）。
+> **⚠️ preedit 点击开关尚未真机冒烟**（本容器无设备，见 §0 首节）。
+> 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
+> §0b（备份功能）、§1–§7（键盘背景）为历史记录。
 
-## 0. 最新状态：大写 token 试点包（已 push `feat/14key-token-mirror`；评审项已处理，见下）
+## 0. 最新状态：preedit 点击开关（`v3.4.8`，已 push + 打 tag）
+
+### 新功能：preedit 点击开关（键盘样式）——`8c5abc30`，**未真机冒烟**
+- 动机：preedit 条本身是点击热区（点它把编码光标移到落点）。但它正是选字时的邻居：
+  浮动候选窗里 `preeditUi.root` 就是候选行的定位参照物（候选行 `below(preeditUi.root)`），
+  手指落点稍偏就打到它 → 光标被移走而不是选中候选。维护者要求「键盘样式」提供一个
+  开关关掉这个热区。
+- 改动（5 文件，+33/−1）：
+  - `data/theme/ThemePrefs.kt`：新增 `preedit_tap_move_cursor` 开关，**默认开**（保持既有
+    行为，按需关闭）。「键盘样式」页由 `ThemePrefs` 自动生成，**无需改
+    `ThemeSettingsFragment`**（新行落在「拼音过滤」之后）。
+  - `ime/composition/PreeditUi.kt`：门控 `onMoveCursor` **一处**即覆盖两条触摸路径——
+    `PreeditDelegate`（键盘上方独立 preedit 条，经自己的 `TouchEventReceiverWindow`
+    转发触摸）与 `CandidatesView`（浮动候选窗，经覆盖整窗的 `TouchEventReceiverWindow`
+    转发触摸）。二者共用同一个 `PreeditUi`，故单点门控即可。
+  - strings：en / zh-rCN / zh-rTW，沿用既有术语（`预编辑区` / `預編輯區`，见
+    `use_soft_cursor`）。
+- 关键语义（**刻意为之，勿当 bug 回修**）：
+  1. 关闭后**仍然吞掉触摸**、只是不动作——`PreeditTextView` 对 `ACTION_DOWN` 一律返回
+     `true`，本次未改。若改成返回 `false` 让事件下传，浮动候选窗可能悬在键盘上方，误触
+     会打到下面的按键，比原问题更糟。
+  2. pref **每次触摸实时读取**（非构造时快照），开关拨完即生效，无需重启输入法 / 重建
+     InputView。
+  3. `TrimeInputMethodService.handleCursorUpdate` 里的 `moveCursorPos` 由宿主编辑器光标
+     （文本域移动光标 / 硬件方向键）驱动，与 preedit 触摸无关，**故意不纳入**本开关。
+- 验证：`spotlessApply`/`spotlessCheck`、`:app:compileDebugKotlin`、全量
+  `:app:testDebugUnitTest`（167 用例，0 失败 0 跳过）全绿。**真机冒烟未做**（本容器无
+  设备）——冒烟时重点确认：关掉开关后点 preedit 既不移动光标、也不会误触下层。
+- 发布：`versionName 3.4.8` / `versionCode 20260924`（`bd3f573c`），tag `v3.4.8` 打在 main
+  顶端以触发 Release CI（`tags v*`）。
 
 ### 已提交 `7ff64e85` 并 push `origin_home/main`：持久化诊断日志（**只加日志，不改行为**）
 - 动机：`logcat` 路线查不到三个问题——① 闲置时服务为何被重建；② 重建后为何会 Deploy；
@@ -156,16 +186,14 @@
   兼容输入所需），14键 AD 并集面板与引擎容忍语义的细微不对称见上条，接受。
 
 ### 下一步（待办）
-1. **真机冒烟收尾**（maintainer 已确认：面板点选收窄 ✓、「有声调」preedit 转全拼 ✓）。
-   仍待确认/补测：
-   - 冒烟时确认 `env.is_token14 == true`（P2-2 必查项；加日志或断点）；
-   - 26键完整小鹤键盘、英文键盘、T9 无回归（本轮未在真机覆盖）；
-   - `原编码` 默认下顶栏显示大写 token 原码（如 HB）为设计行为，与旧字母版
-     显 `ge` 语义一致（maintainer 已接受）。
-2. 本分支已 push `origin_home`（feat/14key-token-mirror：docs 基底 + feat + docs +
-   style + 评审修复），可开 PR 或按需合入；源树在 ignored 目录，只提交 tracked
-   清单 + zip（提交时用显式文件清单）。
-3. 全量带 gram 包 `万象14键.zip`（untracked）如需对外发布，按既有流程重出。
+1. **preedit 点击开关的真机冒烟**（见 §0 首节；本容器无设备，尚未做）。
+2. ~~真机冒烟收尾（14键 token 试点）~~：**维护者 2026-09-24 确认剩余测试全部完成**
+   （未逐项回报 `env.is_token14` / 26键 / 英文键盘 / T9 各子项结果，如需留档请补记），
+   本节待办清空。
+3. ~~本分支已 push `origin_home`，可开 PR 或按需合入~~：已按 **#27 / #28** 合入 main，
+   远端分支已删除，本地同名分支亦已清理（`git branch -a` 仅剩 `main`）。源树在 ignored
+   目录，只提交 tracked 清单 + zip（提交时用显式文件清单）。
+4. 全量带 gram 包 `万象14键.zip`（untracked）如需对外发布，按既有流程重出。
 
 ## 0a. 已合入：14键拼音过滤功能（PR #22–#25）
 
@@ -440,5 +468,8 @@ registry 访问均已移至 IO（lifecycleScope+Dispatchers.IO，刷新单飞取
 
 ## 7. 未纳入提交的无关工作区内容
 
-- `app/src/androidTest/res/`、`sample_theme_schemas/backgrounds/`：仓库既有未跟踪
-  内容，与本功能无关，**不要顺手 add/commit**（提交时用显式文件清单）。
+- `ACCESS_NETWORK_STATE-permission-investigation.md`（仓库根）：上一轮 `ACCESS_NETWORK_STATE`
+  权限排查留下的笔记，**未跟踪**，与本功能无关，**不要顺手 add/commit**（提交时用显式文件
+  清单）。
+- `app/src/androidTest/res/`、`sample_theme_schemas/backgrounds/`：仓库既有内容（已被
+  gitignore，不出现在 `git status`），与本功能无关，同样不要顺手 add/commit。
