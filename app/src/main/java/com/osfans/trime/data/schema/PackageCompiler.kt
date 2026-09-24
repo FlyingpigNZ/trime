@@ -15,6 +15,7 @@ import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.theme.PackageThemeLoader
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeManager
+import com.osfans.trime.util.DiagnosticLog
 import com.osfans.trime.util.appContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -70,7 +71,10 @@ internal object PackageCompiler {
             File(workspace, "default.yaml").isFile ||
                 File(workspace, "manifest.yaml").isFile ||
                 File(workspace, "component.yaml").isFile
-        if (!hasContent) return
+        if (!hasContent) {
+            DiagnosticLog.i("compile", "mark-compiled skipped (no workspace content) ws=${workspace.absolutePath}")
+            return
+        }
         val active = PackageStore.activePackageId()
         val content =
             if (active == null || active == PackageStore.DEFAULT_PACKAGE_ID) {
@@ -81,6 +85,7 @@ internal object PackageCompiler {
             }
         File(workspace, "compiled.marker").writeText(content)
         File(workspace, "compiled.error").delete()
+        DiagnosticLog.i("compile", "mark-compiled ws=${workspace.absolutePath} active=${active ?: "none"} content=${content.take(16)}")
     }
 
     /** Reload the active package's theme after startup or activation. */
@@ -113,7 +118,13 @@ internal object PackageCompiler {
             if (!workspace.isDirectory) {
                 throw IllegalArgumentException("Package workspace missing: $workspace")
             }
-            if (PackageStore.isCompiled(packageId)) return@withLock
+            val alreadyCompiled = PackageStore.isCompiled(packageId)
+            DiagnosticLog.i(
+                "compile",
+                "request id=$packageId compiledBefore=$alreadyCompiled ws=${workspace.absolutePath} " +
+                    "restartActive=$restartActive",
+            )
+            if (alreadyCompiled) return@withLock
             if (!compiling.compareAndSet(false, true)) {
                 throw IllegalStateException("IME package compile is already in progress")
             }
@@ -154,16 +165,20 @@ internal object PackageCompiler {
                         val alive = isCompileProcessAlive()
                         if (alive) compileProcessSeen = true
                         if (compileProcessSeen && !alive) {
+                            DiagnosticLog.e("compile", "process died id=$packageId")
                             throw IllegalStateException("IME package compile process died: $packageId")
                         }
                         delay(COMPILE_POLL_INTERVAL_MS)
                     }
                     if (error.isFile) {
+                        DiagnosticLog.e("compile", "failed id=$packageId (compiled.error present)")
                         throw IllegalStateException("IME package compile failed: $packageId")
                     }
                     if (!marker.isFile) {
+                        DiagnosticLog.e("compile", "timed out id=$packageId after ${COMPILE_TIMEOUT_MS}ms")
                         throw IllegalStateException("IME package compile timed out: $packageId")
                     }
+                    DiagnosticLog.i("compile", "success id=$packageId")
                 }
                 // If the active package was recompiled in place, restart Rime so it
                 // picks up the new workspace contents, and reload the theme so the

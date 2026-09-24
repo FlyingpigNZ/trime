@@ -2,12 +2,111 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：`main = 1a940dd9` 之上，分支 **`feat/14key-token-mirror`**；
-> **大写 ASCII token 版 14键 试点包已实现并提交/push 至 origin_home**
-> （数据/脚本/app/Lua + zip；见 §0）**。
-> 更早内容：§0a（14键拼音过滤功能）、§0b（备份功能）、§1–§7（键盘背景）为历史记录。
+> **最后更新于**：2026-09-24；`main = bd3f573c`——`8c5abc30` preedit 点击开关（新功能）+
+> `bd3f573c` versionName `3.4.8` / versionCode `20260924`；两者已 push `origin/main` 并打
+> annotated tag **`v3.4.8`** 触发 Release CI。worktree 无未提交的 tracked 改动（仅剩仓库
+> 既有未跟踪文件，见 §7）。
+> **⚠️ preedit 点击开关尚未真机冒烟**（本容器无设备，见 §0 首节）。
+> 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
+> §0b（备份功能）、§1–§7（键盘背景）为历史记录。
 
-## 0. 最新状态：大写 token 试点包（已 push `feat/14key-token-mirror`；评审项已处理，见下）
+## 0. 最新状态：preedit 点击开关（`v3.4.8`，已 push + 打 tag）
+
+### 新功能：preedit 点击开关（键盘样式）——`8c5abc30`，**未真机冒烟**
+- 动机：preedit 条本身是点击热区（点它把编码光标移到落点）。但它正是选字时的邻居：
+  浮动候选窗里 `preeditUi.root` 就是候选行的定位参照物（候选行 `below(preeditUi.root)`），
+  手指落点稍偏就打到它 → 光标被移走而不是选中候选。维护者要求「键盘样式」提供一个
+  开关关掉这个热区。
+- 改动（5 文件，+33/−1）：
+  - `data/theme/ThemePrefs.kt`：新增 `preedit_tap_move_cursor` 开关，**默认开**（保持既有
+    行为，按需关闭）。「键盘样式」页由 `ThemePrefs` 自动生成，**无需改
+    `ThemeSettingsFragment`**（新行落在「拼音过滤」之后）。
+  - `ime/composition/PreeditUi.kt`：门控 `onMoveCursor` **一处**即覆盖两条触摸路径——
+    `PreeditDelegate`（键盘上方独立 preedit 条，经自己的 `TouchEventReceiverWindow`
+    转发触摸）与 `CandidatesView`（浮动候选窗，经覆盖整窗的 `TouchEventReceiverWindow`
+    转发触摸）。二者共用同一个 `PreeditUi`，故单点门控即可。
+  - strings：en / zh-rCN / zh-rTW，沿用既有术语（`预编辑区` / `預編輯區`，见
+    `use_soft_cursor`）。
+- 关键语义（**刻意为之，勿当 bug 回修**）：
+  1. 关闭后**仍然吞掉触摸**、只是不动作——`PreeditTextView` 对 `ACTION_DOWN` 一律返回
+     `true`，本次未改。若改成返回 `false` 让事件下传，浮动候选窗可能悬在键盘上方，误触
+     会打到下面的按键，比原问题更糟。
+  2. pref **每次触摸实时读取**（非构造时快照），开关拨完即生效，无需重启输入法 / 重建
+     InputView。
+  3. `TrimeInputMethodService.handleCursorUpdate` 里的 `moveCursorPos` 由宿主编辑器光标
+     （文本域移动光标 / 硬件方向键）驱动，与 preedit 触摸无关，**故意不纳入**本开关。
+- 验证：`spotlessApply`/`spotlessCheck`、`:app:compileDebugKotlin`、全量
+  `:app:testDebugUnitTest`（167 用例，0 失败 0 跳过）全绿。**真机冒烟未做**（本容器无
+  设备）——冒烟时重点确认：关掉开关后点 preedit 既不移动光标、也不会误触下层。
+- 发布：`versionName 3.4.8` / `versionCode 20260924`（`bd3f573c`），tag `v3.4.8` 打在 main
+  顶端以触发 Release CI（`tags v*`）。
+
+### 已提交 `7ff64e85` 并 push `origin_home/main`：持久化诊断日志（**只加日志，不改行为**）
+- 动机：`logcat` 路线查不到三个问题——① 闲置时服务为何被重建；② 重建后为何会 Deploy；
+  ③ 缺省包（同文风）为何在使用别的包时从"编译完成"跳回"未编译"。应用内日志页是
+  `logcat --pid=<当前pid>` 的实时 tail，进程一死历史即不可见，且 `DeployNotifier` 会在
+  每次部署开始执行 `logcat --clear`。
+- 新增 `app/src/main/java/com/osfans/trime/util/DiagnosticLog.kt`
+  - append-only 文件日志：`<externalFilesDir>/diagnostics/trime-diagnostics.log`
+    （256KB 轮转，保留 `.1`）。**刻意放在 Rime 的 `user_data_dir`/`shared_data_dir` 之外**，
+    避免日志写入本身改变 `detect_modifications` 比较的 mtime。
+  - 每行 flush，可跨 `exitProcess`/SIGKILL 存活；正常 VM 退出（含 `exitProcess(10)`）由
+    shutdown hook 记 `=== process exit`，被 LMK SIGKILL 则没有 → 由此区分崩溃/正常退出/被系统杀。
+  - `processStarted()` 在 `Application.onCreate` 记 pid/uptime/process，并回看日志尾部判定
+    **同一进程**上次运行如何结束（`previous=CRASH|CLEAN_EXIT|UNKNOWN_KILLED|NONE`）；
+    `:compile` 进程按 `process=` 字段精确匹配，互不误判。
+  - 崩溃处理器 release+debug 都先写文件再走原逻辑；debug 仍委托平台 handler（保持可见崩溃）。
+- 新增 `app/src/main/java/com/osfans/trime/data/diagnostics/WorkspaceDiagnostics.kt`
+  - 在 `onDeployStart`（librime 已决定部署、任务尚未跑）快照：激活包 workspace 根目录 mtime、
+    shared 根目录 mtime、`user.yaml` 的 `var/last_build_time`、两目录顶层条目按 mtime 排序；
+    用秒级比较，与 librime `DetectModifications` 口径一致；且**只对真正的触发项**（根目录
+    自身 mtime、顶层 `*.yaml` 且非 `user.yaml`）打 `TRIGGER`——`*.userdb/` 目录、`compiled.marker`
+    等只列出作参考，不会触发部署（`compiled.marker` 每次引擎启动都会被合成 deploy success 刷新，
+    是纯红鲱鱼）。
+  - 实测（2026-09-12 装新 APK 首次启动）：触发者是 `installation.yaml`——`installation_update`
+    因 `distribution_version` 变化在 `detect_modifications` 之前重写了它（顶层 `.yaml`），
+    属正常一次性行为；该次 Default 的 marker/zip 指纹一致（`result=up-to-date`），未被作废。
+- 日志标签：`ime`（service onCreate/onDestroy）、`engine`（session create/destroy、state、
+  restart-request + app 帧调用链）、`deploy`（cause 快照）、`default-pkg`
+  （`installBundledDefaultPackage` 每次检查的 marker/zip 指纹与分支结果、picker 列表里 Default 的
+  compiled 状态）、`compile`（请求/成功/失败/进程死亡/超时、mark-compiled、服务写 marker）、
+  `pkg`（导入作废 marker）。
+- 查看（无需 adb）：主界面菜单 → **开发者 → 实时日志**，页面底部会追加持久化诊断日志尾部；
+  该页「导出」按钮写出的 txt 里包含完整诊断日志（含轮转文件）。开发者页的「清除日志」只清
+  logcat，不动诊断文件。
+- 验证：`spotlessApply/Check` + `:app:compileDebugKotlin` + 全量 `testDebugUnitTest`（167 用例）PASS；
+  新增 `DiagnosticLogTest` / `WorkspaceDiagnosticsTest`（纯函数）。
+- 实测结论（2026-09-12 ~ 09-15，三次进程事件）：
+  1. **闲置 Deploy 的完整链条已确认**：09-15 16:01 连 Android Auto 时系统 SIGKILL 掉 IME 进程
+     （`previous=UNKNOWN_KILLED`，无 `=== process exit`、无崩溃；服务先 `onDestroy`，4s 后新进程起来），
+     服务重建触发引擎 startup → `detect_modifications` 命中 `dirNewer=true triggers=0`——根目录
+     mtime 来自 **09-14 16:03 新建的 `enreplacer.userdb/`**（与根目录 mtime 同秒、相差 724ms）。
+     即"系统杀进程提供机会 + 新子目录顶 mtime 提供理由"，缺一不可；该次部署本身空跑 2.9s。
+  2. **重启 ≠ Deploy**：16:12–16:14 同一进程内服务 `onDestroy`→`onCreate` 三次、以及无 TRIGGER 的
+     启动，均未部署。
+  3. **Default 跳回未编译未复现**：两次装包 + 多次重启期间 `marker == zip == bd31b4e8…` 始终
+     `up-to-date`；能作废它的只有 `shared/Default.zip` 字节变化（重打包 / 换 checkout）。
+  4. 内存（模拟器 x86_64 debug，万象14键 + gram，键盘隐藏）：RSS 275 MiB / PSS 137 MiB /
+     peak 296 MiB / swap 0。其中 Rime 数据（gram+table+prism+userdb）常驻仅 **11.6 MiB**
+     （gram 本身 3.4 MiB，401 MiB 只是地址空间），Rime 自己的 `librime_jni.so` 10.4 MiB，其余是
+     ART/系统库；`Pss_Anon` 90.9 MiB 是内核收不走的地板。**全仓库无任何 `onTrimMemory` 实现**，
+     trim 全档位（含 COMPLETE）只掉 ~6.8 MiB native 堆。结论：基线 ~275 MiB 与 gram 基本无关。
+- 结论（用户拍板）：**不修**——Deploy 只在系统杀进程时发生且空跑几秒，内存也接受（<300 MiB）。
+  后续若要动，候选：marker 移出 `user_data_dir`、部署成功后主动补写 `last_build_time`、
+  用内容指纹替代 zip 字节指纹、实现 `onTrimMemory` 或在键盘隐藏时 `finalize()` 引擎。
+
+### 已提交并 push `origin_home/main`：release-ci changelog base 回退（**仅 GitHub 分支**）
+- 问题：GitHub release body 长期为 “- no changes”（v3.4.4 / v3.4.5 / v3.4.7 均如此）。
+  根因：main 先同步到 develop、后打 tag，`release-ci` 用
+  `merge-base(HEAD, origin/develop)` 作 changelog base，此时 base 恰好等于 tag 提交
+  → 区间为空。
+- 修法（只改 `is_github == true` 分支）：base == HEAD 时回退到上一个 release tag
+  （`git tag --merged HEAD --sort=-version:refname`，排除当前 tag；没有上一个 tag
+  则用 `HEAD~1`）。Gitea 分支（`else`）本来就用上一个 tag，**未动**。
+- 验证（本地抽取该 step 的 run 脚本 + `GITHUB_REF_NAME=v3.4.7` 模拟）：GitHub 路径
+  base 由 `e98ae04b`（空区间）变为 `v3.4.6`；Gitea 路径仍 `v3.4.6` / `is_github=false`
+  （行为不变）；YAML 解析 + `bash -n` 通过。
+- 生效点：**下一个 tag** 的 Release CI（下次发布时复核 GitHub release body 非空）。
 
 ### 新改动（已合 main #28）：preedit 原码回显键位首字母
 - 动机：token 试点下 `原编码` preedit 直显 token（单敲 QW 键显示 `A`），与键帽
@@ -87,16 +186,14 @@
   兼容输入所需），14键 AD 并集面板与引擎容忍语义的细微不对称见上条，接受。
 
 ### 下一步（待办）
-1. **真机冒烟收尾**（maintainer 已确认：面板点选收窄 ✓、「有声调」preedit 转全拼 ✓）。
-   仍待确认/补测：
-   - 冒烟时确认 `env.is_token14 == true`（P2-2 必查项；加日志或断点）；
-   - 26键完整小鹤键盘、英文键盘、T9 无回归（本轮未在真机覆盖）；
-   - `原编码` 默认下顶栏显示大写 token 原码（如 HB）为设计行为，与旧字母版
-     显 `ge` 语义一致（maintainer 已接受）。
-2. 本分支已 push `origin_home`（feat/14key-token-mirror：docs 基底 + feat + docs +
-   style + 评审修复），可开 PR 或按需合入；源树在 ignored 目录，只提交 tracked
-   清单 + zip（提交时用显式文件清单）。
-3. 全量带 gram 包 `万象14键.zip`（untracked）如需对外发布，按既有流程重出。
+1. **preedit 点击开关的真机冒烟**（见 §0 首节；本容器无设备，尚未做）。
+2. ~~真机冒烟收尾（14键 token 试点）~~：**维护者 2026-09-24 确认剩余测试全部完成**
+   （未逐项回报 `env.is_token14` / 26键 / 英文键盘 / T9 各子项结果，如需留档请补记），
+   本节待办清空。
+3. ~~本分支已 push `origin_home`，可开 PR 或按需合入~~：已按 **#27 / #28** 合入 main，
+   远端分支已删除，本地同名分支亦已清理（`git branch -a` 仅剩 `main`）。源树在 ignored
+   目录，只提交 tracked 清单 + zip（提交时用显式文件清单）。
+4. 全量带 gram 包 `万象14键.zip`（untracked）如需对外发布，按既有流程重出。
 
 ## 0a. 已合入：14键拼音过滤功能（PR #22–#25）
 
@@ -371,5 +468,8 @@ registry 访问均已移至 IO（lifecycleScope+Dispatchers.IO，刷新单飞取
 
 ## 7. 未纳入提交的无关工作区内容
 
-- `app/src/androidTest/res/`、`sample_theme_schemas/backgrounds/`：仓库既有未跟踪
-  内容，与本功能无关，**不要顺手 add/commit**（提交时用显式文件清单）。
+- `ACCESS_NETWORK_STATE-permission-investigation.md`（仓库根）：上一轮 `ACCESS_NETWORK_STATE`
+  权限排查留下的笔记，**未跟踪**，与本功能无关，**不要顺手 add/commit**（提交时用显式文件
+  清单）。
+- `app/src/androidTest/res/`、`sample_theme_schemas/backgrounds/`：仓库既有内容（已被
+  gitignore，不出现在 `git status`），与本功能无关，同样不要顺手 add/commit。

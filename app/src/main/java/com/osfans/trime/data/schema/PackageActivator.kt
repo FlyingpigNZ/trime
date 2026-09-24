@@ -8,6 +8,7 @@ import com.osfans.trime.daemon.RimeDaemon
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeManager
+import com.osfans.trime.util.DiagnosticLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -65,31 +66,44 @@ internal object PackageActivator {
     /** Copy the bundled Default.zip into the package library if needed. */
     fun installBundledDefaultPackage() {
         val source = File(DataManager.sharedDataDir, PackageStore.DEFAULT_PACKAGE_FILE_NAME)
-        if (!source.isFile) return
+        if (!source.isFile) {
+            DiagnosticLog.i("default-pkg", "check skipped: ${source.absolutePath} missing")
+            return
+        }
         val sourceFingerprint = PackageMetadata.sha256(source)
         val packageDir = PackageStore.packageDir(PackageStore.DEFAULT_PACKAGE_ID).apply { mkdirs() }
         val target = File(packageDir, "package.zip")
         val workspace = PackageStore.defaultWorkspaceDir()
         val marker = File(workspace, "compiled.marker")
+        val markerFingerprint = if (marker.isFile) marker.readText().trim() else null
         val hasWorkspaceContent =
             File(workspace, "default.yaml").isFile ||
                 File(workspace, "manifest.yaml").isFile ||
                 File(workspace, "component.yaml").isFile
-        if (marker.isFile &&
-            marker.readText().trim() == sourceFingerprint &&
-            hasWorkspaceContent
-        ) {
+        DiagnosticLog.i(
+            "default-pkg",
+            "check marker=${shortFingerprint(markerFingerprint)} zip=${shortFingerprint(sourceFingerprint)} " +
+                "hasContent=$hasWorkspaceContent pkgZip=${target.isFile}",
+        )
+        if (markerFingerprint == sourceFingerprint && hasWorkspaceContent) {
+            DiagnosticLog.i("default-pkg", "result=up-to-date")
             return
         }
         // Even without a marker, if the workspace was already extracted from
         // this exact Default.zip, do not wipe and re-extract it (the engine may
         // be deploying it right now).
         if (hasWorkspaceContent && target.isFile && PackageMetadata.sha256(target) == sourceFingerprint) {
+            DiagnosticLog.i("default-pkg", "result=kept (package.zip matches, marker=${shortFingerprint(markerFingerprint)})")
             return
         }
         // Source changed or workspace is incomplete: overlay-extract the new
         // Default over the existing workspace without deleting it, so user data
         // that is not part of the package is preserved automatically.
+        DiagnosticLog.i(
+            "default-pkg",
+            "result=invalidated+extracted marker=${shortFingerprint(markerFingerprint)} -> none " +
+                "zip=${shortFingerprint(sourceFingerprint)} hasContent=$hasWorkspaceContent",
+        )
         source.copyTo(target, overwrite = true)
         workspace.mkdirs()
         // Invalidate compile state before overlay extraction.
@@ -212,4 +226,12 @@ internal object PackageActivator {
 
     /** Internal package zips are stored as `<packageDir>/package.zip`. */
     private fun packageIdFromPackageFile(packageFile: File): String = packageFile.parentFile?.name ?: packageFile.nameWithoutExtension
+
+    /**
+     * Abbreviated fingerprint for the diagnostic log: the compared values are
+     * printed side by side, so a prefix is enough to tell whether they match.
+     */
+    private fun shortFingerprint(fingerprint: String?): String = fingerprint?.take(FINGERPRINT_LOG_CHARS) ?: "none"
+
+    private const val FINGERPRINT_LOG_CHARS = 16
 }
