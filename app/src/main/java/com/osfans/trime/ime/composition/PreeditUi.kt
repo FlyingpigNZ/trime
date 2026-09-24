@@ -18,6 +18,7 @@ import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
 import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.ThemeColor
+import com.osfans.trime.data.theme.ThemeManager
 import splitties.views.dsl.core.Ui
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.lParams
@@ -38,7 +39,13 @@ open class PreeditUi(
             textSize = theme.preedit.foreground.fontSize
             typeface = FontManager.getTypeface("text_font")
             setupPreeditView?.invoke(this)
-            onMoveCursor = this@PreeditUi.onMoveCursor
+            // The tap is always consumed by PreeditTextView, so it never falls
+            // through to a key or candidate underneath; it only moves the
+            // cursor while the user keeps that tap target enabled. The pref is
+            // read per tap so the switch takes effect without a rebuild.
+            onMoveCursor = this@PreeditUi.onMoveCursor?.let { moveCursor ->
+                { pos: Int -> if (ThemeManager.prefs.preeditTapMoveCursor.getValue()) moveCursor(pos) }
+            }
         }
 
     override val root =

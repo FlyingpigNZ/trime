@@ -26,6 +26,8 @@
     <string name="keyboard_background_editor_summary">更换或恢复当前配色的键盘背景图片</string>
     <string name="pinyin_filter">拼音过滤</string>
     <string name="pinyin_filter_summary">输入时在键盘覆盖条上显示可选拼音拼写（T9 第一列 / 14键第一行）；关闭后不再显示</string>
+    <string name="preedit_tap_move_cursor">点击预编辑区移动光标</string>
+    <string name="preedit_tap_move_cursor_summary">点击预编辑区可移动编码光标；关闭后预编辑区忽略点击，避免选字时误触而移动光标</string>
     <string name="keyboard_background_mode_light">日间</string>
     <string name="keyboard_background_mode_dark">夜间</string>
     <string name="keyboard_background_change">选取</string>

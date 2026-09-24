@@ -70,10 +70,29 @@ class ThemePrefs(
             R.string.pinyin_filter_summary,
         )
 
+    /**
+     * Whether tapping the preedit moves the composition cursor.
+     *
+     * Defaults to on (the existing behaviour). The preedit strip is a tap
+     * target that sits right next to the text being picked — in the floating
+     * candidate window it is drawn directly above the candidate row — so a tap
+     * aimed at a candidate easily lands on it and shifts the cursor instead.
+     * Turning this off makes the preedit ignore taps (they are still consumed,
+     * so nothing underneath is hit either).
+     */
+    val preeditTapMoveCursor =
+        switch(
+            R.string.preedit_tap_move_cursor,
+            PREEDIT_TAP_MOVE_CURSOR,
+            true,
+            R.string.preedit_tap_move_cursor_summary,
+        )
+
     companion object {
         const val NORMAL_MODE_COLOR = "normal_mode_color"
         const val FOLLOW_SYSTEM_DAY_NIGHT = "follow_system_day_night"
         const val NAVBAR_BACKGROUND = "navbar_background"
         const val PINYIN_FILTER = "pinyin_filter"
+        const val PREEDIT_TAP_MOVE_CURSOR = "preedit_tap_move_cursor"
     }
 }
