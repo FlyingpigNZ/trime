@@ -6,6 +6,9 @@
 > `bd3f573c` versionName `3.4.8` / versionCode `20260924`；两者已 push `origin/main` 并打
 > annotated tag **`v3.4.8`** 触发 Release CI。worktree 无未提交的 tracked 改动（仅剩仓库
 > 既有未跟踪文件，见 §7）。
+> **已同步到 GitHub（本 session）**：`develop` 已合并 `main`（sync 合并提交 `2cb9624b`，
+> 树与 `main` 一致）并 push；tag `v3.4.8` 已 push 到 GitHub，触发 GitHub Release CI。
+> 双端 release 各 4 个 ABI APK。完整发布/同步流程见 `doc/repo-knowledge.md` §10。
 > **⚠️ preedit 点击开关尚未真机冒烟**（本容器无设备，见 §0 首节）。
 > 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
 > §0b（备份功能）、§1–§7（键盘背景）为历史记录。

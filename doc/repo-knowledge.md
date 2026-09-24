@@ -527,3 +527,96 @@ the second build is fast because the JNI cache persists in `app/build`.
   - 单 ABI 注入时 APK 落在 `app/build/intermediates/apk/debug/*-x86_64-debug.apk`
     （`outputs/apk/debug` 的 listing 是旧的），需要时自行 copy 到 outputs。
 
+---
+
+## 10. Release & sync flow (Gitea ↔ GitHub)
+
+How a release is cut and how the Gitea `main` branch is propagated to the
+GitHub fork. Re-read this before any "sync Gitea to GitHub" or "push tag"
+request — the topology is non-obvious.
+
+### 10.1 Remote topology
+
+| remote | URL | role |
+|---|---|---|
+| `origin_home` | `http://192.168.1.50:3000/Home/trime` | **dev branch `main`** — this fork's source of truth |
+| `origin` | `https://github.com/FlyingpigNZ/trime` | GitHub fork; **default branch `develop` — the fork has NO `main`** |
+| `upstream` | `https://github.com/osfans/trime.git` | read-only upstream reference |
+
+- Feature work lands on Gitea `main` (CLAUDE.md). Feature branches / PRs go to
+  `origin_home` only.
+- The GitHub fork carries **only** `develop` plus release tags. GitHub releases
+  are created from pushed tags; there is no `main` to push to.
+
+### 10.2 Sync model (main → GitHub develop)
+
+- GitHub `develop` is **not** a mirror of `main`: it has its own commits
+  (develop-only fixes such as `de525558` / `9ae93084` / `60594c8c`, plus the
+  historical `chore: sync develop with main (...)` merge commits). Those
+  develop-only commits are content-equivalent to what later landed on `main`
+  via PRs, so a **correct sync ends with `git diff main develop` == empty**
+  (tree parity).
+- Therefore the sync is always a **merge, never a reset or fast-forward**:
+  `git merge main` on `develop`, with a `chore: sync develop with main (...)` message.
+
+### 10.3 Release procedure (one release, e.g. v3.4.8)
+
+```bash
+# 1. On main: bump version + docs, push to Gitea
+#    app/build.gradle.kts: versionName "3.4.8" + versionCode 20260924 (YYYYMMDD)
+git add app/build.gradle.kts doc/handoff.md
+git commit -m "chore(build): bump versionName to 3.4.8"
+git push origin_home main
+
+# 2. Annotated tag at the main head, push to Gitea (triggers Gitea Release CI)
+git tag -a v3.4.8 -m "Trime 3.4.8"
+git push origin_home v3.4.8
+
+# 3. Sync to GitHub: merge main into develop, push develop BEFORE the tag
+git fetch origin_home --prune --tags
+git checkout develop            # or: git checkout -b develop origin/develop
+git merge main -m "chore: sync develop with main (v3.4.8: <one-line summary>)"
+git push origin develop
+
+# 4. Push the tag to GitHub (triggers GitHub Release CI)
+git push origin v3.4.8
+```
+
+Order matters in steps 3–4: push `develop` **before** the tag. The GitHub
+changelog step computes `merge-base(HEAD, origin/develop)`; once develop
+contains the tag commit (it does after the merge), base == HEAD and the CI
+falls back to the previous release tag (the `d6ea981e` fix) — otherwise the
+release body ends up "- no changes".
+
+### 10.4 Tag & CI conventions
+
+- Tags are **annotated**: `git tag -a vX.Y.Z -m "Trime X.Y.Z"`, tagger
+  `flyingpig <jin.mao.rh@gmail.com>`, target = the `main` head.
+- One `release-ci.yml` serves both remotes. It detects `remote.origin.url`:
+  `github.com` → `is_github=true` (GitHub-native release via
+  `ncipollo/release-action` + `release-changelog-builder`), otherwise the
+  Gitea API path (which uses `target_commitish: "main"`).
+- Both ends build the 4-ABI release APKs on their **own** CI runner, not this
+  container (the local 4-ABI armeabi-v7a build limit is §9.6).
+
+### 10.5 Credentials & push gotchas
+
+- GitHub HTTPS push uses a PAT stored in `~/.git-credentials`
+  (`credential.helper = store`). Do not commit or echo it.
+- Pushing prints `fatal: unable to get credential storage lock in 1000 ms:
+  Read-only file system` — **benign**: the sandbox makes the store read-only so
+  git can't write a lock file, but the existing credential is still read and the
+  push succeeds. Judge by the exit code / the `-> develop` line, not the warning.
+- Local remote-tracking refs go stale. Always `git fetch <remote> --prune --tags`
+  first and verify with `git ls-remote --heads --tags <remote>` — e.g. the
+  `v3.4.8` tag already existed on Gitea before this session's sync, while local
+  `main` was still on the older head.
+
+### 10.6 Verify after sync
+
+```bash
+git diff --stat main develop    # must be empty (tree parity)
+git log --oneline develop..main # must be empty (main fully merged)
+git ls-remote --heads --tags origin  # develop == the sync merge commit, vX.Y.Z present
+```
+
