@@ -87,16 +87,29 @@
      即"系统杀进程提供机会 + 新子目录顶 mtime 提供理由"，缺一不可；该次部署本身空跑 2.9s。
   2. **重启 ≠ Deploy**：16:12–16:14 同一进程内服务 `onDestroy`→`onCreate` 三次、以及无 TRIGGER 的
      启动，均未部署。
-  3. **Default 跳回未编译未复现**：两次装包 + 多次重启期间 `marker == zip == bd31b4e8…` 始终
-     `up-to-date`；能作废它的只有 `shared/Default.zip` 字节变化（重打包 / 换 checkout）。
+  3. **Default 跳回未编译已复现并定性**：装新 build 时 `shared/Default.zip` 因**打包不可复现**换了
+     字节，`installBundledDefaultPackage` 作废了**非激活包** Default 的 marker，之后没有任何自动路径
+     重编它（详见下方新增第 5 条）。
   4. 内存（模拟器 x86_64 debug，万象14键 + gram，键盘隐藏）：RSS 275 MiB / PSS 137 MiB /
      peak 296 MiB / swap 0。其中 Rime 数据（gram+table+prism+userdb）常驻仅 **11.6 MiB**
      （gram 本身 3.4 MiB，401 MiB 只是地址空间），Rime 自己的 `librime_jni.so` 10.4 MiB，其余是
      ART/系统库；`Pss_Anon` 90.9 MiB 是内核收不走的地板。**全仓库无任何 `onTrimMemory` 实现**，
      trim 全档位（含 COMPLETE）只掉 ~6.8 MiB native 堆。结论：基线 ~275 MiB 与 gram 基本无关。
-- 结论（用户拍板）：**不修**——Deploy 只在系统杀进程时发生且空跑几秒，内存也接受（<300 MiB）。
+  5. **Default 跳未编译的复现与根因**（2026-09-24 18:34:33 作废 → 2026-09-25 09:21:38 手点编译，
+     持续 **14h43m**，跨两次设备重启）：装新 build 时 `shared/Default.zip` 的哈希由 `bd31b4e8…`
+     变成 `7bb9094a…`——**不是内容变了**（git 证明 `app/src/main/assets/shared/Default/` 在
+     `e98ae04b..HEAD` 零差异），而是 `script/package_schema.py` 用 `ZipFile.write` 打包，zip 条目的
+     `date_time` 取**源文件 mtime**，换工作树（fresh clone / CI / clean build）重新打包就换字节；
+     实测同内容只改 mtime → `bd31b4e88d9ac9f3` 变 `6db85ae535bdd9d0`（21 个条目只有 `date_time`
+     不同，CRC 与解压内容完全一致）。作废后 `ensureStartupWorkspaceReady` 只编激活包、
+     `ensureDefaultPackageReady` 在激活包已编译时提前 return、后续每次调用又被 `kept` 闸门挡掉
+     （`kept` **不能**补写 marker：解包 ≠ 部署）→ "未编译"粘住。已决定**不修**（影响仅一次手动重编），
+     细节与候选修法见 `doc/repo-knowledge.md` §6.1。
+- 结论（用户拍板）：**不修**——Deploy 只在系统杀进程时发生且空跑几秒，内存也接受（<300 MiB），
+  Default 跳未编译同样接受（见上第 5 条）。
   后续若要动，候选：marker 移出 `user_data_dir`、部署成功后主动补写 `last_build_time`、
-  用内容指纹替代 zip 字节指纹、实现 `onTrimMemory` 或在键盘隐藏时 `finalize()` 引擎。
+  用内容指纹替代 zip 字节指纹、让 `package_schema.py` 产出可复现 zip、实现 `onTrimMemory`
+  或在键盘隐藏时 `finalize()` 引擎。
 
 ### 已提交并 push `origin_home/main`：release-ci changelog base 回退（**仅 GitHub 分支**）
 - 问题：GitHub release body 长期为 “- no changes”（v3.4.4 / v3.4.5 / v3.4.7 均如此）。

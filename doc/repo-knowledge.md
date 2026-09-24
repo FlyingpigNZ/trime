@@ -378,6 +378,46 @@ context input directly to feed a mixed composition), `currentSchema`,
 `PackageThemeLoader` (`data/theme/PackageThemeLoader.kt`) — the entry that
 loads a workspace into a `Theme` (component manifest first, else `theme.yaml`).
 
+### 6.1 Gotcha: the bundled `Default.zip` fingerprint is not reproducible
+
+The Default package's `compiled.marker` stores `sha256(<shared>/Default.zip)`
+(`PackageCompiler.markCurrentWorkspaceCompiled`, `PackageCompileService.compile`),
+and `PackageActivator.installBundledDefaultPackage` deletes the marker +
+overlay-extracts whenever the marker content no longer equals that hash
+(its fallback gate — `packages/Default/package.zip` also matching — only helps
+until the next successful compile, which deletes `package.zip`).
+
+`Default.zip` is a gitignored build artifact of `script/package_schema.py`,
+which packs with `ZipFile.write(...)`: the zip entry `date_time` is the **source
+file's mtime**. The entry list is deterministic (`local_package_files()` is
+`sorted()`) and the contents are identical, but a rebuild from another working
+tree (fresh clone, CI, clean build) bakes in different mtimes and yields
+**different bytes**. Verified 2026-09-25: same content, mtimes changed →
+`sha256` goes `bd31b4e88d9ac9f3` → `6db85ae535bdd9d0` (all 21 entries differ only
+in `date_time`; CRCs and extracted bytes are identical).
+
+Consequence when a new build is installed while Default is **not** the active
+package:
+1. `installBundledDefaultPackage` invalidates Default (marker deleted,
+   `package.zip` recreated, workspace re-extracted);
+2. nothing recompiles it automatically — `ensureStartupWorkspaceReady` compiles
+   only `activePackageId() ?: Default`, and `ensureDefaultPackageReady` returns
+   early once the active package is compiled;
+3. every later call then hits the "`package.zip` matches" early return
+   (`result=kept`), which does **not** restore the marker → "not compiled" is
+   sticky until the user taps compile. Observed 2026-09-24 18:34 → 2026-09-25
+   09:21 (**14h43m**, across two device reboots).
+   Do not "fix" this by writing the marker in the `kept` branch: extraction is
+   not a deploy, `build/` is still stale until a real compile runs.
+
+Decision 2026-09-25: **accepted as-is** (impact = one manual recompile after an
+install that repacks Default). If it ever needs fixing:
+- make `package_schema.py` reproducible (fixed `ZipInfo.date_time`, e.g.
+  `(1980, 1, 1, 0, 0, 0)`, plus a fixed `external_attr`) so identical content
+  always produces identical bytes — cheapest, covers every package it builds;
+- or derive the marker from a content fingerprint instead of raw zip bytes;
+- plus: schedule a background compile for a package invalidated while inactive.
+
 ---
 
 ## 7. Where things live (quick file index)
