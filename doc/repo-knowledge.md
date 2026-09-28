@@ -263,7 +263,7 @@ Data:
   j/q/x/y + bare `u` (`qu → qv`), mirroring the `/base/小鹤双拼` derivation.
   With `--flypy14` it additionally emits `flypy_14_code` (letter fold,
   `/14jian`) and `flypy_14_token` (uppercase-token fold, `/14jian-token`).
-- Uppercase-token 14键 试点 (uncommitted worktree, see `doc/handoff.md` §0):
+- Uppercase-token 14键 试点 (merged, #27/#28, see `doc/handoff.md` §0):
   the 14键 keyboard sends uppercase ASCII tokens QW→A … M→N; the schema folds
   dictionary spellings into the same token space via the `/14jian-token`
   preset in `wanxiang_algebra.yaml` (tagged with the Lua marker ⅳ), so typed
@@ -377,6 +377,46 @@ context input directly to feed a mixed composition), `currentSchema`,
 
 `PackageThemeLoader` (`data/theme/PackageThemeLoader.kt`) — the entry that
 loads a workspace into a `Theme` (component manifest first, else `theme.yaml`).
+
+### 6.1 Gotcha: the bundled `Default.zip` fingerprint is not reproducible
+
+The Default package's `compiled.marker` stores `sha256(<shared>/Default.zip)`
+(`PackageCompiler.markCurrentWorkspaceCompiled`, `PackageCompileService.compile`),
+and `PackageActivator.installBundledDefaultPackage` deletes the marker +
+overlay-extracts whenever the marker content no longer equals that hash
+(its fallback gate — `packages/Default/package.zip` also matching — only helps
+until the next successful compile, which deletes `package.zip`).
+
+`Default.zip` is a gitignored build artifact of `script/package_schema.py`,
+which packs with `ZipFile.write(...)`: the zip entry `date_time` is the **source
+file's mtime**. The entry list is deterministic (`local_package_files()` is
+`sorted()`) and the contents are identical, but a rebuild from another working
+tree (fresh clone, CI, clean build) bakes in different mtimes and yields
+**different bytes**. Verified 2026-09-25: same content, mtimes changed →
+`sha256` goes `bd31b4e88d9ac9f3` → `6db85ae535bdd9d0` (all 21 entries differ only
+in `date_time`; CRCs and extracted bytes are identical).
+
+Consequence when a new build is installed while Default is **not** the active
+package:
+1. `installBundledDefaultPackage` invalidates Default (marker deleted,
+   `package.zip` recreated, workspace re-extracted);
+2. nothing recompiles it automatically — `ensureStartupWorkspaceReady` compiles
+   only `activePackageId() ?: Default`, and `ensureDefaultPackageReady` returns
+   early once the active package is compiled;
+3. every later call then hits the "`package.zip` matches" early return
+   (`result=kept`), which does **not** restore the marker → "not compiled" is
+   sticky until the user taps compile. Observed 2026-09-24 18:34 → 2026-09-25
+   09:21 (**14h43m**, across two device reboots).
+   Do not "fix" this by writing the marker in the `kept` branch: extraction is
+   not a deploy, `build/` is still stale until a real compile runs.
+
+Decision 2026-09-25: **accepted as-is** (impact = one manual recompile after an
+install that repacks Default). If it ever needs fixing:
+- make `package_schema.py` reproducible (fixed `ZipInfo.date_time`, e.g.
+  `(1980, 1, 1, 0, 0, 0)`, plus a fixed `external_attr`) so identical content
+  always produces identical bytes — cheapest, covers every package it builds;
+- or derive the marker from a content fingerprint instead of raw zip bytes;
+- plus: schedule a background compile for a package invalidated while inactive.
 
 ---
 
@@ -526,4 +566,97 @@ the second build is fast because the JNI cache persists in `app/build`.
   - `ANDROID_USER_HOME` 必须指向可写目录（默认 `/root/.android` 只读，签名会失败）；
   - 单 ABI 注入时 APK 落在 `app/build/intermediates/apk/debug/*-x86_64-debug.apk`
     （`outputs/apk/debug` 的 listing 是旧的），需要时自行 copy 到 outputs。
+
+---
+
+## 10. Release & sync flow (Gitea ↔ GitHub)
+
+How a release is cut and how the Gitea `main` branch is propagated to the
+GitHub fork. Re-read this before any "sync Gitea to GitHub" or "push tag"
+request — the topology is non-obvious.
+
+### 10.1 Remote topology
+
+| remote | URL | role |
+|---|---|---|
+| `origin_home` | `http://192.168.1.50:3000/Home/trime` | **dev branch `main`** — this fork's source of truth |
+| `origin` | `https://github.com/FlyingpigNZ/trime` | GitHub fork; **default branch `develop` — the fork has NO `main`** |
+| `upstream` | `https://github.com/osfans/trime.git` | read-only upstream reference |
+
+- Feature work lands on Gitea `main` (CLAUDE.md). Feature branches / PRs go to
+  `origin_home` only.
+- The GitHub fork carries **only** `develop` plus release tags. GitHub releases
+  are created from pushed tags; there is no `main` to push to.
+
+### 10.2 Sync model (main → GitHub develop)
+
+- GitHub `develop` is **not** a mirror of `main`: it has its own commits
+  (develop-only fixes such as `de525558` / `9ae93084` / `60594c8c`, plus the
+  historical `chore: sync develop with main (...)` merge commits). Those
+  develop-only commits are content-equivalent to what later landed on `main`
+  via PRs, so a **correct sync ends with `git diff main develop` == empty**
+  (tree parity).
+- Therefore the sync is always a **merge, never a reset or fast-forward**:
+  `git merge main` on `develop`, with a `chore: sync develop with main (...)` message.
+
+### 10.3 Release procedure (one release, e.g. v3.4.8)
+
+```bash
+# 1. On main: bump version + docs, push to Gitea
+#    app/build.gradle.kts: versionName "3.4.8" + versionCode 20260924 (YYYYMMDD)
+git add app/build.gradle.kts doc/handoff.md
+git commit -m "chore(build): bump versionName to 3.4.8"
+git push origin_home main
+
+# 2. Annotated tag at the main head, push to Gitea (triggers Gitea Release CI)
+git tag -a v3.4.8 -m "Trime 3.4.8"
+git push origin_home v3.4.8
+
+# 3. Sync to GitHub: merge main into develop, push develop BEFORE the tag
+git fetch origin_home --prune --tags
+git checkout develop            # or: git checkout -b develop origin/develop
+git merge main -m "chore: sync develop with main (v3.4.8: <one-line summary>)"
+git push origin develop
+
+# 4. Push the tag to GitHub (triggers GitHub Release CI)
+git push origin v3.4.8
+```
+
+Order matters in steps 3–4: push `develop` **before** the tag. The GitHub
+changelog step computes `merge-base(HEAD, origin/develop)`; once develop
+contains the tag commit (it does after the merge), base == HEAD and the CI
+falls back to the previous release tag (the `d6ea981e` fix) — otherwise the
+release body ends up "- no changes".
+
+### 10.4 Tag & CI conventions
+
+- Tags are **annotated**: `git tag -a vX.Y.Z -m "Trime X.Y.Z"`, tagger
+  `flyingpig <jin.mao.rh@gmail.com>`, target = the `main` head.
+- One `release-ci.yml` serves both remotes. It detects `remote.origin.url`:
+  `github.com` → `is_github=true` (GitHub-native release via
+  `ncipollo/release-action` + `release-changelog-builder`), otherwise the
+  Gitea API path (which uses `target_commitish: "main"`).
+- Both ends build the 4-ABI release APKs on their **own** CI runner, not this
+  container (the local 4-ABI armeabi-v7a build limit is §9.6).
+
+### 10.5 Credentials & push gotchas
+
+- GitHub HTTPS push uses a PAT stored in `~/.git-credentials`
+  (`credential.helper = store`). Do not commit or echo it.
+- Pushing prints `fatal: unable to get credential storage lock in 1000 ms:
+  Read-only file system` — **benign**: the sandbox makes the store read-only so
+  git can't write a lock file, but the existing credential is still read and the
+  push succeeds. Judge by the exit code / the `-> develop` line, not the warning.
+- Local remote-tracking refs go stale. Always `git fetch <remote> --prune --tags`
+  first and verify with `git ls-remote --heads --tags <remote>` — e.g. the
+  `v3.4.8` tag already existed on Gitea before this session's sync, while local
+  `main` was still on the older head.
+
+### 10.6 Verify after sync
+
+```bash
+git diff --stat main develop    # must be empty (tree parity)
+git log --oneline develop..main # must be empty (main fully merged)
+git ls-remote --heads --tags origin  # develop == the sync merge commit, vX.Y.Z present
+```
 

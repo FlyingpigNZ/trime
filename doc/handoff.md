@@ -2,17 +2,25 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-09-24；`main = bd3f573c`——`8c5abc30` preedit 点击开关（新功能）+
-> `bd3f573c` versionName `3.4.8` / versionCode `20260924`；两者已 push `origin/main` 并打
-> annotated tag **`v3.4.8`** 触发 Release CI。worktree 无未提交的 tracked 改动（仅剩仓库
-> 既有未跟踪文件，见 §7）。
-> **⚠️ preedit 点击开关尚未真机冒烟**（本容器无设备，见 §0 首节）。
+> **最后更新于**：2026-09-28；`main = 1c82926e`（其后仅本 handoff 的文档提交）——`8c5abc30`
+> preedit 点击开关（新功能，**已真机冒烟**）+ `bd3f573c` versionName `3.4.8` / versionCode
+> `20260924`；两者已 push 并打 annotated tag **`v3.4.8`** 触发双端 Release CI。main 其后
+> 又前进到 `1c82926e`（`31cefd16`/`320097ac` 发布与同步记录、`26584bb2` Default.zip 指纹
+> gotcha，见 `doc/repo-knowledge.md` §6.1），已 push `origin_home/main`。worktree 无未提交
+> 的 tracked 改动（仅剩仓库既有未跟踪文件，见 §7）。
+> **已同步到 GitHub**：`develop` 已合并 `main`（sync 合并提交 `2cb9624b`，含 #29 L/M 字重
+> `5bfce781` / #30 custom-features `cac83423` 全部代码）并 push；tag `v3.4.8` 已 push 到
+> GitHub，触发 GitHub Release CI。双端 release 各 4 个 ABI APK。完整发布/同步流程见
+> `doc/repo-knowledge.md` §10。develop 当前落后 main 4 个纯文档提交（`320097ac`/`26584bb2`/
+> `95ae98d1`/`1c82926e`），随下次同步合入。
+> **真机待办清空**：preedit 点击开关冒烟已通过（2026-09-28 维护者确认，见 §0 首节）；
+> L/M 字重（分支 `feat/14key-key-text-size`）已合入 #29，本地与 `origin_home` 分支均已删。
 > 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
 > §0b（备份功能）、§1–§7（键盘背景）为历史记录。
 
 ## 0. 最新状态：preedit 点击开关（`v3.4.8`，已 push + 打 tag）
 
-### 新功能：preedit 点击开关（键盘样式）——`8c5abc30`，**未真机冒烟**
+### 新功能：preedit 点击开关（键盘样式）——`8c5abc30`，**已真机冒烟（2026-09-28 维护者确认）**
 - 动机：preedit 条本身是点击热区（点它把编码光标移到落点）。但它正是选字时的邻居：
   浮动候选窗里 `preeditUi.root` 就是候选行的定位参照物（候选行 `below(preeditUi.root)`），
   手指落点稍偏就打到它 → 光标被移走而不是选中候选。维护者要求「键盘样式」提供一个
@@ -36,8 +44,9 @@
   3. `TrimeInputMethodService.handleCursorUpdate` 里的 `moveCursorPos` 由宿主编辑器光标
      （文本域移动光标 / 硬件方向键）驱动，与 preedit 触摸无关，**故意不纳入**本开关。
 - 验证：`spotlessApply`/`spotlessCheck`、`:app:compileDebugKotlin`、全量
-  `:app:testDebugUnitTest`（167 用例，0 失败 0 跳过）全绿。**真机冒烟未做**（本容器无
-  设备）——冒烟时重点确认：关掉开关后点 preedit 既不移动光标、也不会误触下层。
+  `:app:testDebugUnitTest`（167 用例，0 失败 0 跳过）全绿。**真机冒烟已通过**
+  （2026-09-28 维护者确认）：关掉开关后点 preedit 既不移动光标、也不误触下层；
+  默认开时行为不变。
 - 发布：`versionName 3.4.8` / `versionCode 20260924`（`bd3f573c`），tag `v3.4.8` 打在 main
   顶端以触发 Release CI（`tags v*`）。
 
@@ -84,16 +93,29 @@
      即"系统杀进程提供机会 + 新子目录顶 mtime 提供理由"，缺一不可；该次部署本身空跑 2.9s。
   2. **重启 ≠ Deploy**：16:12–16:14 同一进程内服务 `onDestroy`→`onCreate` 三次、以及无 TRIGGER 的
      启动，均未部署。
-  3. **Default 跳回未编译未复现**：两次装包 + 多次重启期间 `marker == zip == bd31b4e8…` 始终
-     `up-to-date`；能作废它的只有 `shared/Default.zip` 字节变化（重打包 / 换 checkout）。
+  3. **Default 跳回未编译已复现并定性**：装新 build 时 `shared/Default.zip` 因**打包不可复现**换了
+     字节，`installBundledDefaultPackage` 作废了**非激活包** Default 的 marker，之后没有任何自动路径
+     重编它（详见下方新增第 5 条）。
   4. 内存（模拟器 x86_64 debug，万象14键 + gram，键盘隐藏）：RSS 275 MiB / PSS 137 MiB /
      peak 296 MiB / swap 0。其中 Rime 数据（gram+table+prism+userdb）常驻仅 **11.6 MiB**
      （gram 本身 3.4 MiB，401 MiB 只是地址空间），Rime 自己的 `librime_jni.so` 10.4 MiB，其余是
      ART/系统库；`Pss_Anon` 90.9 MiB 是内核收不走的地板。**全仓库无任何 `onTrimMemory` 实现**，
      trim 全档位（含 COMPLETE）只掉 ~6.8 MiB native 堆。结论：基线 ~275 MiB 与 gram 基本无关。
-- 结论（用户拍板）：**不修**——Deploy 只在系统杀进程时发生且空跑几秒，内存也接受（<300 MiB）。
+  5. **Default 跳未编译的复现与根因**（2026-09-24 18:34:33 作废 → 2026-09-25 09:21:38 手点编译，
+     持续 **14h43m**，跨两次设备重启）：装新 build 时 `shared/Default.zip` 的哈希由 `bd31b4e8…`
+     变成 `7bb9094a…`——**不是内容变了**（git 证明 `app/src/main/assets/shared/Default/` 在
+     `e98ae04b..HEAD` 零差异），而是 `script/package_schema.py` 用 `ZipFile.write` 打包，zip 条目的
+     `date_time` 取**源文件 mtime**，换工作树（fresh clone / CI / clean build）重新打包就换字节；
+     实测同内容只改 mtime → `bd31b4e88d9ac9f3` 变 `6db85ae535bdd9d0`（21 个条目只有 `date_time`
+     不同，CRC 与解压内容完全一致）。作废后 `ensureStartupWorkspaceReady` 只编激活包、
+     `ensureDefaultPackageReady` 在激活包已编译时提前 return、后续每次调用又被 `kept` 闸门挡掉
+     （`kept` **不能**补写 marker：解包 ≠ 部署）→ "未编译"粘住。已决定**不修**（影响仅一次手动重编），
+     细节与候选修法见 `doc/repo-knowledge.md` §6.1。
+- 结论（用户拍板）：**不修**——Deploy 只在系统杀进程时发生且空跑几秒，内存也接受（<300 MiB），
+  Default 跳未编译同样接受（见上第 5 条）。
   后续若要动，候选：marker 移出 `user_data_dir`、部署成功后主动补写 `last_build_time`、
-  用内容指纹替代 zip 字节指纹、实现 `onTrimMemory` 或在键盘隐藏时 `finalize()` 引擎。
+  用内容指纹替代 zip 字节指纹、让 `package_schema.py` 产出可复现 zip、实现 `onTrimMemory`
+  或在键盘隐藏时 `finalize()` 引擎。
 
 ### 已提交并 push `origin_home/main`：release-ci changelog base 回退（**仅 GitHub 分支**）
 - 问题：GitHub release body 长期为 “- no changes”（v3.4.4 / v3.4.5 / v3.4.7 均如此）。
@@ -117,13 +139,16 @@
 - 已知边界（已接受）：无候选（零候选回退原始输入）状态 Lua 改不到 raw；有候选
   时已用 context.input 兜底回填回显。
 
-### 新改动（未合）：单字符键 L/M 字重对齐（分支 `feat/14key-key-text-size`）
+### 新改动（已合入 #29）：单字符键 L/M 字重对齐（分支 `feat/14key-key-text-size` 已删）
 - 现象：键面 label 长度>1（Q W…）走 `key_long_text_size`(16)，单字符键（L、M）
   走 `key_text_size`(20)，导致 L/M 显得更大。
 - 修法（纯数据）：14jian 键盘 L/M 两键行内加 `key_text_size: 16`，与双字符键视觉
   一致；26键/英文键盘单字符键不受影响（各自行内无覆盖），app 无改动。
 - 链路：行内 `key_text_size` 经 TextKeyboard.TextKey.decode -> Key.keyTextSize ->
   KeyView.drawLabel 运行时生效（已确认）。
+- 状态（2026-09-28）：`5bfce781` 已合入 main（PR #29），已随 `2cb9624b` 同步
+  `origin/develop`；本地与 `origin_home` 的 `feat/14key-key-text-size` 分支均已
+  删除（Gitea 仅存 `main`）。
 
 ### 本会话完成（worktree diff 见 git status）
 - 动机落定：14键 折叠输出从「14 个代表字母」换成与 a–z 不相交的 ASCII 大写
@@ -186,7 +211,8 @@
   兼容输入所需），14键 AD 并集面板与引擎容忍语义的细微不对称见上条，接受。
 
 ### 下一步（待办）
-1. **preedit 点击开关的真机冒烟**（见 §0 首节；本容器无设备，尚未做）。
+1. ~~preedit 点击开关的真机冒烟~~：**2026-09-28 维护者确认通过**（关掉开关后点 preedit
+   不移动光标、不误触下层；默认开时行为不变）。
 2. ~~真机冒烟收尾（14键 token 试点）~~：**维护者 2026-09-24 确认剩余测试全部完成**
    （未逐项回报 `env.is_token14` / 26键 / 英文键盘 / T9 各子项结果，如需留档请补记），
    本节待办清空。
@@ -468,8 +494,6 @@ registry 访问均已移至 IO（lifecycleScope+Dispatchers.IO，刷新单飞取
 
 ## 7. 未纳入提交的无关工作区内容
 
-- `ACCESS_NETWORK_STATE-permission-investigation.md`（仓库根）：上一轮 `ACCESS_NETWORK_STATE`
-  权限排查留下的笔记，**未跟踪**，与本功能无关，**不要顺手 add/commit**（提交时用显式文件
-  清单）。
-- `app/src/androidTest/res/`、`sample_theme_schemas/backgrounds/`：仓库既有内容（已被
-  gitignore，不出现在 `git status`），与本功能无关，同样不要顺手 add/commit。
+- `tools/probe-context-reorder/`、`app/src/androidTest/res/`、
+  `sample_theme_schemas/backgrounds/`：仓库既有/排查产物内容，**未跟踪**，与当前功能无关，
+  **不要顺手 add/commit**（提交时用显式文件清单）。
