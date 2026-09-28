@@ -263,7 +263,7 @@ Data:
   j/q/x/y + bare `u` (`qu → qv`), mirroring the `/base/小鹤双拼` derivation.
   With `--flypy14` it additionally emits `flypy_14_code` (letter fold,
   `/14jian`) and `flypy_14_token` (uppercase-token fold, `/14jian-token`).
-- Uppercase-token 14键 试点 (uncommitted worktree, see `doc/handoff.md` §0):
+- Uppercase-token 14键 试点 (merged, #27/#28, see `doc/handoff.md` §0):
   the 14键 keyboard sends uppercase ASCII tokens QW→A … M→N; the schema folds
   dictionary spellings into the same token space via the `/14jian-token`
   preset in `wanxiang_algebra.yaml` (tagged with the Lua marker ⅳ), so typed
