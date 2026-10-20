@@ -22,6 +22,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
         android:name="android.permission.ACCESS_NETWORK_STATE"
         tools:node="remove" />
 
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name="com.osfans.trime.TrimeApplication"
         android:allowBackup="true"
