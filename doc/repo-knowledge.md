@@ -597,6 +597,10 @@ the second build is fast because the JNI cache persists in `app/build`.
 
 ### 9.6 assembleDebug 4-ABI 在本容器的限制（上游问题 + 单 ABI 绕过）
 
+> **已解决（2026-11）**：升级 librime-lua-deps 到 `9e5bb71d`（Lua 5.4.9）后，
+> arm64-v8a / armeabi-v7a / x86 / x86_64 四个 ABI 的 debug 与 release 都能在本机构建。
+> 下面保留为历史记录，`--offline` 单 ABI 的排查手法仍可用。
+
 - 完整 `:app:assembleDebug` 会失败在 32 位 `armeabi-v7a`：上游
   `librime/plugins/librime-lua/thirdparty/lua5.4/liolib.c` 在 NDK r28 报
   `fseeko/ftello` undeclared（32 位 bionic 需 `_LARGEFILE_SOURCE`）。这是**上游子模块**问题，
@@ -610,6 +614,19 @@ the second build is fast because the JNI cache persists in `app/build`.
   - `ANDROID_USER_HOME` 必须指向可写目录（默认 `/root/.android` 只读，签名会失败）；
   - 单 ABI 注入时 APK 落在 `app/build/intermediates/apk/debug/*-x86_64-debug.apk`
     （`outputs/apk/debug` 的 listing 是旧的），需要时自行 copy 到 outputs。
+
+### 9.7 原生引擎升级与本地发布签名（2026-10 上游）
+
+- **Boost 头文件是按库选择性解包的**：`app/src/main/jni/cmake/Boost.cmake` 只把
+  `BOOST_INCLUDE_LIBRARIES` 里列出的库的头拷进构建目录。上游 2026-10 的 librime 源码
+  引入 `boost/vmd/is_empty.hpp`，因此必须同时列出 `vmd` 与 `preprocessor`，否则编译报
+  `file not found`。Boost 本体可以继续停在 1.89，不必跟着上游升 1.92。
+- **release 变体不能离线构建**：`--offline` 只缓存了 debug 用到的 artifact；`assembleRelease`
+  会缺 splitties 等 AAR 的 release 变体，必须联网跑一次（debug 仍可 `--offline`）。
+- **发布签名**：仓库根的 `keystore.properties`（已 gitignore）由 `ProjectExtensions` 读取
+  `storeFile/storePassword/keyAlias/keyPassword`，仅在文件存在时才创建 release signingConfig；
+  本机指向 `~/Documents/.androidkeys.jks`，alias `trime`。证书 SHA-256 以 `eba1e3b0…` 开头，
+  出包后用 `apksigner verify --print-certs` 复核（v1+v2 scheme）。
 
 ---
 
