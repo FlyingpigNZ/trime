@@ -30,6 +30,8 @@ interface InputBroadcastReceiver {
 
     fun onInputStatusUpdate(value: StatusProto) {}
 
+    fun onEnterKeyLabelUpdate(label: String) {}
+
     fun onWindowAttached(window: BoardWindow) {}
 
     fun onWindowDetached(window: BoardWindow) {}

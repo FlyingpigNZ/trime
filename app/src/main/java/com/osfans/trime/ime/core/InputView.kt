@@ -76,16 +76,19 @@ class InputView(
 
     private val leftPaddingSpace =
         view(::View) {
+            isFocusable = false
             setOnClickListener(placeholderListener)
         }
 
     private val rightPaddingSpace =
         view(::View) {
+            isFocusable = false
             setOnClickListener(placeholderListener)
         }
 
     private val bottomPaddingSpace =
         view(::View) {
+            isFocusable = false
             setOnClickListener(placeholderListener)
         }
 
@@ -271,6 +274,7 @@ class InputView(
                 endToStartOf(rightPaddingSpace)
             }
         }
+        preedit.ui.root.setPadding(sidePadding, 0, sidePadding, 0)
         inputBar.view.setPadding(sidePadding, 0, sidePadding, 0)
     }
 

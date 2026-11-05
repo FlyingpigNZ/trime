@@ -198,7 +198,7 @@ class Keyboard(
             }
 
             val keys = selfConfig.keys
-            val keyboardKeyWidth = selfConfig.width
+            val keyboardKeyWidth = selfConfig.width.takeIf { it > 0f } ?: theme.generalStyle.keyWidth
 
             val maxColumns = if (selfConfig.columns == -1) Int.MAX_VALUE else selfConfig.columns
 
@@ -496,6 +496,11 @@ class Keyboard(
             }
         val keepOn = modifierKey?.setOn(on) ?: on
         return if (on) setModifier(keycode, keepOn) else setModifier(keycode, keyDown)
+    }
+
+    fun resetShift() {
+        mShiftKey?.setOn(false)
+        setModifier(KeyEvent.META_SHIFT_ON, false)
     }
 
     fun refreshModifier(): Boolean {
