@@ -2,9 +2,11 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-05；`main = 7a9ffb51`（本次 pull 到）。本次会话完成「键盘超宽
-> （按键画宽、右侧被裁）」修复并随 **v3.4.9**（`versionCode 20261105`）发布 —— 见新增 §0 首节。
-> **⚠️ 该修复的真机冒烟尚未做**（本容器无设备；维护者只装 release 版，故直接走 tag 发布后验）。
+> **最后更新于**：2026-11-05；`main = 206f4ae1`（已 push `origin`/Gitea），tag **`v3.4.9`**
+> 已 push 并在 Gitea 触发 Release CI。本次会话完成「键盘超宽（按键画宽、右侧被裁）」修复 ——
+> 见新增 §0 首节。
+> **⚠️ 该修复的真机冒烟由维护者在 release 版上进行（进行中）**：本容器无设备、也无 Gitea
+> token（`tea` 配置随容器层丢失），**查不到 CI 结果**，需维护者回报。
 > 更早（2026-09-28）：`main = 1c82926e`（其后仅本 handoff 的文档提交）——`8c5abc30`
 > preedit 点击开关（新功能，**已真机冒烟**）+ `bd3f573c` versionName `3.4.8` / versionCode
 > `20260924`；两者已 push 并打 annotated tag **`v3.4.8`** 触发双端 Release CI。main 其后
@@ -63,8 +65,16 @@
   **真机冒烟未做**（本容器无设备）：荣耀 WIN 上重启后唤起键盘应保持完整，日志里
   `source=container` 一行给出实测宽度、`source=estimate` 一行暴露估计值偏差。
 - 发布：`versionName 3.4.9` / `versionCode 20261105`（date-aligned、单调递增），
-  tag `v3.4.9` 打在 main 顶端以触发 Release CI（`tags v*`，Gitea 分支走本地 changelog +
-  API 上传 APK）。**维护者只装 release 版**，故本次直接走发布流程验真机。
+  tag `v3.4.9` 打在 main 顶端（`206f4ae1`）已 push `origin`/Gitea，触发 Release CI
+  （`tags v*`；Gitea 分支走本地 changelog + API 上传 4 ABI APK）。**维护者只装 release 版**，
+  故本次直接走发布流程验真机。
+  - 发布前本机预跑的门（对应本次提交）：`spotlessApply`/`spotlessCheck`、`:app:lintDebug`、
+    全量 `:app:testDebugUnitTest`、`assembleDebug`（arm64-v8a）。
+    `make style-lint` 的 clang-format 部分未跑（本容器无 clang-format 二进制），
+    但本次未触碰 `app/src/main/jni/librime_jni/`。
+  - **CI 结果本容器无法查询**：Gitea 仓库非公开，`tea` 需 token，而 token 配置在容器层
+    （非持久，见 `doc/repo-knowledge.md` §9.4）；只有 SSH key（`/ssh-keys/gitea-dsh-dev-docker`）
+    在持久卷上，故只能 push/tag、不能读 Actions API。若下次要盯 CI，需要把 token 放到持久卷。
 
 ## 0. 最新状态：preedit 点击开关（`v3.4.8`，已 push + 打 tag）
 
