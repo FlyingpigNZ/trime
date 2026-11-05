@@ -103,6 +103,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     private var cursorUpdateIndex = 0
 
     private val recreateInputViewPrefs: Array<PreferenceDelegate<*>> = arrayOf(
+        prefs.keyboard.expandKeypressArea,
         prefs.keyboard.hideInputBar,
         prefs.keyboard.heightScale,
         prefs.advanced.ignoreSystemGestureInsets,
@@ -237,6 +238,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         contentView.addView(newCandidatesView)
         inputDeviceManager.setCandidatesView(newCandidatesView)
         candidatesView = newCandidatesView
+        if (decorLocationUpdated) {
+            candidatesView?.updateCursorAnchor(anchorPosition, contentSize)
+        } else {
+            workaroundNullCursorAnchorInfo()
+        }
         return newCandidatesView
     }
 
@@ -566,6 +572,8 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     override fun onFinishInputView(finishingInput: Boolean) {
         Timber.d("onFinishInputView: finishingInput=$finishingInput")
         decorLocationUpdated = false
+        inputView?.dismissCandidateActionMenu()
+        candidatesView?.dismissCandidateActionMenu()
         inputDeviceManager.onFinishInputView()
         currentInputConnection?.apply {
             finishComposingText()

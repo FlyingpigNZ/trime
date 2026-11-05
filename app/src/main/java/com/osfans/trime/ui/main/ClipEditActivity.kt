@@ -46,7 +46,7 @@ class ClipEditActivity : Activity() {
                 clipEditOk.setOnClickListener { finishEditing() }
             }
         setContentView(binding.root)
-        inputMethodManager.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+        inputMethodManager.showSoftInput(editText, 0)
         restoring = savedInstanceState != null
         // User edits mark the text dirty; setBean suspends the flag so the
         // programmatic setText does not count as an edit, and restoring

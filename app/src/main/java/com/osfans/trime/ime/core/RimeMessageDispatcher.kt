@@ -8,6 +8,7 @@ package com.osfans.trime.ime.core
 import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.lifecycle.lifecycleScope
+import com.osfans.trime.core.KeyModifiers
 import com.osfans.trime.core.RimeKeyMapping
 import com.osfans.trime.core.RimeMessage
 import com.osfans.trime.data.schema.ImePackageManager
@@ -40,7 +41,20 @@ class RimeMessageDispatcher(
                 it.data.let msg@{
                     if (it.isVirtual) {
                         when (it.value.value) {
-                            RimeKeyMapping.RimeKey_Return -> editor.handleReturnKey()
+                            RimeKeyMapping.RimeKey_Return ->
+                                if (it.modifiers.isReturnChord()) {
+                                    editor.sendDownUpKeyEvent(
+                                        it.value.keyCode,
+                                        it.modifiers.toMetaState() or editor.meta(
+                                            alt = it.modifiers.alt,
+                                            shift = it.modifiers.shift,
+                                            ctrl = it.modifiers.ctrl,
+                                            meta = it.modifiers.meta,
+                                        ),
+                                    )
+                                } else {
+                                    editor.handleReturnKey()
+                                }
                             else -> {
                                 val keyCode = it.value.keyCode
                                 if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
@@ -110,3 +124,9 @@ class RimeMessageDispatcher(
         }
     }
 }
+
+/**
+ * A virtual Return carrying shift, control, alt, or meta is a key chord and is
+ * forwarded with the modifier keys. Caps Lock or Num Lock alone is not.
+ */
+internal fun KeyModifiers.isReturnChord(): Boolean = shift || ctrl || alt || meta

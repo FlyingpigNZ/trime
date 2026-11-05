@@ -70,6 +70,10 @@ class InputBroadcaster : InputBroadcastReceiver {
         receivers.forEach { it.onInputStatusUpdate(value) }
     }
 
+    override fun onEnterKeyLabelUpdate(label: String) {
+        receivers.forEach { it.onEnterKeyLabelUpdate(label) }
+    }
+
     override fun onWindowAttached(window: BoardWindow) {
         receivers.forEach { it.onWindowAttached(window) }
     }

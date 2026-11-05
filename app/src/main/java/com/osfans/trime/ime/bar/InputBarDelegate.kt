@@ -138,6 +138,9 @@ class InputBarDelegate : InputBroadcastReceiver {
 
     private val alwaysUi: AlwaysUi by lazy {
         AlwaysUi(context, theme) { action ->
+            // A touch that started on the toolbar can finish after candidates replace it.
+            // ViewAnimator keeps that touch target even when its child becomes GONE.
+            if (alwaysUi.currentState != AlwaysUi.State.Toolbar) return@AlwaysUi
             if (action.isNotEmpty()) {
                 commonKeyboardActionListener.listener.onAction(KeyActionManager.getAction(action))
             } else {

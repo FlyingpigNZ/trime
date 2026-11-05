@@ -450,6 +450,12 @@
           "maximum": 64,
           "default": 8
         },
+        "top_start_radius": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 48,
+          "default": 0.0
+        },
         "top_end_radius": {
           "type": "number",
           "minimum": 0.0,
@@ -640,6 +646,10 @@
           "type": "string",
           "default": "hilited_candidate_back_color"
         },
+        "hilited_key_border_color": {
+          "type": "string",
+          "default": "key_border_color"
+        },
         "hilited_key_text_color": {
           "type": "string",
           "default": "hilited_candidate_text_color"
@@ -652,17 +662,33 @@
           "type": "string",
           "default": "hilited_key_back_color"
         },
+        "hilited_off_key_border_color": {
+          "type": "string",
+          "default": "hilited_key_border_color"
+        },
         "hilited_on_key_back_color": {
           "type": "string",
           "default": "hilited_key_back_color"
+        },
+        "hilited_on_key_border_color": {
+          "type": "string",
+          "default": "hilited_key_border_color"
         },
         "hilited_off_key_text_color": {
           "type": "string",
           "default": "hilited_key_text_color"
         },
+        "hilited_off_key_symbol_color": {
+          "type": "string",
+          "default": "hilited_key_symbol_color"
+        },
         "hilited_on_key_text_color": {
           "type": "string",
           "default": "hilited_key_text_color"
+        },
+        "hilited_on_key_symbol_color": {
+          "type": "string",
+          "default": "hilited_key_symbol_color"
         },
         "key_back_color": {
           "type": "string",
@@ -688,17 +714,33 @@
           "type": "string",
           "default": "key_back_color"
         },
+        "off_key_border_color": {
+          "type": "string",
+          "default": "key_border_color"
+        },
         "off_key_text_color": {
           "type": "string",
           "default": "key_text_color"
+        },
+        "off_key_symbol_color": {
+          "type": "string",
+          "default": "key_symbol_color"
         },
         "on_key_back_color": {
           "type": "string",
           "default": "hilited_key_back_color"
         },
+        "on_key_border_color": {
+          "type": "string",
+          "default": "hilited_key_border_color"
+        },
         "on_key_text_color": {
           "type": "string",
           "default": "hilited_key_text_color"
+        },
+        "on_key_symbol_color": {
+          "type": "string",
+          "default": "hilited_key_symbol_color"
         },
         "preview_back_color": {
           "type": "string",

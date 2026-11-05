@@ -125,24 +125,12 @@ class ImeEditor(
 
     fun handleReturnKey() {
         val ic = service.inputConnection ?: return
-        service.inputEditorInfo.run {
-            if (inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_NULL ||
-                imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_ENTER_ACTION)
-            ) {
-                service.sendEnterKeyDownUp()
-                return
-            }
-            if (!actionLabel.isNullOrEmpty() && actionId != EditorInfo.IME_ACTION_UNSPECIFIED) {
-                ic.performEditorAction(actionId)
-                return
-            }
-            when (val action = imeOptions and EditorInfo.IME_MASK_ACTION) {
-                EditorInfo.IME_ACTION_UNSPECIFIED,
-                EditorInfo.IME_ACTION_NONE,
-                -> service.sendEnterKeyDownUp()
-
-                else -> ic.performEditorAction(action)
-            }
+        val info = service.inputEditorInfo
+        val action = EditorEnterAction.resolve(info.inputType, info.imeOptions, info.actionId, info.actionLabel)
+        if (action == null) {
+            service.sendEnterKeyDownUp()
+        } else {
+            ic.performEditorAction(action)
         }
     }
 

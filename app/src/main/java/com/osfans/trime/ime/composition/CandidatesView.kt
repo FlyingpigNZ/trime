@@ -8,6 +8,7 @@ package com.osfans.trime.ime.composition
 import android.annotation.SuppressLint
 import android.graphics.RectF
 import android.os.Build
+import android.view.View.MeasureSpec
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver.OnGlobalLayoutListener
@@ -279,6 +280,15 @@ class CandidatesView(
         super.onAttachedToWindow()
         viewTreeObserver.addOnGlobalLayoutListener(layoutListener)
         viewTreeObserver.addOnPreDrawListener(preDrawListener)
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        // Reserve SPACING on both horizontal sides, so the window stays within
+        // the screen edges when positioned by updatePosition()
+        val maxWidth = MeasureSpec.getSize(widthMeasureSpec) - dp(2 * SPACING).roundToInt()
+        val cappedWidthSpec = MeasureSpec.makeMeasureSpec(maxWidth, MeasureSpec.AT_MOST)
+        super.onMeasure(cappedWidthSpec, heightMeasureSpec)
+        setMeasuredDimension(measuredWidth.coerceAtMost(maxWidth), measuredHeight)
     }
 
     override fun onDetachedFromWindow() {

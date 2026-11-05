@@ -18,9 +18,7 @@ import com.mikepenz.iconics.IconicsDrawable
 import com.mikepenz.iconics.utils.sizeDp
 import com.osfans.trime.daemon.RimeSession
 import com.osfans.trime.data.prefs.AppPrefs
-import com.osfans.trime.data.theme.ColorManager
 import com.osfans.trime.data.theme.FontManager
-import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.popup.PopupAction
@@ -318,7 +316,7 @@ class KeyView(
 
         if (bg is GradientDrawable) {
             (k.roundCorner ?: keyboard.roundCorner).takeIf { it > 0f }?.let { bg.cornerRadius = dp(it) }
-            (k.keyBorder ?: keyboard.keyBorder).takeIf { it > 0 }?.let { bg.setStroke(dp(it), ColorManager.getColor(ThemeColor.KEY_BORDER_COLOR)) }
+            (k.keyBorder ?: keyboard.keyBorder).takeIf { it > 0 }?.let { bg.setStroke(dp(it), k.getBorderColor()) }
         }
 
         bg.setBounds(
@@ -333,7 +331,7 @@ class KeyView(
     private fun drawLabel(canvas: Canvas, label: String) {
         val textColor = key.getTextColor()
         val textSize =
-            sp(key.keyTextSize.takeIf { it > 0 } ?: if (label.length > 1) keyboardView.keyLongTextSize else keyboardView.keyTextSize) *
+            sp(key.keyTextSize.takeIf { it > 0 } ?: if (label.length > 1 && !label.isIconFont) keyboardView.keyLongTextSize else keyboardView.keyTextSize) *
                 keyboardView.heightScaleFactor
 
         if (label.isIconFont) {

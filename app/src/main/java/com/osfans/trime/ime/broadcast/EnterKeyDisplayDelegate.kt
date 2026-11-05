@@ -7,12 +7,13 @@ package com.osfans.trime.ime.broadcast
 
 import android.view.inputmethod.EditorInfo
 import com.osfans.trime.data.theme.Theme
+import com.osfans.trime.ime.core.EditorEnterAction
 import com.osfans.trime.ime.dependency.InputDependencyManager
 import org.kodein.di.instance
-import splitties.bitflags.hasFlag
 
 class EnterKeyDisplayDelegate {
     private val theme: Theme by InputDependencyManager.getInstance().di.instance()
+    private val broadcaster: InputBroadcaster by InputDependencyManager.getInstance().di.instance()
 
     companion object {
         const val DEFAULT_LABEL = "Enter"
@@ -30,57 +31,34 @@ class EnterKeyDisplayDelegate {
     var keyLabel: String = DEFAULT_LABEL
         private set
 
-    private var actionLabel: String = DEFAULT_LABEL
+    fun updateLabelOnEditorInfo(info: EditorInfo) {
+        updateLabel(info.inputType, info.imeOptions, info.actionId, info.actionLabel)
+    }
 
-    private fun labelFromEditorInfo(info: EditorInfo): String {
-        if (info.imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_ENTER_ACTION)) {
-            return theme.generalStyle.enterLabel.default
-        } else {
-            val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
-            val actionLabel = info.actionLabel
-            when (mode) {
-                Mode.ACTION_LABEL_ONLY -> {
-                    // actionLabel is nullable; toString() on null would render
-                    // the literal "null" on the enter key.
-                    return actionLabel?.toString() ?: theme.generalStyle.enterLabel.default
-                }
-                Mode.ACTION_LABEL_PREFERRED -> {
-                    return if (!actionLabel.isNullOrEmpty()) {
-                        actionLabel.toString()
-                    } else {
-                        theme.generalStyle.enterLabel.default
-                    }
-                }
-                Mode.CUSTOM_PREFERRED,
-                Mode.ACTION_LABEL_NEVER,
-                -> {
-                    return when (action) {
-                        EditorInfo.IME_ACTION_DONE -> theme.generalStyle.enterLabel.done
-                        EditorInfo.IME_ACTION_GO -> theme.generalStyle.enterLabel.go
-                        EditorInfo.IME_ACTION_NEXT -> theme.generalStyle.enterLabel.next
-                        EditorInfo.IME_ACTION_PREVIOUS -> theme.generalStyle.enterLabel.pre
-                        EditorInfo.IME_ACTION_SEARCH -> theme.generalStyle.enterLabel.search
-                        EditorInfo.IME_ACTION_SEND -> theme.generalStyle.enterLabel.send
-                        else -> {
-                            if (mode == Mode.ACTION_LABEL_NEVER) {
-                                theme.generalStyle.enterLabel.default
-                            } else {
-                                if (!actionLabel.isNullOrEmpty()) {
-                                    actionLabel.toString()
-                                } else {
-                                    theme.generalStyle.enterLabel.default
-                                }
-                            }
-                        }
+    /** Updates the visible text before notifying listeners, without repeating unchanged labels. */
+    internal fun updateLabel(
+        inputType: Int,
+        imeOptions: Int,
+        actionId: Int,
+        actionLabel: CharSequence?,
+    ) {
+        val action = EditorEnterAction.resolve(inputType, imeOptions, actionId, actionLabel)
+        val label =
+            EditorEnterAction.label(action, actionLabel, mode.ordinal, theme.generalStyle.enterLabel.default) { themeAction ->
+                with(theme.generalStyle.enterLabel) {
+                    when (themeAction) {
+                        EditorInfo.IME_ACTION_DONE -> done
+                        EditorInfo.IME_ACTION_GO -> go
+                        EditorInfo.IME_ACTION_NEXT -> next
+                        EditorInfo.IME_ACTION_PREVIOUS -> pre
+                        EditorInfo.IME_ACTION_SEARCH -> search
+                        EditorInfo.IME_ACTION_SEND -> send
+                        else -> null
                     }
                 }
             }
-        }
-    }
-
-    fun updateLabelOnEditorInfo(info: EditorInfo) {
-        actionLabel = labelFromEditorInfo(info)
-        if (keyLabel == actionLabel) return
-        keyLabel = actionLabel
+        if (keyLabel == label) return
+        keyLabel = label
+        broadcaster.onEnterKeyLabelUpdate(label)
     }
 }
