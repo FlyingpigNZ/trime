@@ -15,7 +15,6 @@ import splitties.dimensions.dp
 import splitties.resources.drawable
 import splitties.views.dsl.constraintlayout.after
 import splitties.views.dsl.constraintlayout.before
-import splitties.views.dsl.constraintlayout.centerInParent
 import splitties.views.dsl.constraintlayout.centerVertically
 import splitties.views.dsl.constraintlayout.constraintLayout
 import splitties.views.dsl.constraintlayout.endOfParent
@@ -76,6 +75,7 @@ class ClipboardSuggestionUi(
                     after(icon, spacing)
                     before(dismiss)
                     centerVertically()
+                    constrainedWidth = true
                 },
             )
             add(
@@ -89,7 +89,7 @@ class ClipboardSuggestionUi(
         }
 
     val suggestionView = GestureFrame(ctx).apply {
-        add(layout, lParams(wrapContent, matchParent))
+        add(layout, lParams(matchParent, matchParent))
         background = rippleDrawable(ColorManager.getColor(ThemeColor.HILITED_CANDIDATE_BACK_COLOR))
     }
 
@@ -98,8 +98,11 @@ class ClipboardSuggestionUi(
             add(
                 suggestionView,
                 lParams(wrapContent, matchConstraints) {
-                    centerInParent()
+                    startOfParent()
+                    endOfParent()
+                    centerVertically()
                     verticalMargin = dp(4)
+                    constrainedWidth = true
                 },
             )
         }
