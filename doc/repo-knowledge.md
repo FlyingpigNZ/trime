@@ -194,6 +194,14 @@ clipped the rightmost ~1.5 columns of a 10-key row. The old guard only rescued
 an estimate that was *narrower* than the display, so an over-wide one went
 straight through. Container measurement corrected it within 114ms.
 
+The estimate is deliberately **not** clamped to the display width: it stays a
+pure windowing-system reading, because `displayMetrics` can itself be stale or
+describe another display (external screens, virtual resolutions, a rotation
+that has not settled). Clamping would trade an over-wide first frame for an
+under-wide one with no visible benefit — the container measurement is
+authoritative and corrects either case. Decided 2026-11-05; upstream
+`99f230348b` does not clamp either.
+
 Each applied width is written to the persistent diagnostics log (tag
 `keyboard`), which makes a container/estimate mismatch directly visible:
 `layout width=…px source=container|estimate measured=… estimate=… display=… landscape=…`.
