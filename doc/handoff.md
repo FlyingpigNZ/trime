@@ -66,8 +66,25 @@
   `./script/clang-format.sh -n` 本容器无 clang-format 未跑，但本次未触碰
   `app/src/main/jni/librime_jni/`，该门在 CI 上等价空跑。
 - **真机冒烟已通过**（2026-11-05 维护者回报：装 v3.4.9 release、重启手机后唤起键盘，
-  键盘完整、右侧按键不再被裁 —— 即原复现路径已消失）。仍建议下次复现时顺手导出
-  tag `keyboard` 的日志行，把"旧代码读到的偏大值"落成数字（当前仍属推断未实测）。
+  键盘完整、右侧按键不再被裁 —— 即原复现路径已消失）。
+- **实测数值（2026-11-05 维护者导出日志，荣耀 WIN 竖屏）** —— 根因由推断变实测：
+  ```
+  14:15:10.468 keyboard: layout width=1256px source=estimate measured=0px    estimate=1256px display=1080px landscape=false
+  14:15:10.546 keyboard: layout width=1256px source=estimate measured=0px    estimate=1256px display=1080px landscape=false
+  14:15:10.582 keyboard: layout width=1064px source=container measured=1064px estimate=1256px display=1080px landscape=false
+  ```
+  - `display=1080`（app 自身配置）而估计值 1256 → 反推 `maximumWindowMetrics`−insets = **1272**：
+    这块屏上"最大窗口"比该屏实际宽 **多 192px**（疑似 1.5K 面板 1272 档 vs 系统按 1080 档运行 /
+    智能分辨率口径差异）。
+  - 实测容器宽 **1064** = `1080 − 2×8`（theme 每侧 8px `keyboard_padding`）→ **displayMetrics
+    在这块屏上才是对的估计源**，最大窗口度量是唯一的错误来源。
+  - 旧守卫 `isPortrait && windowWidth < displayWidth − 1dp` 只兜"偏小"，对这次"偏大"不设防
+    （1256 > 1080 → 走 windowWidth 分支）→ 旧 `allowedWidth=1256` 而非 1064 →
+    **键宽 +18.0%**（1256/1064）；一行 10 键时可见约 **8.5/10** 键，最右约 **1.5 列**被裁。
+  - 新代码在 **114 ms 内**（.468 → .582）就用实测值接管，故用户侧不可见。
+  - 可选后续（**未做**，等维护者拍板是否再出一次 release）：给估计值也加上限夹紧
+    `min(度量值, displayMetrics.widthPixels)` —— IME 窗口不可能宽于它所在的那块屏，本机首个
+    estimate 会从 1256 变 1064。上游 `99f230348b` 未做这个夹紧（其守卫只处理偏小）。
 - 发布：`versionName 3.4.9` / `versionCode 20261105`（date-aligned、单调递增），
   tag `v3.4.9` 打在 main 顶端（`206f4ae1`）已 push `origin`/Gitea，触发 Release CI
   （`tags v*`；Gitea 分支走本地 changelog + API 上传 4 ABI APK）。**维护者只装 release 版**，

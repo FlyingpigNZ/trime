@@ -185,6 +185,15 @@ container measurement authoritative; this fork ports that design onto its
 pre-layout estimate (`KeyboardWindow.estimateKeyboardWidth()`, stale-inset guard
 in `KeyboardWidth.kt`) and as the padding choice.
 
+Measured on the maintainer's device (Honor WIN, portrait, 2026-11-05): the
+metrics estimate was 1256px while the display was 1080px wide and the real
+keyboard container 1064px (= display − 2×8px padding) — a 192px over-read
+(the underlying `maximumWindowMetrics` said 1272, likely the panel's 1.5K mode
+while the system ran the 1080 mode) that laid every key out 18% too wide and
+clipped the rightmost ~1.5 columns of a 10-key row. The old guard only rescued
+an estimate that was *narrower* than the display, so an over-wide one went
+straight through. Container measurement corrected it within 114ms.
+
 Each applied width is written to the persistent diagnostics log (tag
 `keyboard`), which makes a container/estimate mismatch directly visible:
 `layout width=…px source=container|estimate measured=… estimate=… display=… landscape=…`.
