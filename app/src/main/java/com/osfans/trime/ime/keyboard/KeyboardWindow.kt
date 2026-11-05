@@ -356,6 +356,10 @@ class KeyboardWindow :
         currentKeyboardView?.invalidateAllKeys()
     }
 
+    override fun onEnterKeyLabelUpdate(label: String) {
+        cachedKeyboardViews.values.forEach { it.invalidateAllKeys() }
+    }
+
     override fun onAttached() {
         // The window's view is cached and reused across attach/detach cycles
         // (e.g. the unrolled candidate window replaces the keyboard window, and
