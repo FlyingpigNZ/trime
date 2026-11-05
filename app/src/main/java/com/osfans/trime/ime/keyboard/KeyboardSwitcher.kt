@@ -43,6 +43,27 @@ class KeyboardSwitcher(
     private val keyboards = mutableMapOf<String, Keyboard>()
 
     /**
+     * Width (px) the cached [Keyboard]s lay their rows out on. Supplied by
+     * [KeyboardWindow] — the measured container first, the windowing-system
+     * estimate only until the container has been laid out.
+     */
+    var allowedWidth: Int = 0
+        private set
+
+    /**
+     * Set the layout width every [Keyboard] is built with. A changed width
+     * invalidates the cache, because each cached layout has the previous width
+     * baked into its key geometry; returns whether that happened (i.e. whether
+     * the caller must re-attach the rebuilt keyboard).
+     */
+    fun updateAllowedWidth(width: Int): Boolean {
+        if (width <= 0 || width == allowedWidth) return false
+        allowedWidth = width
+        invalidateKeyboardCache()
+        return true
+    }
+
+    /**
      * Remembered ascii-mode per keyboard id, carried across
      * [invalidateKeyboardCache]: the orientation rebuild detaches the current
      * keyboard (saving `lastAsciiMode` onto the old [Keyboard]) before the
@@ -57,7 +78,7 @@ class KeyboardSwitcher(
     private fun selectKeyboardConfig(name: String): TextKeyboard? = theme.presetKeyboards[name] ?: theme.presetKeyboards["default"]
 
     private fun getOrCreateKeyboard(id: String): Keyboard = keyboards.getOrPut(id) {
-        Keyboard(context, theme, selectKeyboardConfig(id), rime).also {
+        Keyboard(context, theme, allowedWidth, selectKeyboardConfig(id), rime).also {
             it.lastAsciiMode = savedAsciiModes[id] ?: it.asciiMode
         }
     }

@@ -164,6 +164,31 @@ rebuilding a theme rebuilds the DI graph.
 tongwenfeng-style toolbar (`button_spacing`, `button_font`,
 `primary_button`, `buttons`).
 
+### Keyboard layout width is measured, not guessed
+
+`Keyboard` no longer reads its layout width from the windowing system: it takes
+`allowedWidth` as a constructor parameter, and `KeyboardWindow` supplies it from
+the container the keyboard is drawn into (`keyboard_view`, measured through an
+`OnLayoutChangeListener`), rebuilding the `Keyboard` and `KeyboardView` caches
+together whenever that width changes.
+
+Why: `getMaximumWindowMetrics()` reports the largest window the app may be
+given, and a context without a window (a service) resolves it through the
+*default* display, so the value can exceed the IME window — every key is then
+laid out proportionally too wide and the right-hand keys are clipped away.
+Because the width used to be snapshotted when the `Keyboard` was constructed and
+cached per keyboard id, a single bad reading stuck until a rotation. Upstream
+fixed the same class of bug in `99f230348b` ("the keyboard can utilize the
+maximum available width when in landscape mode", issue #2129) by making the
+container measurement authoritative; this fork ports that design onto its
+`KeyboardSwitcher` architecture. The metrics reading survives only as a
+pre-layout estimate (`KeyboardWindow.estimateKeyboardWidth()`, stale-inset guard
+in `KeyboardWidth.kt`) and as the padding choice.
+
+Each applied width is written to the persistent diagnostics log (tag
+`keyboard`), which makes a container/estimate mismatch directly visible:
+`layout width=…px source=container|estimate measured=… estimate=… display=… landscape=…`.
+
 ---
 
 ## 4. Schema (Rime scheme) reading at runtime
@@ -433,6 +458,8 @@ Toolbar / theme:
 
 Input / T9:
 - `ime/keyboard/{Keyboard,KeyboardView,KeyboardSwitcher,KeyboardWindow,KeyView}.kt`
+- `ime/keyboard/KeyboardWidth.kt` (pure layout-width decisions + tests
+  `KeyboardWidthTest.kt`; see "Keyboard layout width is measured, not guessed")
 - `ime/composition/{CandidatesView,PreeditUi}.kt`
 - `ime/candidates/compact/{CompactCandidateDelegate,CompactCandidateViewAdapter}.kt`
 - `ime/symbol/{LiquidWindow,LiquidData}.kt` (the send-to-Rime pattern to copy)
