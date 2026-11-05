@@ -331,7 +331,7 @@ class KeyView(
     private fun drawLabel(canvas: Canvas, label: String) {
         val textColor = key.getTextColor()
         val textSize =
-            sp(key.keyTextSize.takeIf { it > 0 } ?: if (label.length > 1) keyboardView.keyLongTextSize else keyboardView.keyTextSize) *
+            sp(key.keyTextSize.takeIf { it > 0 } ?: if (label.length > 1 && !label.isIconFont) keyboardView.keyLongTextSize else keyboardView.keyTextSize) *
                 keyboardView.heightScaleFactor
 
         if (label.isIconFont) {
