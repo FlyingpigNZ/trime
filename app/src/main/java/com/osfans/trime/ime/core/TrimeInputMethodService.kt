@@ -103,6 +103,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     private var cursorUpdateIndex = 0
 
     private val recreateInputViewPrefs: Array<PreferenceDelegate<*>> = arrayOf(
+        prefs.keyboard.expandKeypressArea,
         prefs.keyboard.hideInputBar,
         prefs.keyboard.heightScale,
         prefs.advanced.ignoreSystemGestureInsets,
