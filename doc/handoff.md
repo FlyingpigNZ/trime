@@ -5,9 +5,11 @@
 > **最后更新于**：2026-11-05；`main = b73d2696`（已 push `origin`/Gitea），tag **`v3.4.9`**
 > 已 push 并在 Gitea 触发 Release CI，**release 已出且真机冒烟通过**（维护者：装 v3.4.9
 > release 后重启，键盘完整、右侧不再被裁）——见新增 §0 首节。
-> **⚠️ 待办：GitHub 端尚未同步**（§10 步骤 3–4：merge main → `develop`、推 `develop`、再推
-> tag `v3.4.9`）。本容器**没有 GitHub PAT**（`~/.git-credentials` 在非持久层，已随容器重建
-> 丢失），只能 push Gitea（SSH key 在持久卷 `/ssh-keys/`），故该步骤需维护者执行或先补凭证。
+> **GitHub 端同步：维护者 2026-11-05 拍板暂不做** —— v3.4.9 只在 Gitea 发 release，GitHub
+> `develop` 仍停在上次同步点。将来要同步时按 `doc/repo-knowledge.md` §10 步骤 3–4 补做
+> （`git merge main` 到 `develop` → 推 `develop` → 再推 tag `v3.4.9`）。注意本容器**没有
+> GitHub PAT**（`~/.git-credentials` 在非持久层，已随容器重建丢失），只能 push Gitea
+> （SSH key 在持久卷 `/ssh-keys/`）。
 > 更早（2026-09-28）：`main = 1c82926e`（其后仅本 handoff 的文档提交）——`8c5abc30`
 > preedit 点击开关（新功能，**已真机冒烟**）+ `bd3f573c` versionName `3.4.8` / versionCode
 > `20260924`；两者已 push 并打 annotated tag **`v3.4.8`** 触发双端 Release CI。main 其后
@@ -77,10 +79,10 @@
   - **CI 结果本容器无法查询**：Gitea 仓库非公开，`tea` 需 token，而 token 配置在容器层
     （非持久，见 `doc/repo-knowledge.md` §9.4）；只有 SSH key（`/ssh-keys/gitea-dsh-dev-docker`）
     在持久卷上，故只能 push/tag、不能读 Actions API。若下次要盯 CI，需要把 token 放到持久卷。
-  - **待办**：`doc/repo-knowledge.md` §10 步骤 3–4 的 GitHub 端同步（在 `develop` 上
-    `git merge main` → 推 `develop` → 再推 tag `v3.4.9` 触发 GitHub Release CI）。
-    本容器无 GitHub PAT（`github` remote 是 HTTPS，需 `~/.git-credentials`），
-    只能由维护者执行或先把 PAT 放进持久卷。
+  - **GitHub 端同步：维护者 2026-11-05 拍板暂不做**（v3.4.9 只发 Gitea）。将来要做时按
+    `doc/repo-knowledge.md` §10 步骤 3–4：在 `develop` 上 `git merge main` → 推 `develop`
+    → 再推 tag `v3.4.9`（顺序不能反，否则 GitHub changelog 为空）。本容器无 GitHub PAT
+    （`github` remote 是 HTTPS，需 `~/.git-credentials`），该步骤需维护者执行或先补凭证。
 
 ## 0. 最新状态：preedit 点击开关（`v3.4.8`，已 push + 打 tag）
 
