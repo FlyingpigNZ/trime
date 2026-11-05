@@ -2,14 +2,15 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-05；`main = b73d2696`（已 push `origin`/Gitea），tag **`v3.4.9`**
-> 已 push 并在 Gitea 触发 Release CI，**release 已出且真机冒烟通过**（维护者：装 v3.4.9
-> release 后重启，键盘完整、右侧不再被裁）——见新增 §0 首节。
-> **GitHub 端同步：维护者 2026-11-05 拍板暂不做** —— v3.4.9 只在 Gitea 发 release，GitHub
-> `develop` 仍停在上次同步点。将来要同步时按 `doc/repo-knowledge.md` §10 步骤 3–4 补做
-> （`git merge main` 到 `develop` → 推 `develop` → 再推 tag `v3.4.9`）。注意本容器**没有
-> GitHub PAT**（`~/.git-credentials` 在非持久层，已随容器重建丢失），只能 push Gitea
-> （SSH key 在持久卷 `/ssh-keys/`）。
+> **最后更新于**：2026-11-05（本会话补记 GitHub 同步）；`main` 已 push Gitea，tag
+> **`v3.4.9`**（target `206f4ae1`）已 push 双端，Gitea release 已出且真机冒烟通过
+> （维护者：装 v3.4.9 release 后重启，键盘完整、右侧不再被裁）——见 §0 首节。
+> **GitHub 端已同步**：`develop` 合并 main（sync 提交 `72af023b`，`git diff main develop` 为空）
+> 并 push；`v3.4.9` tag 已推 GitHub，Release CI 成功，release 带 4 个 ABI APK：
+> https://github.com/FlyingpigNZ/trime/releases/tag/v3.4.9
+> （`d6ea981e` 的 base 回退生效：body 为 v3.4.8→v3.4.9，非 “- no changes”）。
+> 注：GitHub PAT 在本会话的 `~/.git-credentials` 中可用（push 时的
+> `fatal: unable to get credential storage lock` 是沙箱只读导致的无害告警，exit 0）。
 > 更早（2026-09-28）：`main = 1c82926e`（其后仅本 handoff 的文档提交）——`8c5abc30`
 > preedit 点击开关（新功能，**已真机冒烟**）+ `bd3f573c` versionName `3.4.8` / versionCode
 > `20260924`；两者已 push 并打 annotated tag **`v3.4.8`** 触发双端 Release CI。main 其后
@@ -25,7 +26,7 @@
 > 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
 > §0b（备份功能）、§1–§7（键盘背景）为历史记录。
 
-## 0. 最新状态：键盘超宽（按键画宽、右侧被裁）修复（**未提交**）
+## 0. 最新状态：键盘超宽（按键画宽、右侧被裁）修复（**已提交 `09eb7c3a`，随 v3.4.9 发布**）
 
 ### 现象与根因：键宽取自「窗口度量估计」并被一次性缓存
 - 现象（维护者 2026-11-05 报，荣耀 WIN 直板机竖屏）：**重启后**首次唤起键盘，整体超宽、
