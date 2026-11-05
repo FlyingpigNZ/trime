@@ -4,8 +4,11 @@
 
 package com.osfans.trime.ime.keyboard
 
+import android.graphics.Point
+import android.os.Build
 import android.text.InputType
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
@@ -21,14 +24,19 @@ import com.osfans.trime.ime.broadcast.EnterKeyDisplayDelegate
 import com.osfans.trime.ime.broadcast.InputBroadcastReceiver
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.disambiguation.PinyinDisambiguationController
+import com.osfans.trime.ime.keyboard.KeyboardPrefs.isLandscapeMode
 import com.osfans.trime.ime.popup.PopupDelegate
 import com.osfans.trime.ime.window.BoardWindow
 import com.osfans.trime.ime.window.ResidentWindow
+import com.osfans.trime.util.DiagnosticLog
+import com.osfans.trime.util.isLandscape
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.runBlocking
 import org.kodein.di.instance
+import splitties.dimensions.dp
+import splitties.systemservices.windowManager
 import splitties.views.dsl.core.add
 import splitties.views.dsl.core.frameLayout
 import splitties.views.dsl.core.lParams
@@ -71,12 +79,55 @@ class KeyboardWindow :
 
     private lateinit var keyboardView: FrameLayout
 
-    companion object : ResidentWindow.Key
+    companion object : ResidentWindow.Key {
+        private const val TAG = "keyboard"
+
+        /**
+         * Tolerance (dp) of [resolveWindowMetricsWidth]: a window-metrics width
+         * narrower than the display by more than this is treated as having
+         * stale insets rather than being believed.
+         */
+        private const val INSET_TOLERANCE_DP = 1
+    }
 
     override val key: ResidentWindow.Key
         get() = KeyboardWindow
 
     private val cachedKeyboardViews = mutableMapOf<String, KeyboardView>()
+
+    /**
+     * Width (px) of the container the keyboard is drawn into, as measured by
+     * the last layout pass, together with the orientation it was measured in —
+     * see [resolveKeyboardWidth]. Both are reset on a configuration change,
+     * because a width measured in the other orientation describes the previous
+     * layout.
+     */
+    private var measuredContainerWidth = 0
+    private var measuredInLandscape: Boolean? = null
+
+    /** The device orientation, independent of the landscape-mode preference. */
+    private val isLandscapeOrientation: Boolean
+        get() = context.resources.configuration.isLandscape()
+
+    /**
+     * Tracks the container's real width. The keys are drawn into this view, so
+     * its width is the authoritative layout width: re-deriving it on every
+     * change is what keeps a width read while the window was still settling
+     * (e.g. right after boot) from sticking to the layout forever.
+     */
+    private val onContainerLayoutChange =
+        View.OnLayoutChangeListener { v, left, _, right, _, _, _, _, _ ->
+            val width = right - left
+            val landscape = isLandscapeOrientation
+            if (width <= 0 || (width == measuredContainerWidth && landscape == measuredInLandscape)) {
+                return@OnLayoutChangeListener
+            }
+            measuredContainerWidth = width
+            measuredInLandscape = landscape
+            // Rebuilding the view tree from inside a layout pass would recurse.
+            v.post { rebuildKeyboards() }
+        }
+
     private val currentKeyboard: Keyboard? get() = switcher.currentKeyboard
     private val currentKeyboardView: KeyboardView? get() = cachedKeyboardViews[switcher.currentKeyboardId]
 
@@ -94,6 +145,8 @@ class KeyboardWindow :
 
     override fun onCreateView(): View {
         keyboardView = context.frameLayout(R.id.keyboard_view)
+        keyboardView.addOnLayoutChangeListener(onContainerLayoutChange)
+        applyKeyboardWidth()
         attachKeyboard(switcher.resolveKeyboard(".default"))
         return keyboardView
     }
@@ -113,10 +166,74 @@ class KeyboardWindow :
      * target is re-resolved so landscape variants are picked up both ways.
      */
     fun onConfigurationChanged() {
+        // The measurement describes the previous orientation.
+        measuredContainerWidth = 0
+        measuredInLandscape = null
+        rebuildKeyboards()
+    }
+
+    /**
+     * Rebuild every keyboard for the current layout width: cached [Keyboard]
+     * models have the width they were built with baked into their key
+     * geometry, and cached [KeyboardView]s their key bounds, so both caches
+     * must be dropped together. The target is re-resolved so a changed
+     * orientation also re-picks the landscape variants.
+     */
+    private fun rebuildKeyboards() {
         detachCurrentView()
         cachedKeyboardViews.clear()
         switcher.invalidateKeyboardCache()
+        applyKeyboardWidth()
         attachKeyboard(switcher.currentKeyboardId.ifEmpty { ".default" })
+    }
+
+    /**
+     * Resolve the width the keys are laid out on and hand it to the switcher,
+     * which drops the cached keyboards when it changed. The choice is logged:
+     * a container width and an estimate that disagree is exactly the condition
+     * that draws every key wider than the surface it is drawn on.
+     */
+    private fun applyKeyboardWidth() {
+        val landscape = isLandscapeOrientation
+        val estimate = estimateKeyboardWidth()
+        val width = resolveKeyboardWidth(measuredContainerWidth, measuredInLandscape, landscape, estimate)
+        if (switcher.updateAllowedWidth(width)) {
+            val source = if (measuredContainerWidth > 0 && measuredInLandscape == landscape) "container" else "estimate"
+            DiagnosticLog.i(
+                TAG,
+                "layout width=${width}px source=$source measured=${measuredContainerWidth}px " +
+                    "estimate=${estimate}px display=${context.resources.displayMetrics.widthPixels}px landscape=$landscape",
+            )
+        }
+    }
+
+    /**
+     * Width estimate from the windowing system, used only until the container
+     * has been laid out once (this is what [Keyboard] used to read directly).
+     * See [resolveWindowMetricsWidth] for the stale-inset guard.
+     */
+    private fun estimateKeyboardWidth(): Int {
+        val padding = theme.generalStyle.run {
+            if (context.isLandscapeMode()) keyboardPaddingLand else keyboardPadding
+        }
+        val safeWidth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val windowMetrics = context.windowManager.maximumWindowMetrics
+            val insets = windowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout(),
+            )
+            resolveWindowMetricsWidth(
+                windowWidth = windowMetrics.bounds.width() - insets.left - insets.right,
+                displayWidth = context.resources.displayMetrics.widthPixels,
+                tolerancePx = context.dp(INSET_TOLERANCE_DP),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            val size = Point()
+            @Suppress("DEPRECATION")
+            context.windowManager.defaultDisplay.getSize(size)
+            size.x
+        }
+        return safeWidth - 2 * context.dp(padding)
     }
 
     private fun attachKeyboard(target: String) {

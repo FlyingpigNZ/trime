@@ -2,12 +2,19 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-09-28；`main = 1c82926e`（其后仅本 handoff 的文档提交）——`8c5abc30`
+> **最后更新于**：2026-11-05；`main = b73d2696`（已 push `origin`/Gitea），tag **`v3.4.9`**
+> 已 push 并在 Gitea 触发 Release CI，**release 已出且真机冒烟通过**（维护者：装 v3.4.9
+> release 后重启，键盘完整、右侧不再被裁）——见新增 §0 首节。
+> **GitHub 端同步：维护者 2026-11-05 拍板暂不做** —— v3.4.9 只在 Gitea 发 release，GitHub
+> `develop` 仍停在上次同步点。将来要同步时按 `doc/repo-knowledge.md` §10 步骤 3–4 补做
+> （`git merge main` 到 `develop` → 推 `develop` → 再推 tag `v3.4.9`）。注意本容器**没有
+> GitHub PAT**（`~/.git-credentials` 在非持久层，已随容器重建丢失），只能 push Gitea
+> （SSH key 在持久卷 `/ssh-keys/`）。
+> 更早（2026-09-28）：`main = 1c82926e`（其后仅本 handoff 的文档提交）——`8c5abc30`
 > preedit 点击开关（新功能，**已真机冒烟**）+ `bd3f573c` versionName `3.4.8` / versionCode
 > `20260924`；两者已 push 并打 annotated tag **`v3.4.8`** 触发双端 Release CI。main 其后
 > 又前进到 `1c82926e`（`31cefd16`/`320097ac` 发布与同步记录、`26584bb2` Default.zip 指纹
-> gotcha，见 `doc/repo-knowledge.md` §6.1），已 push `origin_home/main`。worktree 无未提交
-> 的 tracked 改动（仅剩仓库既有未跟踪文件，见 §7）。
+> gotcha，见 `doc/repo-knowledge.md` §6.1），已 push `origin_home/main`。
 > **已同步到 GitHub**：`develop` 已合并 `main`（sync 合并提交 `2cb9624b`，含 #29 L/M 字重
 > `5bfce781` / #30 custom-features `cac83423` 全部代码）并 push；tag `v3.4.8` 已 push 到
 > GitHub，触发 GitHub Release CI。双端 release 各 4 个 ABI APK。完整发布/同步流程见
@@ -17,6 +24,84 @@
 > L/M 字重（分支 `feat/14key-key-text-size`）已合入 #29，本地与 `origin_home` 分支均已删。
 > 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
 > §0b（备份功能）、§1–§7（键盘背景）为历史记录。
+
+## 0. 最新状态：键盘超宽（按键画宽、右侧被裁）修复（**未提交**）
+
+### 现象与根因：键宽取自「窗口度量估计」并被一次性缓存
+- 现象（维护者 2026-11-05 报，荣耀 WIN 直板机竖屏）：**重启后**首次唤起键盘，整体超宽、
+  所有按键等比例变宽、右侧按键被画布裁掉；切一次横竖屏即恢复正常。
+- 链路：`Keyboard.allowedWidth`（原为 getter）用 `windowManager.maximumWindowMetrics`
+  减 insets 推算，仅 `isPortrait && windowWidth < displayWidth - 1dp` 时回退 `displayMetrics`
+  （`fc450aaf`，即上游 PR #1978 引入）。**该值是"App 能拿到的最大窗口"，不是本窗口宽度**；
+  且服务型 context 没有自己的窗口，`getMaximumWindowMetrics()` 经**默认屏幕**解析
+  （AOSP `WindowManagerImpl`：`mContext.getDisplayNoVerify()`；`DisplayContent.computeScreenConfiguration`
+  把该屏的 `maxBounds` 设为自身 bounds），所以 IME 不在默认屏、或窗口尚未落定时会读到偏大值。
+  单键宽 = `keyWidthWeight * allowedWidth / 100` → 全部按键等比放大；`KeyboardView` 在容器
+  FrameLayout 内、越界即被裁 → 右半边消失。
+- 为什么"黏住"：`Keyboard` 模型在 `KeyboardSwitcher` 里按 id 缓存，宽度是**构造时快照**，
+  只有转屏（`invalidateKeyboardCache`）才重建 → 开机读错一次就一直错，与现象完全吻合。
+- 上游同类问题：#2129「横屏 App 切后台切回前台，瞬时宽度导致按键加宽、键盘右侧裁切」
+  （上游已由 `99f230348b` 修复：把 `allowedWidth` 改成构造参数，由 `KeyboardWindow` 量测容器宽度）。
+
+### 修法（对齐上游 `99f230348b`，落到本仓库 `KeyboardSwitcher` 架构）
+- `Keyboard`：`allowedWidth` 改为构造参数，不再自己读窗口度量。
+- `KeyboardWindow`：给容器 `keyboard_view` 挂 `OnLayoutChangeListener`，**实测容器宽度为权威**；
+  宽度变化（或转屏）→ `post { rebuildKeyboards() }` 同时丢弃 `Keyboard` 与 `KeyboardView` 两级缓存
+  重建。度量只在容器首次布局前当估计值，保留上游 stale-inset 守卫（去掉 `isPortrait &&`，
+  即上游 `99f230348b` 的形态）。
+- `KeyboardSwitcher`：持有 `allowedWidth`；`updateAllowedWidth()` 在变化时失效缓存并返回是否变化。
+- 纯决策抽到新文件 `KeyboardWidth.kt`（`resolveKeyboardWidth` / `resolveWindowMetricsWidth`，
+  无 Android 依赖、可 JVM 单测），阈值走命名常量（`INSET_TOLERANCE_DP`）。
+- 诊断：每次键宽生效向持久化日志（tag `keyboard`）写一行：
+  `layout width=…px source=container|estimate measured=… estimate=… display=… landscape=…`
+  ——下次复现可直接看出估计值与实测值差多少（也顺带证明本次根因）。
+- 顺带核对「同类读设备宽度/尺寸」处：`KeyboardPrefs.isWideScreen()` 用 app 自身
+  `resources.displayMetrics`（正确的屏）→ 保持；背景编辑器预览本就按自身实测宽布局
+  （`widthPx - 2*sidePadPx`）→ 本次之后与 IME 口径一致；裁剪比例用 Activity 自身
+  `min(widthPixels, heightPixels)`（设置侧近似，且其度量来自自身窗口/屏）→ 保持。
+- 验证（本机可复现，全绿）：新增 `KeyboardWidthTest`（7 例，含"实测 1080 胜过偏大 2400 估计"
+  回归钉）+ 全量 `:app:testDebugUnitTest`（**174 例，0 失败 0 跳过**，修复前 167）、
+  `:app:compileDebugKotlin`、`spotlessApply`/`spotlessCheck`、`:app:lintDebug`；
+  另构建成功 arm64-v8a debug APK（`app/build/outputs/apk/debug/trime-keyboard-width-fix-arm64-v8a-debug.apk`）。
+  `./script/clang-format.sh -n` 本容器无 clang-format 未跑，但本次未触碰
+  `app/src/main/jni/librime_jni/`，该门在 CI 上等价空跑。
+- **真机冒烟已通过**（2026-11-05 维护者回报：装 v3.4.9 release、重启手机后唤起键盘，
+  键盘完整、右侧按键不再被裁 —— 即原复现路径已消失）。
+- **实测数值（2026-11-05 维护者导出日志，荣耀 WIN 竖屏）** —— 根因由推断变实测：
+  ```
+  14:15:10.468 keyboard: layout width=1256px source=estimate measured=0px    estimate=1256px display=1080px landscape=false
+  14:15:10.546 keyboard: layout width=1256px source=estimate measured=0px    estimate=1256px display=1080px landscape=false
+  14:15:10.582 keyboard: layout width=1064px source=container measured=1064px estimate=1256px display=1080px landscape=false
+  ```
+  - `display=1080`（app 自身配置）而估计值 1256 → 反推 `maximumWindowMetrics`−insets = **1272**：
+    这块屏上"最大窗口"比该屏实际宽 **多 192px**（疑似 1.5K 面板 1272 档 vs 系统按 1080 档运行 /
+    智能分辨率口径差异）。
+  - 实测容器宽 **1064** = `1080 − 2×8`（theme 每侧 8px `keyboard_padding`）→ **displayMetrics
+    在这块屏上才是对的估计源**，最大窗口度量是唯一的错误来源。
+  - 旧守卫 `isPortrait && windowWidth < displayWidth − 1dp` 只兜"偏小"，对这次"偏大"不设防
+    （1256 > 1080 → 走 windowWidth 分支）→ 旧 `allowedWidth=1256` 而非 1064 →
+    **键宽 +18.0%**（1256/1064）；一行 10 键时可见约 **8.5/10** 键，最右约 **1.5 列**被裁。
+  - 新代码在 **114 ms 内**（.468 → .582）就用实测值接管，故用户侧不可见。
+  - 估计值**不做**上限夹紧（`min(度量值, displayMetrics.widthPixels)`）：维护者 2026-11-05
+    拍板否决。理由：①实测容器已接管，估计值只在首帧（~114 ms 内）起作用；②`displayMetrics`
+    自身可能滞后或描述的是另一块屏（外接屏 / 虚拟分辨率 / 转屏未稳定），夹紧会把"首帧偏宽"
+    换成"首帧偏窄"，引入一个新的失败面而收益不可见。**上游 `99f230348b` 也未做该夹紧**
+    （其守卫只处理偏小）。若将来有人想加，先读本条。
+- 发布：`versionName 3.4.9` / `versionCode 20261105`（date-aligned、单调递增），
+  tag `v3.4.9` 打在 main 顶端（`206f4ae1`）已 push `origin`/Gitea，触发 Release CI
+  （`tags v*`；Gitea 分支走本地 changelog + API 上传 4 ABI APK）。**维护者只装 release 版**，
+  故本次直接走发布流程验真机。
+  - 发布前本机预跑的门（对应本次提交）：`spotlessApply`/`spotlessCheck`、`:app:lintDebug`、
+    全量 `:app:testDebugUnitTest`、`assembleDebug`（arm64-v8a）。
+    `make style-lint` 的 clang-format 部分未跑（本容器无 clang-format 二进制），
+    但本次未触碰 `app/src/main/jni/librime_jni/`。
+  - **CI 结果本容器无法查询**：Gitea 仓库非公开，`tea` 需 token，而 token 配置在容器层
+    （非持久，见 `doc/repo-knowledge.md` §9.4）；只有 SSH key（`/ssh-keys/gitea-dsh-dev-docker`）
+    在持久卷上，故只能 push/tag、不能读 Actions API。若下次要盯 CI，需要把 token 放到持久卷。
+  - **GitHub 端同步：维护者 2026-11-05 拍板暂不做**（v3.4.9 只发 Gitea）。将来要做时按
+    `doc/repo-knowledge.md` §10 步骤 3–4：在 `develop` 上 `git merge main` → 推 `develop`
+    → 再推 tag `v3.4.9`（顺序不能反，否则 GitHub changelog 为空）。本容器无 GitHub PAT
+    （`github` remote 是 HTTPS，需 `~/.git-credentials`），该步骤需维护者执行或先补凭证。
 
 ## 0. 最新状态：preedit 点击开关（`v3.4.8`，已 push + 打 tag）
 
