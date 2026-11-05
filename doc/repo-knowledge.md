@@ -636,6 +636,11 @@ How a release is cut and how the Gitea `main` branch is propagated to the
 GitHub fork. Re-read this before any "sync Gitea to GitHub" or "push tag"
 request — the topology is non-obvious.
 
+> **Upstream (osfans/trime) sync ledger**: what was cherry-picked, what was
+> deliberately skipped and why, plus the probe/verification recipe, lives in
+> `doc/handoff.md` §8 ("上游同步台账"). Check it before evaluating new
+> upstream commits.
+
 ### 10.1 Remote topology
 
 | remote | URL | role |

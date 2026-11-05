@@ -8,6 +8,8 @@
 > 真机冒烟（Honor WIN，release 包）：引擎 P0 全过（首次部署 / 14 键 token / 拼音过滤 /
 > 反查 / 退出 / userdb），键盘超宽、导航栏 inset、按键反馈也通过；焦点与工具栏误触未测；
 > 卸载未测（维护者不关心，已有导出功能）。详见 §0 首节。
+> **上游同步台账**：本批 33 个移植提交的逐条清单、查证后跳过的条目、下次同步的
+> 可复用方法（probe 命令 + 名称差异表）见 **§8**。
 > 流程备忘：Gitea `main` 开了 1 个 approval 的分支保护且不允许自审，PR #31 是本地
 > `--no-ff` 合并后直推 main、再把 PR 标记 closed 的；GitHub 端仍按 §10 先推 develop 再推 tag。
 > **更早（v3.4.9，2026-11-05）**：tag `v3.4.9`（target `206f4ae1`）双端 release 已出且真机
@@ -613,3 +615,172 @@ registry 访问均已移至 IO（lifecycleScope+Dispatchers.IO，刷新单飞取
 - `tools/probe-context-reorder/`、`app/src/androidTest/res/`、
   `sample_theme_schemas/backgrounds/`：仓库既有/排查产物内容，**未跟踪**，与当前功能无关，
   **不要顺手 add/commit**（提交时用显式文件清单）。
+
+## 8. 上游同步台账（v3.4.10 批次，2026-11-05）
+
+> 下次同步上游**先读这一节**：把 `git log` 结果和这里的清单对照，已移植的不要重做，
+> 标为「跳过」的不要重复评估。
+>
+> - 上游仓库：`upstream = https://github.com/osfans/trime.git`
+> - 本次同步时的 `upstream/develop` 参照点：**`57feda70`（2026-10-29）**（v3.3.13 之后 4 个提交）
+> - 双方分叉点：`148ff931`（2026-08-14）；分叉后上游 182 个提交，我们 164 个
+> - 本批合入 `main` 的 merge 提交：**`27b777d6`**（PR #31，本地 `--no-ff` 合并）
+> - 发布：`3.4.10` / versionCode `20261106`，tag `v3.4.10`（target `3d9f9e0c`）
+
+### 8.1 快速列出「已经移植过什么」
+
+```bash
+# 所有带 provenance 的移植提交（bodies 里有 "cherry picked from commit"）
+git log --grep='cherry picked from commit' --format='%h %s' main
+# 看某条的原始上游 sha，以及是否有 adapted 说明
+git log -1 --format='%b' <我们这边的提交>
+```
+
+- 本批共 **33 条**，全部 `cherry-pick -x`；手工适配的会在 body 写
+  `(cherry picked from commit <sha>, adapted: ...)`。
+- ⚠️ 例外：引擎升级 `b0ef3e74` 不是 cherry-pick（子模块指针 + `cmake/Boost.cmake`）。
+- ⚠️ 更早的 2024 年移植 `70e4fb33`（`chore: disable layout update animations.`）也会被上面
+  的命令列出来，它不属于本批。
+
+### 8.2 本批移植清单（33 + 引擎 1）
+
+**A 档：修复 / 小功能（13）**
+
+| 上游 sha | 内容 | 适配 |
+|---|---|---|
+| `8ec95f2d` | JNI 只 detach 自己 attach 的线程 | — |
+| `144f6111` | 字符串数组转换释放 JNI local ref | — |
+| `942a750f` | 候选 popupMenu 与键盘抢焦点导致闪烁 | — |
+| `4d8a2aff` | 剪贴板 popupMenu 抢焦点导致闪烁 | — |
+| `4c63b2c9` | 切配色后候选窗重新定位 | — |
+| `7c2a9c35` | `ascii_punct` 选项名拼写（原为 `ascii_punch`，选项不存在） | — |
+| `57edd25e` | AutoScaleTextView 先 super.setText 再失效缓存 | — |
+| `02f0efa8` | 剪贴板编辑框高度约束 | — |
+| `ae919e32` | 键盘未配 width 时继承 style 的 `key_width` | `theme.style` → `generalStyle` |
+| `57feda70` | popup 键盘保留九宫格槽位（13 键不丢键） | — |
+| `af23c4a6` | 切回中文释放 Shift 锁定 | `activeKeyboard` → `currentKeyboard` |
+| `8e01da83` | 分页候选长文本换行 | — |
+| `75ae3858` | 「纵向倒序」候选布局 | — |
+
+**B 档：手工移植（5）**
+
+| 上游 sha | 内容 | 适配 |
+|---|---|---|
+| `ad5a14be` | Shift/Ctrl/Alt+Return 作为组合键转发（#1620） | 键消息处理在 `RimeMessageDispatcher` |
+| `a45f6d65` | Return 标签与真正发送的动作共用决策；标签变化刷新按键 | `generalStyle.enterLabel`；新增 `onEnterKeyLabelUpdate` 广播 |
+| `93fbf9f1` | preedit 根内边距 + `top_start_radius` | 数据改到 `Default/chrome.yaml`（无 `shared/trime.yaml`） |
+| `4748cb37` | `key_border_color` / `key_symbol_color` 各状态色 | 回退表在 `BuiltinFallbackColors.kt`；schema 保留 light/dark 形式 |
+| `c35a72f9` | 卸载时系统询问保留数据（`hasFragileUserData`） | manifest xmlns 顺序冲突 |
+
+**C 档：其余 UI / 构建（15）**
+
+| 上游 sha | 内容 |
+|---|---|
+| `f144408a` | 导航栏 inset 过大（#2087） |
+| `b5125a56` `bf8869a6` `623c605c` | 键盘两侧/底部、候选条、剪贴板关闭按钮不抢焦点 |
+| `a9adebc5` | 用户词典「更多」按钮配色 |
+| `e1e0ece9` | 工具栏触摸落点被候选替换后不误触发（`AlwaysUi.currentState != Toolbar`） |
+| `679c734a` | `ic@` 图标字号不受 `key_long_text_size` 控制 |
+| `803e8d81` | `candidate_view_height` 特定值下剪贴板内容溢出 |
+| `7b194c34` | 候选内容过多时窗口超出屏幕（只取 `onMeasure` 宽度上限） |
+| `4ca20217` | 功能键 per-key 颜色回退（背景/边框/符号） |
+| `824413af` | 改「按鍵按壓區域」后重建输入视图（加进 `recreateInputViewPrefs`） |
+| `b60c3299` | 输入反馈资源按需初始化（新增 2 个测试类） |
+| `c0df6d07` | 关闭 glog unwind（`jni/CMakeLists.txt`） |
+| `9093457f` | git 命令失败时版本号回退默认值 |
+| `a75f69b9` | 去掉废弃的 `SHOW_IMPLICIT` |
+
+**引擎（1，非 cherry-pick）**
+
+| 组件 | 旧 → 新 |
+|---|---|
+| librime | `33e78140`（1.17.0，2026-06-05）→ `56737cd2`（2026-10-25） |
+| librime-lua | `68f9c364`（2025-07）→ `6da5d6ce` |
+| librime-lua-deps | `9c53b362` → `9e5bb71d`（Lua 5.4.9） |
+| snappy | `32ded457` → `9c28114a`（1.3.1） |
+
+- 新 librime 需要 boost 的 `vmd`/`preprocessor` 头 → 已加进
+  `app/src/main/jni/cmake/Boost.cmake` 的 `BOOST_INCLUDE_LIBRARIES`（Boost 本体仍 1.89）。
+- OpenCC 仍用外部子模块 `app/src/main/jni/OpenCC`，未切到 librime 自带副本。
+- 详见 `doc/repo-knowledge.md` §9.6（32 位 ABI 问题已解决）/ §9.7（Boost/release 构建/签名）。
+
+### 8.3 查证后跳过的（不要重复评估）
+
+| 上游 sha | 跳过原因 |
+|---|---|
+| `71d61a09` | 已有等价实现：`KeyboardSwitcher.tempAsciiMode` |
+| `f8799aaa` | 已有等价实现：`InputDeviceManager` + `paging_mode` 已是修复后设计 |
+| `c7abdfa9` | 已有等价实现：`PopupKeyboardUi` 保留完整 label |
+| `d4ed8f9c` | 已有等价实现：`KeyAction.getText` 含 `isAsciiMode` 分支 |
+| `9cc6c77f` | 已是 `fun delete(...): Result<Unit>` |
+| `a047f747` | 仓库无 `tongwenfeng.trime.yaml`（包模型） |
+| `6a56fa21` | 无对应 SAF 文案（`sync_from_external` 等不存在） |
+| `15487288` | 我们换肤是整体重建 `InputView`，非原地 restyle |
+| `7fedca06` | 无 `<queries>` / 语音输入 |
+| `41b1f890` | 我们用 `ULocale`，无 `Locale(...)` 用法 |
+| `2a799630` | **冲突**：把单个大写字母解释成 Shift+字母，会破坏 14 键 token 的独立大写 keysym |
+| `210275a1` | 依赖新主题层 `ColorTable`（我们没有） |
+| `49667058` `d95662e2` | 依赖新主题读取层 / lint 基础设施 |
+| `e9b21960` `3f0eb520` | direct boot（小众）；WorkManager defer 依赖它 |
+| `8545278b` / `a39859c1` | 上游自己 revert 了 double-tap Shift caps |
+| `99f23034` | 我们已有更彻底的键盘宽度修复（commit `09eb7c3a`） |
+| `f5008260` `693216ab` | OpenCC 切 librime 自带副本（未评估） |
+| `90d3844d` | CI 增加单测门禁（可选，未取） |
+| `e50d610c` `74664dc5` `2e0def24` `51a81b02` `7609c8ba` | 纯 lint/构建/改名/许可证展示，不影响运行 |
+
+### 8.4 整块不取的方向（架构冲突，别逐条看）
+
+- **SAF 外部数据树 / `UserDataManager` / `RimeDataSync`**（v3.3.12 主体，约 40 个提交）：
+  与本仓库「每包 workspace + 定时备份」模型正面冲突。
+- **主题架构重写**（kaml、`ThemeScope`、异步切换、主题 lint/diagnostics）：我们有自己的
+  `customization.yaml` 覆盖层与预览渲染。
+- **键盘切换器状态重构**（`b64309c` 一带）：与我们的 `KeyboardSwitcher`（宽度实测、缓存重建）冲突。
+- **工具链**（Gradle 9.8、AGP 9.4、compileSdk 37、NDK 30）：无具体痛点，不动。
+
+### 8.5 下次同步怎么做（可复用）
+
+```bash
+git fetch upstream --tags
+# 1) 看参照点之后的新提交（把 57feda70 换成上次的参照点）
+git log --oneline --no-merges 57feda70..upstream/develop
+# 2) 对照已移植清单
+git log --grep='cherry picked from commit' --format='%h %s' main
+# 3) 对候选逐条试移植（临时分支，只做试装）
+git checkout -B probe-sync main
+git cherry-pick -n <sha> && echo OK || echo CONFLICT
+git cherry-pick --quit; git reset --hard main
+```
+
+- 本批实测：182 个提交中只有 **43 个**能干净落地（其余多为 SAF/主题重构的连锁冲突）。
+- **干净落地 ≠ 能编译**：先看 8.6 的名称差异表，再跑全套验证。
+- 验证门禁（缺一不可）：`spotlessApply/Check`、`make style-lint`、`:app:testDebugUnitTest`、
+  `:app:lintDebug`、`python3 script/validate-definitions.py --check-shipped`、
+  `BUILD_ABI=<abi> :app:assembleDebug`；发版前再跑一次 `:app:assembleRelease`（**不能 `--offline`**）。
+- 合并/发版流程见 `doc/repo-knowledge.md` §10，外加两条本批的新事实：
+  1. Gitea `main` 要求 1 个 approval 且**禁止自审** → PR 无法用 API 合并；做法是本地
+     `git merge --no-ff` 后直推 main，再把 PR 标 closed 并留言合并提交号。
+  2. 同日发两个版本时 versionCode 会撞（3.4.9 用了 `20261105`），本批用 `20261106`。
+
+### 8.6 本批踩过的名称/结构差异（移植前先对照）
+
+| 上游 | 本仓库 |
+|---|---|
+| `theme.style.*` | `theme.generalStyle.*` |
+| `activeKeyboard` | `currentKeyboard` |
+| `TrimeInputMethodService.handleRimeMessage` | `RimeMessageDispatcher.handle` |
+| `generalStyle.enterLabels.*`（复数） | `generalStyle.enterLabel.*`（单数） |
+| `keyboardSwitcher.currentUiState` | `KeyboardSwitcher` 的对应 API（见 `PopupKeyboardUi`） |
+| `cachedKeyboards` / `currentKeyboardId` | `KeyboardSwitcher` + `cachedKeyboardViews` |
+| `assets/shared/trime.yaml`、`tongwenfeng.trime.yaml` | 包模型：`assets/shared/Default/*.yaml` |
+| `ColorManager` 内联 `BuiltinFallbackColors` | 独立文件 `data/theme/BuiltinFallbackColors.kt` |
+| 颜色键 `ThemeColor` 枚举（部分） | 我们只有部分键是枚举，其余仍用字符串键 |
+| `Preedit` 带 `@Parcelize` | 旧 node 模型（`util.yaml.Node`），新字段要手写 decode |
+| `doc/trime-schema.json` 的 preset 段是平铺对象 | fork 的 light/dark `oneOf` 形式 |
+
+### 8.7 本批遗留 / 未验证
+
+- 焦点 trio 与「工具栏误触」没有真机复测（维护者未测，代码已合）。
+- 卸载保留数据未真机验证（维护者不关心，已有导出功能）。
+- OpenCC 是否切到 librime 自带副本未评估（当前外部子模块 + OpenCC 1.1.x 工作正常）。
+- 下次同步的起点就是 `57feda70`；若上游在此期间又发布了 3.3.14+，从新 head 继续即可。
+
