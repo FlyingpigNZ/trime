@@ -38,6 +38,13 @@ jobs:
           echo ${GITHUB_REF#refs/*/}
           echo CI_BRANCH=${GITHUB_REF#refs/*/} >> $GITHUB_ENV
 
+      - name: Freeze the build timestamp
+        # BuildConfig.BUILD_TIMESTAMP defaults to "now", so every Gradle
+        # invocation regenerates BuildConfig and recompiles Kotlin. Freezing it
+        # once per run lets the debug build reuse the compile output of the
+        # lint step instead of redoing it (and keeps one build time per run).
+        run: echo "BUILD_TIMESTAMP=$(date +%s)000" >> "$GITHUB_ENV"
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
