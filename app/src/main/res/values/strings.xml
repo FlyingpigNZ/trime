@@ -136,12 +136,17 @@
     <string name="ime_package_importing">Importing IME package…</string>
     <string name="ime_package_compiling">Compiling IME package…</string>
     <string name="ime_package_import_in_progress">IME package import/compile is in progress…</string>
+    <string name="ime_package_exporting">Exporting IME package…</string>
+    <string name="ime_package_export_progress">Writing %1$d%%</string>
+    <string name="ime_package_export_success">IME package exported</string>
     <string name="ime_package_compiled_active_refreshed">Compiled. The current package has been refreshed.</string>
     <string name="ime_package_compile_failed">IME package compile failed</string>
     <string name="ime_package_activation_success">IME package switched</string>
     <string name="export_migrated_workspace">Export migrated workspace</string>
     <string name="export_migrated_workspace_summary">Export old data that has no corresponding package</string>
     <string name="ime_package_deleted">IME package deleted</string>
+    <string name="ime_package_delete_title">Delete IME package</string>
+    <string name="ime_package_delete_confirm">Delete &quot;%1$s&quot;?\n\nIts workspace (user dictionaries and settings) is removed with it, and this cannot be undone.</string>
     <string name="cannot_delete_active_ime_package">Switch to another IME package before deleting this one</string>
     <string name="ime_package_already_active">This IME package is already active</string>
     <string name="loading">Loading</string>

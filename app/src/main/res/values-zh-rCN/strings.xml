@@ -134,12 +134,17 @@
     <string name="ime_package_importing">正在导入输入法方案包…</string>
     <string name="ime_package_compiling">正在编译输入法方案包…</string>
     <string name="ime_package_import_in_progress">输入法包导入/编译正在进行中…</string>
+    <string name="ime_package_exporting">正在导出输入法包…</string>
+    <string name="ime_package_export_progress">正在写入 %1$d%%</string>
+    <string name="ime_package_export_success">输入法包已导出</string>
     <string name="ime_package_compiled_active_refreshed">编译完成，当前输入法包已刷新</string>
     <string name="ime_package_compile_failed">输入法方案包编译失败</string>
     <string name="ime_package_activation_success">输入方案包切换完成</string>
     <string name="export_migrated_workspace">导出迁移数据</string>
     <string name="export_migrated_workspace_summary">导出没有对应输入法包的旧数据</string>
     <string name="ime_package_deleted">输入方案包已删除</string>
+    <string name="ime_package_delete_title">删除输入法包</string>
+    <string name="ime_package_delete_confirm">确定删除「%1$s」吗？\n\n它的工作区（用户词库、设置等）会一并删除，且不可恢复。</string>
     <string name="cannot_delete_active_ime_package">请先切换到其他输入方案包再删除当前方案</string>
     <string name="ime_package_already_active">该输入法包已是当前使用方案</string>
     <string name="loading">正在加载</string>

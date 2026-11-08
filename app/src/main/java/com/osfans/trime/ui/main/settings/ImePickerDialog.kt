@@ -130,17 +130,36 @@ object ImePickerDialog {
                                     context.toast(R.string.cannot_delete_active_ime_package)
                                     return@launch
                                 }
-                                val deleted =
-                                    withContext(Dispatchers.IO) {
-                                        ImePackageManager.deletePackage(item.fileName)
+                                // Deleting a package also removes its workspace
+                                // (user dictionaries, sync data, settings) and
+                                // cannot be undone, so it must be confirmed —
+                                // this button sits right next to compile/export
+                                // and a mis-tap used to delete outright.
+                                AlertDialog
+                                    .Builder(context)
+                                    .setTitle(R.string.ime_package_delete_title)
+                                    .setMessage(context.getString(R.string.ime_package_delete_confirm, item.name))
+                                    .setPositiveButton(R.string.delete) { _, _ ->
+                                        scope.launch {
+                                            if (ImePackageManager.isBusy()) {
+                                                context.toast(R.string.ime_package_import_in_progress)
+                                                return@launch
+                                            }
+                                            val deleted =
+                                                withContext(Dispatchers.IO) {
+                                                    ImePackageManager.deletePackage(item.fileName)
+                                                }
+                                            if (deleted) {
+                                                remove(item)
+                                                notifyDataSetChanged()
+                                                context.toast(R.string.ime_package_deleted)
+                                            } else {
+                                                context.toast(R.string.install_schema_layout_package_failure)
+                                            }
+                                        }
                                     }
-                                if (deleted) {
-                                    remove(item)
-                                    notifyDataSetChanged()
-                                    context.toast(R.string.ime_package_deleted)
-                                } else {
-                                    context.toast(R.string.install_schema_layout_package_failure)
-                                }
+                                    .setNegativeButton(android.R.string.cancel, null)
+                                    .show()
                             }
                         }
                     } else {

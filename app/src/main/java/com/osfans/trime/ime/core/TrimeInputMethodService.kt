@@ -86,6 +86,20 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     private lateinit var decorView: View
     private lateinit var contentView: FrameLayout
     private lateinit var lastKnownConfig: Configuration
+
+    /**
+     * Whether the IME window is currently requested to be shown.
+     *
+     * Rebuilding the input view (theme/color/preference changes) while the
+     * window is hidden leaves a freshly built view tree inside a window that
+     * keeps its previous size until the next show, and a keyboard model built
+     * in the new configuration (density!) then paints at the wrong height
+     * inside that stale window — the "shrunken keyboard over the real one"
+     * report.
+     * Rebuilds requested while hidden are deferred to [onWindowShown].
+     */
+    private var windowShown = false
+    private var pendingInputViewRebuild: (() -> Unit)? = null
     private var inputView: InputView? = null
     private var candidatesView: CandidatesView? = null
     private val navBarManager = NavigationBarManager()
@@ -112,7 +126,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     @Keep
     private val recreateInputViewListener =
         PreferenceDelegate.OnChangeListener<Any> { _, _ ->
-            replaceInputView(ThemeManager.activeTheme)
+            whenWindowShown { replaceInputView(ThemeManager.activeTheme) }
         }
 
     @Keep
@@ -124,14 +138,15 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     @Keep
     private val onThemeChangeListener =
         ThemeManager.OnThemeChangeListener {
-            replaceInputViews(it)
+            DiagnosticLog.i("ime", "theme changed -> replace input views")
+            whenWindowShown { replaceInputViews(it) }
         }
 
     @Keep
     private val onColorChangeListener =
         ColorManager.OnColorChangeListener {
             ContextCompat.getMainExecutor(this).execute {
-                restyleInputViews(it)
+                whenWindowShown { restyleInputViews(it) }
             }
         }
 
@@ -261,7 +276,38 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
      * the many color/drawable caches scattered across the IME UI.
      */
     private fun restyleInputViews(theme: Theme) {
+        DiagnosticLog.i("ime", "color changed -> replace input views")
         replaceInputViews(theme)
+    }
+
+    /**
+     * Run [rebuild] now when the IME window is up, or as soon as it is shown
+     * again. See [windowShown] for why rebuilding while hidden is not safe.
+     */
+    private fun whenWindowShown(rebuild: () -> Unit) {
+        if (windowShown) {
+            rebuild()
+        } else {
+            DiagnosticLog.i("ime", "deferred input view rebuild (window hidden)")
+            pendingInputViewRebuild = rebuild
+        }
+    }
+
+    override fun onWindowShown() {
+        super.onWindowShown()
+        windowShown = true
+        pendingInputViewRebuild?.let { rebuild ->
+            pendingInputViewRebuild = null
+            DiagnosticLog.i("ime", "applying deferred input view rebuild")
+            rebuild()
+        }
+        DiagnosticLog.i("ime", "window shown ${inputView?.geometry()}")
+    }
+
+    override fun onWindowHidden() {
+        super.onWindowHidden()
+        windowShown = false
+        DiagnosticLog.i("ime", "window hidden ${inputView?.geometry()}")
     }
 
     override fun onDestroy() {
@@ -289,14 +335,22 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             ActivityInfo.CONFIG_UI_MODE
         val diff = lastKnownConfig.diff(newConfig)
         Timber.d("onConfigurationChanged diff=$diff")
+        DiagnosticLog.i("ime", "onConfigurationChanged diff=$diff orientation=${newConfig.orientation}")
         if (diff and keyboardUiModeMask != diff) {
             super.onConfigurationChanged(newConfig)
         }
-        if (diff and ActivityInfo.CONFIG_ORIENTATION != 0) {
-            // The IME window survives rotation, so the keyboard models (whose
-            // layout metrics are frozen at construction) and views must be
-            // rebuilt for the new orientation.
-            inputView?.onOrientationChanged()
+        // The IME window survives rotation *and* display-mode ("smart
+        // resolution") switches. The keyboard models bake the configuration
+        // they were built in into their geometry — row heights, gaps and label
+        // sizes go through the density and font scale, and the width comes from
+        // the container measured for that configuration — so every one of these
+        // changes must rebuild them, not just rotation.
+        val keyboardMetricsMask =
+            ActivityInfo.CONFIG_ORIENTATION or
+                ActivityInfo.CONFIG_DENSITY or
+                ActivityInfo.CONFIG_FONT_SCALE
+        if (diff and keyboardMetricsMask != 0) {
+            inputView?.onKeyboardMetricsChanged()
         }
         lastKnownConfig.setTo(newConfig)
     }

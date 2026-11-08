@@ -2,7 +2,9 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-05（v3.4.10）。`main` 已合入 **PR #31**（merge 提交 `27b777d6`）：
+> **最后更新于**：2026-11-08（**v3.4.11**：锁屏"缩小版键盘"修复与防复发加固、输入法包导出/备份
+> 改为流式写入、删除已安装包需确认、移植审计。详见 §0 前三节）。
+> **更早（2026-11-05）**：v3.4.10。`main` 已合入 **PR #31**（merge 提交 `27b777d6`）：
 > 从上游 `osfans/trime` 移植 33 个修复/小功能 + 升级 librime/librime-lua/snappy；版本 bump
 > **3.4.10 / 20261106**，tag **`v3.4.10`** 打在同一提交，Gitea / GitHub 各自触发 Release CI。
 > 真机冒烟（Honor WIN，release 包）：引擎 P0 全过（首次部署 / 14 键 token / 拼音过滤 /
@@ -31,6 +33,141 @@
 > L/M 字重（分支 `feat/14key-key-text-size`）已合入 #29，本地与 `origin_home` 分支均已删。
 > 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
 > §0b（备份功能）、§1–§7（键盘背景）为历史记录。
+
+## 0. 最新状态：锁屏瞬间出现"缩小版键盘"（2026-11-08，v3.4.11 修复）
+
+### 现象（维护者报）
+荣耀 WIN，键盘开着时锁屏：屏幕熄灭过程中的一瞬间出现一块**完整但缩小了的键盘**，压在真实键盘
+左上；亮屏时也有几率出现、随后自行消失；键盘文字清晰（是真 View 重新排版，不是截图或缩放动画）。
+对照实验：换成微信输入法锁屏**不出现** → 不是 ROM 通用的 IME 窗口动画，是我们自己的路径。
+（本批 33 个上游移植提交里没有任何窗口/动画/缩放改动；`ime/` 下也确实没有 `setScale*`/`animate()`。）
+
+### 根因：熄屏/亮屏引起的显示模式切换被当成"配色变化"，整棵 IME UI 被重建
+1. 这块屏在 **1080px / 1272px 两个显示模式间切换**（诊断日志里 `display=1080` 与 `display=1272`
+   交替出现，横屏还有 2378/2800），两种模式的 **density 不同**：3dp 的 `keyboard_padding` 在 1080
+   模式下是 8px、1272 模式下是 10px（由 `estimate = metrics − 2×padding` 反推），即
+   density ≈ 2.67 ↔ 3.33（≈1.25×）。
+2. 显示模式切换 = 一次 configuration change。`TrimeApplication.onConfigurationChanged()` 把
+   **每一次**配置变化都交给 `ColorManager.onSystemNightModeChange()`，而该函数在 fork 重构时丢了上游的
+   `if (!followSystemDayNight) return` / `if (isNightMode == isNight) return` 两道判断，
+   **无条件** `rebuildResolvedPalette() + fireChange()`。
+3. `fireChange()` → 服务的 `onColorChangeListener` → `restyleInputViews()` → `setInputView()`，即
+   `mInputFrame.removeAllViews()` + 换一个全新 `InputView`；`KeyboardWindow` 随之从
+   `measuredContainerWidth = 0` 重来，先按 **estimate** 建键盘。
+4. 此时 `resources.configuration` 已是新 density，但 IME 窗口还没 resize：`Keyboard` 的行高/间距/字号
+   都是 dp·sp→px（按新 density），宽度是 px（按旧容器/estimate）。实测键盘高 672px（1272 模式，
+   density 3.33）；换成 2.67 只有 ~538px → **短 135–160px，正是维护者说的"底部高 150px"**，字号与间距
+   同步变 0.8×，看起来就是"整块键盘缩小"。
+5. `KeyboardView` 是 `keyboard_view`（FrameLayout）的普通子 View，默认 `TOP|START`，高度取
+   `keyboard.height`（忽略父给的 heightSpec）→ 538px 的键盘贴在容器**顶部**，剩下那条高度差就是底部空隙，
+   也就是"压在真实键盘左上"。容器下一次布局 → `onContainerLayoutChange` → `post { rebuildKeyboards() }`
+   → 尺寸回到正确值，所以"自己消失"。
+
+### 修法（`ColorManager.onSystemNightModeChange`）
+- 只在**有效日夜模式真的变了**时才 `rebuildResolvedPalette() + fireChange()`（恢复上游语义）：
+  转屏 / 分辨率与密度 / 字号 / 键盘插入等普通配置变化，不再重建整棵 IME UI。
+- 顺手补诊断（都是事件驱动，不进热路径）：
+  - `ime`：`window shown/hidden` 时打印整棵几何、`onConfigurationChanged diff=`、
+    `color changed / theme changed -> replace input views`；
+  - `keyboard`：每次 `attach` / `rebuild` 打印 `kw=WxH allowed=… container=… view=…`；
+    `layout width=` 行新增 `density=` / `fontScale=`（复发时一眼看出是不是密度变了）；
+  - `window` / `popup`：BoardWindow 切换、弹层定位（`outer=Rect(0, 0 - 0, 0)` 即未布局）。
+
+### 验证与遗留
+- `:app:compileDebugKotlin`、`spotlessApply/Check`、全量 `:app:testDebugUnitTest`（174 例 0 失败）、
+  `:app:assembleRelease`（arm64-v8a，release key，versionCode 未变，可覆盖安装）。
+- 真机（2026-11-08 诊断包）：连续锁屏/亮屏多次未再复现；导出日志里每次熄屏都有
+  `ime: window hidden input=1272x2665 … board=1252x672/672 … kw=1252x672 container=1252x672 view=1252x672`
+  ——几何始终一致，且**没有** `color changed`、**没有** `rebuild`、**没有** `onConfigurationChanged`。
+- ⚠️ 该会话**本身没有发生配置变化**（`color` / `onConfigurationChanged` 行数为 0），所以"没复现"不能
+  直接证明修复生效，只说明这次没走到触发路径。下次若再出现：先看日志里那一刻有没有
+  `color changed -> replace input views` 与新的 `density=`；若**没有**任何重建行却仍出现缩小键盘，
+  就要改查窗口层（届时再考虑 IME 窗口动画）。
+
+### 附带修正：输入法包导出改为"先选目标、再流式写入并显示进度"（2026-11-08）
+- 现象（维护者报）：输入法包管理里点已安装包的分享按钮，包很大时要等很久才弹出系统的
+  保存位置选择框 —— 旧实现确实**先把整个工作区 zip 到临时文件**（`exportPackage()`），
+  再 `CreateDocument` 弹选择框，选完再把临时文件拷进目标流。大包等于"打包几分钟 → 才让选位置"，
+  且全程无进度、临时文件还额外占一份磁盘。
+- 改法：
+  - `PackageArchive` 新增流式 API：`exportPackageTo(fileName, out, onProgress)`，
+    核心逻辑抽成纯函数 `exportWorkspaceTo(workspace, id, out, onProgress)`。条目按路径排序（同一
+    工作区导出的条目列表稳定），编译产物（`build/`、`compiled.marker`、`compiled.error`）照旧排除，
+    工作区缺 manifest 时照旧合成最小 manifest。**旧的"先打临时 zip"API（`exportPackage(file)`）
+    已删除**，手工导出 / 定时备份 / 键盘同步键三条路径共用这一个 writer。
+  - `ImeSettingsFragment`：`startExport()` 现在只记住待导出包并**立刻** `CreateDocument`；
+    选完位置后 `startExportTo(uri)` 在 IO 线程把工作区**直接流式写入 SAF 目标流**，同时弹
+    不可取消的"导出中"对话框（`ime_package_exporting` / `_progress` 百分比 /
+    `_success`），进度 = 已写字节 / 总未压缩字节；失败或取消会删掉目标文档，避免留半截 zip；
+    不再产生临时 zip（省一次全量写入）。新增 en / zh-rCN / zh-rTW 三条字符串。
+  - **定时备份（`WorkspaceBackupRunner.runOnce`）一并切换**：它本来就在
+    `CoroutineWorker.doWork` / 键盘同步键的 `withContext(Dispatchers.IO)` 里跑，从来没卡过界面，
+    但实现仍是"临时 zip → 拷进备份文档"那一套（峰值双倍磁盘、进程中途死亡会在包目录留下没人清理的
+    `*-export-*.zip`）。现在直接流式写进备份文档，失败时 `target.delete()`，避免半截备份被后续
+    恢复误当成有效快照。
+  - 进度 UI 用新增的 `ui/common/DeterminateProgressDialog`：对话框框架仍是本应用统一的
+    AppCompat `AlertDialog`（与 `ImePickerDialog`/`ProgressBarDialogIndeterminate` 一致），
+    指示器换成 Material `LinearProgressIndicator`（药丸形轨道、跟主题 accent 走），百分比写在
+    对话框 message 里（跟随对话框文字样式），左右/上下边距与 `ProgressBarDialogIndeterminate`
+    相同（26dp / 20dp）——不再是裸 `ProgressBar` + 自绘 `TextView` 的那种"野生"观感。
+    另外延迟 200ms 才弹（与 `withLoadingDialog` 同一阈值），小包不会闪一下。
+  - 新增 `PackageArchiveTest`（5 例）：条目集合与路径顺序、编译产物排除、manifest 合成与保留、
+    进度从 0 到 total 且单调不回退。
+- 验证：`compileDebugKotlin`、`spotlessCheck`、全量单测（结果目录合计 208 例 0 失败）、
+  `assembleRelease`（arm64-v8a）。真机 SAF 写入速度与观感待维护者确认。
+
+### 删除已安装输入法包加确认（2026-11-08）
+- 现象（维护者报）：包列表里每行的删除按钮紧挨着编译/导出，**一点就删**，没有任何确认；
+  删除会连同工作区（用户词库、同步数据、设置）一起删掉且不可恢复。
+- 改法（`ImePickerDialog` 行内删除按钮）：先做 `isBusy` / "是不是当前激活包" 检查（后者照旧只提示
+  不删），通过后弹确认对话框——标题 `ime_package_delete_title`，正文
+  `ime_package_delete_confirm`（带包名，并明确"工作区会一起删、不可恢复"），按钮
+  `delete` / `android.R.string.cancel`；确认后才在 IO 线程执行 `deletePackage`。
+  新增 en / zh-rCN / zh-rTW 两条字符串。
+- 验证：`compileDebugKotlin`、`spotlessCheck`、全量单测、`:app:lintDebug`（仍为既有 35 条 warning，
+  无新增）、`assembleRelease`。真机待确认：删除按钮 → 弹确认 → 取消不删；确认后列表移除并 toast。
+
+### 防复发加固 + 移植审计（2026-11-08，紧接上一节）
+
+**为什么修掉那个日夜判断还不够**（维护者的判断成立）：重建这件事本身才是隐患。
+`Keyboard` 在构造时把 dp/sp 按**当时**的 density 换算成 px（行高、间距、字号），而重建发生时
+IME 窗口可能还是旧尺寸；`KeyboardView` 又按模型高度自量、在容器里 `TOP|START` 对齐，于是矮了
+一截的键盘贴在顶部、底部留空隙 —— 这就是"缩小版键盘压在真实键盘左上"的形态。所以补三条：
+
+1. `TrimeInputMethodService.onConfigurationChanged()`：键盘重建的触发条件从"仅 `CONFIG_ORIENTATION`"
+   扩到 **`ORIENTATION | DENSITY | FONT_SCALE`**（智能分辨率切换 = density 变，不伴随转屏）。
+   `InputView.onOrientationChanged()` 相应改名 `onKeyboardMetricsChanged()`。
+2. 主题 / 配色 / 相关偏好触发的**整棵 UI 重建，窗口不可见时一律延后到 `onWindowShown`**
+   （新增 `whenWindowShown{}` + `pendingInputViewRebuild`）：避免"新视图树配旧尺寸窗口"这个状态
+   跨越整个熄屏期；`windowShown` 由 `onWindowShown/onWindowHidden` 维护。
+3. `KeyboardWindow.syncKeyboardVisibility()`：容器高度与键盘模型高度不一致时把键盘设成
+   `INVISIBLE`，等容器布局回来再显示（容器 layout 回调里先做这个检查，高度变化也算）。
+   **宁可不画，也不画错尺寸**；正常路径下两者始终相等，不会有多余闪烁。
+
+**移植审计（34 条移植提交，33 条带上游原提交）**
+- 方法：对每对上/下游 `git show` 的 `+`/`−` 行集做集合比较（找"上游有、我们没搬"和"上游删了、
+  我们还留着"的行），再逐文件算"上游新增行在现版本里的命中率"（补丁是否真的落地）。
+- 结果：只有 4 条命中，全部是**有意适配**，逐条核对语义等价：
+  - `0d41c8ec`（候选窗）：只取 `onMeasure` 宽度上限，定位仍走本仓库 `updatePosition()` 的
+    `minX/maxX = spacingDp` 夹紧（语义已覆盖）；上游那半个定位改动本就依赖它自己的行内 clamp；
+  - `4474f562`（toolbar）：上游 `QuickBarStateMachine.State.Always` → 本仓库
+    `AlwaysUi.State.Toolbar`，等价；
+  - `56a87545`（`ic@` 图标字号）：表达式与上游一致，只多了本仓库的 `* heightScaleFactor`；
+  - `123acc28`（Return 标签）：策略搬进本仓库 `EditorEnterAction.label()`，含"缺 app label
+    不能渲染成字面 null"。
+- 发现一处**移植不完整**（不是本批丢判断，而是当初只取了半个上游改动）：`CandidatesView.onMeasure`
+  缺上游 `4a9d18fa` 的守卫——`MeasureSpec.UNSPECIFIED` 时 `getSize()==0`，宽度上限会算成负数。
+  已按上游现状补齐（UNSPECIFIED 直接透传，且去掉多余的 `setMeasuredDimension`）。
+- `ColorManager` 那条丢判断**不在本批**：来自更早的 fork 重构（`4ac5d7f4` / `5084440b` 删掉了上游的
+  `if (!followSystemDayNight) return` 与 `if (isNightMode == isNight) return`），本批只是把后果暴露出来。
+  这条也说明审计要覆盖"既有文件 vs 上游"而不只是"本批补丁"。
+
+**诊断日志收敛**：只保留 `ime`（窗口 show/hide 几何、配置变化、重建/延后重建）与 `keyboard`
+（`attach`/`rebuild` 几何、`layout width` 含 `density`）两处；`popup`、`window: attach` 已删。
+**备份新增 `backup` 标签**：`ok pkg=… bytes=… doc=… retention=… ms=…` /
+`failed pkg=… bytes=… ms=…: 异常` / `skipped: …`。
+
+验证：`compileDebugKotlin`、`spotlessCheck`、全量单测（208 例 0 失败）、`assembleRelease`。
 
 ## 0. 最新状态：v3.4.10（上游移植 + 引擎升级）、键盘超宽修复
 

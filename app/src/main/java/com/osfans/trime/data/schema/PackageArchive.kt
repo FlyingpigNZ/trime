@@ -6,6 +6,7 @@ package com.osfans.trime.data.schema
 
 import com.osfans.trime.util.DiagnosticLog
 import java.io.File
+import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -78,52 +79,102 @@ internal object PackageArchive {
     }
 
     /**
-     * Export a workspace as a complete zip snapshot (including user data).
+     * Export a workspace as a complete zip snapshot (including user data),
+     * streaming it into [out].
      *
-     * The exported zip can be fed back into [importPackage]. `build/` and
-     * compile markers are excluded; if the workspace has no manifest, a minimal
-     * manifest is generated so the export remains importable.
+     * This is the only export writer on purpose. Callers write straight into
+     * the destination they already have — the SAF document the user picked
+     * (manual export) or the backup document in the chosen folder (scheduled
+     * backup) — so a large workspace is never zipped into a temporary file
+     * first: that used to double the disk usage, could leave an orphaned
+     * `*-export-*.zip` behind when the process died mid-export, and delayed the
+     * file picker for the whole packing time.
      *
-     * Note: re-importing an exported workspace creates a package whose id comes
-     * from its manifest `schema_id`. In particular, exporting `Default` and
-     * re-importing it produces a package named e.g. `luna_pinyin`, not
-     * `Default`; this is the normal "package id = schema_id" import semantics.
+     * The result can be fed back into [importPackage]: `build/` and compile
+     * markers are excluded, and a minimal manifest is generated when the
+     * workspace has none. Re-importing an exported workspace creates a package
+     * whose id comes from its manifest `schema_id` — exporting `Default` and
+     * re-importing it yields e.g. `luna_pinyin`, not `Default` (the normal
+     * "package id = schema_id" import semantics).
+     *
+     * [onProgress] receives the number of entry bytes written so far and the
+     * total the archive will contain (both are *uncompressed* file bytes, so
+     * the ratio is a meaningful percentage). It is called once with zero and
+     * once with the final total.
      */
-    fun exportPackage(fileName: String): File {
+    fun exportPackageTo(
+        fileName: String,
+        out: OutputStream,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ) {
         val id = fileName.removeSuffix(".zip")
         PackageMetadata.requireSafePackageId(id)
+        exportWorkspaceTo(requireWorkspace(id), id, out, onProgress)
+    }
+
+    private fun requireWorkspace(id: String): File {
         val workspace = PackageStore.workspaceDir(id)
         if (!workspace.isDirectory) {
             throw IllegalArgumentException("Package workspace missing: $workspace")
         }
-        val out = File(workspace.parentFile, "$id-export-${System.currentTimeMillis()}.zip")
-        try {
-            ZipOutputStream(out.outputStream().buffered()).use { zipOut ->
-                val hasManifest =
-                    File(workspace, "manifest.yaml").isFile ||
-                        File(workspace, "component.yaml").isFile
-                if (!hasManifest) {
-                    val schemaId = PackageMetadata.resolveMinimalManifestSchemaId(workspace, id)
-                    zipOut.putNextEntry(ZipEntry("manifest.yaml"))
-                    zipOut.write(PackageMetadata.minimalManifest(schemaId).toByteArray(Charsets.UTF_8))
-                    zipOut.closeEntry()
-                }
-                workspace.walkTopDown().forEach { file ->
-                    if (!file.isFile) return@forEach
-                    val relative = file.relativeTo(workspace).path
-                    if (PackageMetadata.isCompileArtifact(relative)) {
-                        return@forEach
-                    }
-                    zipOut.putNextEntry(ZipEntry(relative))
-                    file.inputStream().use { it.copyTo(zipOut) }
-                    zipOut.closeEntry()
-                }
+        return workspace
+    }
+
+    /**
+     * Zip [workspace] into [out], excluding compile artifacts and synthesizing
+     * a minimal manifest when the workspace has none. Entries are written in
+     * path order so the same workspace always produces the same entry list.
+     */
+    internal fun exportWorkspaceTo(
+        workspace: File,
+        id: String,
+        out: OutputStream,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ) {
+        val hasManifest =
+            File(workspace, "manifest.yaml").isFile ||
+                File(workspace, "component.yaml").isFile
+        val generatedManifest =
+            if (hasManifest) {
+                null
+            } else {
+                val schemaId = PackageMetadata.resolveMinimalManifestSchemaId(workspace, id)
+                PackageMetadata.minimalManifest(schemaId).toByteArray(Charsets.UTF_8)
             }
-        } catch (t: Throwable) {
-            out.delete()
-            throw t
+        val entries = workspace
+            .walkTopDown()
+            .filter { it.isFile }
+            .map { it.relativeTo(workspace).path to it }
+            .filterNot { (path, _) -> PackageMetadata.isCompileArtifact(path) }
+            .sortedBy { (path, _) -> path }
+            .toList()
+        val total = entries.sumOf { (_, file) -> file.length() } + (generatedManifest?.size?.toLong() ?: 0L)
+        var written = 0L
+        onProgress(written, total)
+        ZipOutputStream(out.buffered()).use { zipOut ->
+            if (generatedManifest != null) {
+                zipOut.putNextEntry(ZipEntry("manifest.yaml"))
+                zipOut.write(generatedManifest)
+                zipOut.closeEntry()
+                written += generatedManifest.size
+                onProgress(written, total)
+            }
+            val buffer = ByteArray(COPY_BUFFER_SIZE)
+            entries.forEach { (path, file) ->
+                zipOut.putNextEntry(ZipEntry(path))
+                file.inputStream().use { input ->
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        zipOut.write(buffer, 0, read)
+                        written += read
+                        onProgress(written, total)
+                    }
+                }
+                zipOut.closeEntry()
+            }
         }
-        return out
+        onProgress(total, total)
     }
 
     /**
@@ -179,4 +230,7 @@ internal object PackageArchive {
             }
         }
     }
+
+    /** Buffer for streaming file contents into the zip (progress granularity). */
+    private const val COPY_BUFFER_SIZE = 64 * 1024
 }

@@ -283,12 +283,19 @@ class CandidatesView(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        // Reserve SPACING on both horizontal sides, so the window stays within
-        // the screen edges when positioned by updatePosition()
-        val maxWidth = MeasureSpec.getSize(widthMeasureSpec) - dp(2 * SPACING).roundToInt()
-        val cappedWidthSpec = MeasureSpec.makeMeasureSpec(maxWidth, MeasureSpec.AT_MOST)
+        // Reserve SPACING on both sides so that when updatePosition() docks the
+        // window to a parent edge, its own spacing budget (minX/maxX = spacingDp)
+        // is always achievable. Only cap when the spec constrains the width —
+        // an UNSPECIFIED spec has no parent edges to reserve spacing from (and
+        // getSize() would be 0, which would cap the window to a negative width).
+        val cappedWidthSpec =
+            if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.UNSPECIFIED) {
+                widthMeasureSpec
+            } else {
+                val maxWidth = MeasureSpec.getSize(widthMeasureSpec) - dp(2 * SPACING).roundToInt()
+                MeasureSpec.makeMeasureSpec(maxWidth, MeasureSpec.AT_MOST)
+            }
         super.onMeasure(cappedWidthSpec, heightMeasureSpec)
-        setMeasuredDimension(measuredWidth.coerceAtMost(maxWidth), measuredHeight)
     }
 
     override fun onDetachedFromWindow() {

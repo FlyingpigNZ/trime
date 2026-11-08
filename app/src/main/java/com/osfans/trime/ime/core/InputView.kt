@@ -280,9 +280,13 @@ class InputView(
 
     /**
      * Rebuild the keyboard and the orientation-dependent paddings after a
-     * configuration change (e.g. rotation).
+     * configuration change that moves any of the numbers the keyboard bakes in
+     * at construction: the orientation (row heights, paddings, landscape
+     * variants), the density (display-mode / "smart resolution" switch: every
+     * dp and sp the rows, gaps and labels are converted with) and the font
+     * scale (label sizes).
      */
-    fun onOrientationChanged() {
+    fun onKeyboardMetricsChanged() {
         keyboardWindow.onConfigurationChanged()
         updateKeyboardSize()
     }
@@ -292,6 +296,21 @@ class InputView(
             bottomMargin = getNavBarBottomInset(insets)
         }
         return insets
+    }
+
+    /**
+     * One-line geometry snapshot for the persistent diagnostics log, taken at
+     * IME window show/hide time: the input view itself, the bar, the board
+     * window container (whose height is the keyboard height) and the popup
+     * overlay, plus the keyboard window's own numbers.
+     */
+    internal fun geometry(): String {
+        val boardParams = windowManager.view.layoutParams
+        return "input=${width}x$height vis=$windowVisibility " +
+            "bar=${inputBar.view.width}x${inputBar.view.height} " +
+            "board=${windowManager.view.width}x${windowManager.view.height}/${boardParams.height} " +
+            "popup=${popup.root.width}x${popup.root.height} " +
+            keyboardWindow.geometry()
     }
 
     fun startInput(
