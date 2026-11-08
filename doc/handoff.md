@@ -2,8 +2,9 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-08（**v3.4.11**：锁屏"缩小版键盘"修复与防复发加固、输入法包导出/备份
-> 改为流式写入、删除已安装包需确认、移植审计。详见 §0 前三节）。
+> **最后更新于**：2026-11-08 晚（**v3.4.11 已发双端**：Gitea / GitHub 各 4 ABI APK）。
+> 收尾状态、CI 耗时诊断与**未提交的 CI 拆分**见 **§9**；修复的根因/设计见 §0 前三节。
+> 新会话请先读 §9「下一步」（第 1 条命令可直接执行）。
 > **更早（2026-11-05）**：v3.4.10。`main` 已合入 **PR #31**（merge 提交 `27b777d6`）：
 > 从上游 `osfans/trime` 移植 33 个修复/小功能 + 升级 librime/librime-lua/snappy；版本 bump
 > **3.4.10 / 20261106**，tag **`v3.4.10`** 打在同一提交，Gitea / GitHub 各自触发 Release CI。
@@ -921,3 +922,188 @@ git cherry-pick --quit; git reset --hard main
 - OpenCC 是否切到 librime 自带副本未评估（当前外部子模块 + OpenCC 1.1.x 工作正常）。
 - 下次同步的起点就是 `57feda70`；若上游在此期间又发布了 3.3.14+，从新 head 继续即可。
 
+## 9. 2026-11-08 晚：v3.4.11 发布、CI「Check code style 慢」诊断、以及**未提交的 CI 拆分**
+
+> 本次会话的**设计/根因细节**在本文 §0 前三节（`sed -n '37,171p' doc/handoff.md` 可整段看）：
+> 锁屏"缩小版键盘"根因与防复发加固、输入法包导出/备份流式写入、删除已安装包确认、移植审计。
+> 本节只写**收尾状态**和**接手要做的动作**。
+
+### 目标与验收标准
+- 把本次会话的修复发版：Gitea + GitHub 各出一个带 4 个 ABI APK 的 release ✅
+- 查清 CI 的 `Check code style` 为何耗时长，决定是否优化。
+- 验收：双端 release 产物齐、`git diff main develop` 为空、CI 每步耗时能归因。
+
+### 当前状态
+- 已发版：`main` = `267fcc4f` = tag **`v3.4.11`**（annotated，tag 对象 `76fae128`）；
+  Gitea release ✅ 2026-11-08T02:17:19Z、GitHub release ✅ 2026-11-08T02:14:12Z，各 4 个 ABI APK。
+  GitHub `develop` 已同步到 `7b9c9246`（`git diff main develop` 为空、`develop..main` 为空）。
+- ⚠ **工作区有未提交改动**（本次唯一的半成品 + 本文件本身）：
+  - `.github/workflows/commit-ci.yml`、`.github/workflows/pull-request-ci.yml` —— 把
+    `./gradlew :app:lintDebug` 从 `Check code style` 步骤里拆成独立的 `Android Lint` 步骤
+    （检查内容不变，只为让耗时归因清楚）。已用 `python3 -c "import yaml; yaml.safe_load(...)"` 校验通过；
+  - `doc/handoff.md`（本节）—— 未提交；提交时把它和 CI 改动**分开**提交（一个 `ci:`、一个 `docs(handoff):`），
+    或按「下一步」3 只提交 CI 那一个，文档随下次提交一起走。
+  - 未跟踪目录 `app/src/androidTest/res/`、`sample_theme_schemas/backgrounds/`、`tools/probe-context-reorder/`
+    是既有排查产物，**不要顺手 add**（见本文 §7）。
+- 本机保险包（同 commit、arm64）：
+  `app/build/outputs/apk/release/com.osfans.trime-v3.4.11-0-g267fcc4f-arm64-v8a-release.apk`。
+
+### 已完成
+- 四个提交（已推 `origin_home/main` 与 GitHub `develop`）：
+  - `fd096b15 fix(ime): rebuild the keyboard safely across configuration changes`
+    —— `ColorManager.onSystemNightModeChange` 恢复"有效日夜模式没变就不重建"的守卫；窗口隐藏时把整树重建
+    延后到 `onWindowShown`；`ORIENTATION|DENSITY|FONT_SCALE` 变化都重建键盘；容器高度与键盘模型高度
+    不一致时键盘 `INVISIBLE`；`CandidatesView.onMeasure` 补 `UNSPECIFIED` 守卫；`ime`/`keyboard` 诊断。
+  - `73a3c9e2 fix(package): stream exports into the destination and log backups`
+    —— `PackageArchive.exportPackageTo/exportWorkspaceTo`（唯一 writer，手工导出/定时备份/同步键共用），
+    删除"先打临时 zip"的 API；`DeterminateProgressDialog`（Material `LinearProgressIndicator`，26dp/20dp 边距，
+    200ms 延迟弹出）；备份写 `backup` 诊断日志（pkg/bytes/ms/retention）。
+  - `3d8c3ec1 fix(package): confirm before deleting an installed package` —— 删除前确认（含"工作区一起删、
+    不可恢复"、带包名），激活包检查在弹窗之前。
+  - `267fcc4f chore(build): bump versionName to 3.4.11` —— `versionCode 20261108`，顺带把上面工作写进 §0。
+- 验证：全量单测 **208 例 0 失败**；`spotlessCheck`；`:app:lintDebug` 仍 35 条既有 warning、无新增；
+  release 签名 `eba1e3b0…dabd13`（与本机现装一致，可覆盖安装）。
+- 同步顺序按 `doc/repo-knowledge.md` §10：**先 develop（`git merge main`）后 tag**，否则 GitHub changelog 为空。
+
+### 未完成 / 进行中
+- ✅ 下面 1–5 条已在 §10 做完：CI 拆分 + 额外的流程优化已推 Gitea 并同步 GitHub `develop`。
+- v3.4.11 真机冒烟未做（维护者装 release 后自行确认，见「未决问题」4）。
+- `lint { checkTestSources = false }`（约省 27s）仍未拍板，见 §10 的「下一步 / 可选」。
+
+### 下一步（按顺序）
+见 §10。
+
+### 关键路径 / 命令 / 参数
+- 容器内构建**必须**带 `GRADLE_USER_HOME="$PWD/.gradle-home"`（`~/.gradle` 只读）；本地单 ABI release：
+  `GRADLE_USER_HOME="$PWD/.gradle-home" BUILD_ABI=arm64-v8a ./gradlew :app:assembleRelease`（约 50s）。
+- Gitea push（token 从 tea 配置读，**不落盘**；`export T` 不能省，否则 helper 子进程里 `$T` 为空）：
+  ```bash
+  T=$(sed -n 's/^ *token: *//p' ~/.config/tea/config.yml | head -1 | tr -d '"'"'"' \r'); export T
+  GIT_TERMINAL_PROMPT=0 GIT_CONFIG_GLOBAL=/dev/null \
+    git -c credential.helper='!f() { test "$1" = get && { echo username=flyingpig; echo "password=$T"; }; }; f' push origin_home main
+  ```
+- GitHub push：直接 `git push origin develop` / `git push origin vX.Y.Z`（PAT 在 `~/.git-credentials`；
+  **不要**加 `GIT_CONFIG_GLOBAL=/dev/null`，否则读不到凭据）。
+- 查 CI / 发版：
+  - Gitea：`curl -s -H "Authorization: token $T" "http://192.168.1.50:3000/api/v1/repos/Home/trime/actions/tasks?limit=5"`
+    和 `.../releases?limit=1`；
+  - GitHub：`curl -s "https://api.github.com/repos/FlyingpigNZ/trime/actions/runs?per_page=5"`；
+    步骤级耗时 `/actions/runs/<id>/jobs`；下载作业日志 `/actions/jobs/<job_id>/logs` 需要
+    `Authorization: Bearer <~/.git-credentials 里的 PAT>`，**返回的是纯文本而不是 zip**。
+- 步骤耗时实测（GitHub run `42436273603`，v3.4.11）：整步 `Check code style` **198.3s** =
+  `./gradlew spotlessCheck` **12s** + `script/clang-format.sh -n` ~1s（5 个 .h + 6 个 .cc）+
+  `make python-verifiers` ~1s（33 tests in 0.023s + `All shipped definitions are valid`）+
+  **`./gradlew :app:lintDebug` ≈180s**。lint 内部：`compileDebugKotlin` 30s、最终 lint 分析 57.4s、
+  `lintAnalyzeDebugAndroidTest` 15.6s、`lintAnalyzeDebugUnitTest` 10.9s、`dataBindingGenBaseClassesDebug` 12.6s、
+  `kspDebugKotlin` 9.9s。历史同量级（v3.4.10 两次：193s / 260s）→ **不是回归**，慢的是被塞进同一步的 lint。
+
+### 环境事实与坑
+- 本机 sandbox 的 `/tmp` **每次 bash 调用都是新的**（写进去的文件下一条命令就没了）→ 中间产物放
+  `build/tmp-inspect/`（已存在，gitignore 内）。
+- 容器没有 `/usr/bin/time`，计时用 `date +%s` 自己算。
+- Gitea 只有 **1 个 runner、串行执行**；`on: [push]` 也匹配 tag，所以推 tag 后先跑一次 `commit-ci`，
+  再轮到 `release-ci`（v3.4.11：commit-ci 02:06→02:12、release-ci 02:12→02:17）。GitHub Release
+  一步约 **19.4 分钟**（v3.4.10 = 1166s，v3.4.11 同量级）。
+- **改 `app/build.gradle.kts`（含版本号）会让 `actions/setup-java` 的 gradle 缓存 key 失效** →
+  下一次 CI 冷启动、依赖全量重下；这是 v3.4.11 那次 Gitea 12m44s vs 平时 4m49s 的主因之一。
+- `git fetch origin --tags` 对部分老 tag 会报 `would clobber existing tag`（本地与远端 tag 指向不同对象），
+  无害；本机本地 tag 缺 `v3.4.10`（只在远端存在）。
+- 失败/无效尝试（别再走）：`/usr/bin/time` 不存在；把 GitHub 日志按 zip 解压会失败（内容是纯文本）；
+  用 `GIT_CONFIG_GLOBAL=/dev/null` 推 GitHub 会丢掉 `credential.helper=store` 而失败。
+- 容器内无法真机验证 UI；本轮所有 UI 改动只做了编译 / 单测 / lint / 打包验证。
+
+### 未决问题
+1. ✅ **CI 拆分要不要提交并推？** → 已做，且比原计划多改了三处，见 §10。
+2. 要不要 `lint { checkTestSources = false }`？（约省 27s，代价：测试源码不再 lint）
+3. ✅ 要不要 `org.gradle.caching=true`？→ 已开（§10）。⚠ 跨 job 收益比预期小：`actions/setup-java` 的
+   gradle 缓存 restore 命中后就不再保存，本轮新写入 `build-cache-1` 的条目通常留不到下一轮。
+4. **v3.4.11 真机冒烟**未做，需维护者确认四项：①键盘开启时锁屏/亮屏不再出现缩小键盘重叠；
+   ②导出先弹目录选择、再显示「正在写入 NN%」，完成后提示成功；③删除已安装包弹确认，取消不删；
+   ④`diagnostics/trime-diagnostics.log` 里出现 `backup: ok pkg=… bytes=… ms=…`（跑一次定时/同步备份）。
+
+## 10. 2026-11-08 晚（续）：CI 流程优化落地，双端实跑已验证
+
+### 结论：不是 style scan 扫了不该扫的文件
+
+- `./gradlew spotlessCheck` 实测 5–12s（本地 5s、CI 24–28s 含首次 Gradle 配置）。spotless 的 target
+  早在 #19 就收窄成显式源码根（`app/src/*/java/**`、`codegen/**`、`build-logic/**`、`*.kts`），
+  并用 `LineEnding.UNIX` 绕开 `GitAttributesLineEndings` 的整树遍历（vendored `jni/boost` 约 59k 文件）。
+- `script/clang-format.sh -n` ~1s（5 个 .h + 6 个 .cc，只扫我们自己的 `librime_jni/`）；
+  `make python-verifiers` ~1s。
+- 真正耗时的是两件**流程**上的事：①`:app:lintDebug` 被塞进 `Check code style`（编译 + 三个 lint
+  分析，170–190s），于是整步被当成"格式检查慢"；②为了算一个 JNI 缓存 key，起了**一整次 Gradle 构建**
+  （wrapper 下载 + build-logic 编译 + AGP 自动装 NDK ≈ 95s，GitHub 实测步骤 95s）。
+
+### 改动（两个提交，都已推 Gitea 并同步 GitHub）
+
+- `c5d25721 ci: stop hiding Android Lint in the style step and drop the Gradle hash round-trip`
+  1. `Android Lint` 独立成步（`commit-ci` / `pull-request-ci`），`Check code style` 只剩
+     `make style-lint` + `make python-verifiers`，检查内容不变。
+  2. JNI 缓存 key 改由 `script/native-cache-hash.py` 计算（~1s）；`NativeCacheHashPlugin` 退化成
+     跑脚本的薄封装，**格式只有一份实现**。新脚本与旧 Gradle 任务输出**逐字节一致**（本地
+     `BUILD_ABI` 有/无两种情形都比对过），所以旧缓存仍然命中（Gitea 实跑日志：
+     `Cache restored from key: ubuntu-24.04-***-jni-debug-cb1702…`，没有触发原生重建）。
+  3. 四个 workflow（commit/pr/release/nightly）统一改调脚本。
+  4. commit-ci 跳过 tag 推送（job 级 `if: ${{ !startsWith(github.ref, 'refs/tags/') }}`）——
+     发版时不再先跑一遍同代码的 commit-ci（Gitea 单 runner 会把它排在 release-ci 前面）。
+  5. `gradle.properties` 打开 `org.gradle.caching=true`。
+- `11122aa9 ci: freeze BUILD_TIMESTAMP per run so the lint step's compile is reused`
+  - `BUILD_TIMESTAMP` 默认取 `System.currentTimeMillis()`，于是**每次 Gradle 调用**都会重建
+    `BuildConfig` → `kspDebugKotlin` + `compileDebugKotlin` 全部重跑（GitHub 上 build 步骤因此多花
+    ~35s）。改成每个 run 冻结一次（`echo BUILD_TIMESTAMP=$(date +%s)000 >> $GITHUB_ENV`）。
+    本地验证：固定时间戳时 `:app:generateDebugBuildConfig` 第二次是 UP-TO-DATE，不固定则每次都执行。
+
+### 实测（同一台 runner、同类 push 对比）
+
+| 步骤 | GitHub 旧（42436267025） | GitHub 新（42440746636） | Gitea 旧（231） | Gitea 新（315） |
+|---|---|---|---|---|
+| 总时长 | **377s** | **223s（−41%）** | 289s | **272s** |
+| Calculate JNI cache hash | 95s | 0s | 36s | 0s |
+| Check code style | 173s（含 lint） | 28s（纯 style） | 149s（含 lint） | 18s（纯 style） |
+| Android Lint | （在上面那步里） | 113s | （在上面那步里） | 126s |
+| Build debug Trime | 55s | 21s | 16s | 12s |
+
+- GitHub `build` 步骤日志已确认 `> Task :app:generateDebugBuildConfig UP-TO-DATE`，即时间戳冻结生效。
+- Gitea 收益小一些：它的旧 hash 步骤本来就只要 36s（Docker 镜像里 Gradle 缓存更暖），但步骤归因
+  和 lint 独立成步的价值一样在。
+- ⚠ lint 仍是最大头（113–190s，随 runner 波动）。**没做**（等维护者拍板）：
+  `app/build.gradle.kts` 的 `lint { checkTestSources = false }` 约省 27s，代价是 androidTest/
+  unitTest 源码不再 lint。
+
+### 踩过的坑（别再踩）
+
+- **`on.push.tags-ignore` 不能单独用**：GitHub（和 Gitea）的语义是"只写了 tags/tags-ignore 时，
+  未定义的 ref（branch）视为不匹配" → 整个 commit-ci 对 branch 推送直接 **skipped**。
+  第一次推完 40s 才发现 commit status 是 `skipped`。改成 job 级 `if` 才既跳过 tag 又不误伤 branch。
+- **`git submodule status` 必须在仓库根跑**（在 `app/` 里跑输出是 `data/rime/...`，在根目录是
+  `app/data/rime/...`），且 **`.trim()`/`.strip()` 会吃掉第一行前缀空格**；文件遍历按 **readdir
+  顺序**（不是排序）——这三处任一改动都会让 key 全变 = 一次冷启动原生构建（4 ABI，十几分钟）。
+- **`gradle.properties` 本地带 skip-worktree**（本地那行 `kotlin.compiler.execution.strategy=in-process`
+  是沙箱 workaround，不该入库）。要提交上游该有的内容时：`git show HEAD:gradle.properties` 改好 →
+  `git hash-object -w` → `git update-index --cacheinfo 100644,<blob>,gradle.properties` →
+  最后 `git update-index --skip-worktree gradle.properties`。另外**切分支前**要先把工作区恢复成
+  已提交版本，否则 `git checkout develop` 报 `local changes would be overwritten`。
+- **`actions/setup-java` 的 Gradle 缓存 restore 命中后不会再保存**，所以本轮新写入
+  `~/.gradle/caches/build-cache-1` 的条目通常留不到下一轮：`org.gradle.caching` 的跨 job 收益
+  比预估小（同 job 内、以及 gradle 缓存 key 变更后的头几轮才明显）。留着无害，别指望它省 45s。
+- Gitea 的 actions API：`/repos/Home/trime/actions/tasks` 返回的 id 和 `/actions/runs/{id}`
+  **不是同一套**（列表里可能给到别的历史 run）。要定位刚推的 run，查
+  `/commits/<sha>/statuses` 里的 `target_url`（形如 `/Home/trime/actions/runs/315/jobs/366`），
+  再用 `/actions/runs/{id}` 和 `/actions/jobs/{id}` 拿步骤耗时。
+
+### 双端同步状态
+
+- Gitea `main` = `11122aa9`；GitHub **只有 `develop`**（没有 `main`），`develop` = `c05f4f7f`。
+- 同步姿势（已验证）：Gitea `main` 先绿 → `git checkout develop && git merge main -m "chore: sync develop with main (…)"`
+  → `git push origin develop` → `git checkout main`。不要推 feature 分支、不要 force-push GitHub。
+- 双端 run 均绿：Gitea `315`（success）、GitHub `42440746636`（success）。
+
+### 下一步 / 可选
+
+1. `lint { checkTestSources = false }`（约省 27s，需拍板）。
+2. 若还想压：把 lint 拆成独立 job 只在 GitHub 有墙钟收益（并行），Gitea 单 runner 反而更慢；
+   `Fetch source code` 去掉 `submodules: recursive` 可在 JNI 缓存命中时省 10–20s，但
+   `git submodule status` 的前缀会从 `" "` 变 `"-"`，key 全变 → 需要接受一次冷启动，暂未做。
+3. tag 跳过 commit-ci 的路径还没被真实 tag push 验证过（下次发版时确认只有 release-ci 在跑，
+   且 `Check code style` / `Android Lint` 步骤名出现在日志里）。
+4. v3.4.11 真机冒烟仍未做（见 §9 未决问题 4）。
