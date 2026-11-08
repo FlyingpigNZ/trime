@@ -69,8 +69,11 @@ jobs:
 
       - name: Calculate JNI cache hash
         id: cache-hash
-        run: |
-            ./gradlew :app:calculateNativeCacheHash
+        # A plain script: asking Gradle for this key cost ~95s per job (wrapper
+        # download, build-logic compile, AGP installing the NDK). The script
+        # reproduces the former Gradle key byte-for-byte, so the existing
+        # "app/prebuilt" cache entries still hit.
+        run: python3 script/native-cache-hash.py
 
       - name: Fetch JNI cache
         uses: actions/cache@v5
@@ -85,10 +88,15 @@ jobs:
           git submodule update --init --recursive
 
       - name: Check code style
+        # Style only (spotless + clang-format) plus the Python definition
+        # verifiers; Android Lint is a separate step because it compiles the app
+        # and runs the lint analyses.
         run: |
           make style-lint
           make python-verifiers
-          ./gradlew :app:lintDebug
+
+      - name: Android Lint
+        run: ./gradlew :app:lintDebug
 
       - name: Build debug Trime
         run: |

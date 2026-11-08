@@ -1,52 +1,46 @@
 /*
- * SPDX-FileCopyrightText: 2015 - 2025 Rime community
+ * SPDX-FileCopyrightText: 2015 - 2026 Rime community
+ *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 import org.gradle.api.DefaultTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.logging.LogLevel
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.register
-import org.jetbrains.kotlin.com.google.common.hash.Hashing
-import org.jetbrains.kotlin.com.google.common.io.ByteSource
-import java.io.File
 
 @Suppress("unused")
 class NativeCacheHashPlugin : Plugin<Project> {
     override fun apply(target: Project) {
-        target.tasks.register<NativeCacheHashCalcTask>("calculateNativeCacheHash")
+        target.tasks.register<NativeCacheHashCalcTask>("calculateNativeCacheHash") {
+            group = "build"
+            description =
+                "Print the cache key of the prebuilt JNI libraries " +
+                "(implemented by script/native-cache-hash.py)"
+        }
     }
 
+    /**
+     * Convenience wrapper around script/native-cache-hash.py.
+     *
+     * The script owns the key format and CI calls it directly, so a job does
+     * not have to configure the Android project (and let AGP install the NDK)
+     * just to print a hash. Never re-implement the format here: two
+     * implementations would eventually disagree and invalidate the
+     * "app/prebuilt" cache.
+     */
     abstract class NativeCacheHashCalcTask : DefaultTask() {
-        companion object {
-            fun sha256(file: File): String = ByteSource.wrap(file.readBytes()).hash(Hashing.sha256()).toString()
-
-            fun sha256(string: String) = ByteSource.wrap(string.encodeToByteArray()).hash(Hashing.sha256()).toString()
-        }
-
         @TaskAction
         fun execute() {
-            with(project) {
-                val magic =
-                    buildString {
-                        appendLine(cmakeVersion)
-                        appendLine(ndkVersion)
-                        appendLine(buildAbiOverride)
-                        appendLine(runCmd("git submodule status"))
-                        fileTree("src/main/jni/cmake").forEach { module ->
-                            appendLine(sha256(module))
-                        }
-                        fileTree("src/main/jni/librime_jni").forEach { source ->
-                            appendLine(sha256(source))
-                        }
-                        appendLine(sha256(file("src/main/jni/CMakeLists.txt")))
-                    }
-                val hash = sha256(magic)
-                logger.log(LogLevel.DEBUG, "Native Cache Hash: $hash")
-                System.getenv("GITHUB_OUTPUT")?.takeIf { it.isNotBlank() }?.let {
-                    File(it).appendText("native-cache-hash=$hash")
-                }
+            val root = project.rootProject.projectDir
+            val script = root.resolve("script/native-cache-hash.py")
+            val process =
+                ProcessBuilder("python3", script.absolutePath)
+                    .directory(root)
+                    .inheritIO()
+                    .start()
+            check(process.waitFor() == 0) {
+                "script/native-cache-hash.py failed (exit ${process.exitValue()})"
             }
         }
     }
