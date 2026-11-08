@@ -117,6 +117,10 @@ class KeyboardWindow :
      */
     private val onContainerLayoutChange =
         View.OnLayoutChangeListener { v, left, _, right, _, _, _, _, _ ->
+            // A container whose height changed (e.g. the keyboard height was
+            // re-emitted for a new density) must re-evaluate whether the
+            // attached keyboard may be painted, even when the width is the same.
+            syncKeyboardVisibility()
             val width = right - left
             val landscape = isLandscapeOrientation
             if (width <= 0 || (width == measuredContainerWidth && landscape == measuredInLandscape)) {
@@ -180,6 +184,11 @@ class KeyboardWindow :
      * orientation also re-picks the landscape variants.
      */
     private fun rebuildKeyboards() {
+        DiagnosticLog.i(
+            TAG,
+            "rebuild measured=${measuredContainerWidth}px landscape=$measuredInLandscape " +
+                "container=${if (this::keyboardView.isInitialized) "${keyboardView.width}" else "?"}px",
+        )
         detachCurrentView()
         cachedKeyboardViews.clear()
         switcher.invalidateKeyboardCache()
@@ -199,10 +208,17 @@ class KeyboardWindow :
         val width = resolveKeyboardWidth(measuredContainerWidth, measuredInLandscape, landscape, estimate)
         if (switcher.updateAllowedWidth(width)) {
             val source = if (measuredContainerWidth > 0 && measuredInLandscape == landscape) "container" else "estimate"
+            // densityDpi is part of the record on purpose: every dp/sp-based
+            // dimension of the keyboard (row heights, gaps, label text) is
+            // resolved through it, so a display-mode switch that changes the
+            // density changes the keyboard's *height* without touching its
+            // width — exactly the "shrunken keyboard" shape of a bad rebuild.
             DiagnosticLog.i(
                 TAG,
                 "layout width=${width}px source=$source measured=${measuredContainerWidth}px " +
-                    "estimate=${estimate}px display=${context.resources.displayMetrics.widthPixels}px landscape=$landscape",
+                    "estimate=${estimate}px display=${context.resources.displayMetrics.widthPixels}px " +
+                    "density=${context.resources.configuration.densityDpi} " +
+                    "fontScale=${context.resources.configuration.fontScale} landscape=$landscape",
             )
         }
     }
@@ -256,6 +272,9 @@ class KeyboardWindow :
             }
         }
 
+        DiagnosticLog.i(TAG, "attach id=$keyboardId ${geometry()}")
+        syncKeyboardVisibility()
+
         // Attach the disambiguation panel on top of the keyboard view so it
         // covers the strip the active extension targets (the first punctuation
         // column of a T9 keyboard, or the first digit row of a 14-key
@@ -263,6 +282,51 @@ class KeyboardWindow :
         // gate the overlay on the keyboard id the schema declares
         // (`t9_disambiguation.keyboard`).
         pinyinDisambiguation.attach(keyboardView, keyboard, keyboardId)
+    }
+
+    /**
+     * One-line geometry snapshot for the persistent diagnostics log: the
+     * keyboard model's own size, the width it was built on, and the sizes of
+     * the container / view that are actually laid out. A mismatch between
+     * `kw` and `container`/`view` is what draws a wrongly sized keyboard.
+     */
+    internal fun geometry(): String {
+        val keyboard = currentKeyboard
+        val view = currentKeyboardView
+        val container =
+            if (this::keyboardView.isInitialized) {
+                "${keyboardView.width}x${keyboardView.height} vis=${keyboardView.windowVisibility}"
+            } else {
+                "uninitialized"
+            }
+        return "kw=${keyboard?.minWidth}x${keyboard?.height} allowed=${switcher.allowedWidth} " +
+            "container=$container view=${view?.width}x${view?.height}"
+    }
+
+    /**
+     * Only paint the attached keyboard while the container matches the height
+     * it was built for.
+     *
+     * The [KeyboardView] is top-anchored inside the container and measures
+     * itself to `keyboard.height`, while the container's own height is applied
+     * separately (the window view follows `currentKeyboardHeight`). When the two
+     * disagree — a rebuild in a configuration whose container has not been
+     * laid out yet, e.g. across a display-mode/density switch — the keys are
+     * painted from the top and the difference shows up as a bottom gap: a
+     * "shrunken keyboard" over the real keyboard area. Not painting the keys
+     * for that frame or two is strictly better than painting a wrong layout;
+     * the container layout pass re-enables them within the same vsync.
+     */
+    private fun syncKeyboardVisibility() {
+        if (!this::keyboardView.isInitialized) return
+        val keyboard = currentKeyboard ?: return
+        val view = currentKeyboardView ?: return
+        val matches = keyboardView.height > 0 && keyboard.height == keyboardView.height
+        val visibility = if (matches) View.VISIBLE else View.INVISIBLE
+        if (view.visibility != visibility) {
+            DiagnosticLog.i(TAG, "keyboard view ${if (matches) "shown" else "hidden"} (${geometry()})")
+            view.visibility = visibility
+        }
     }
 
     fun switchKeyboard(

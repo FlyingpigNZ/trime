@@ -21,12 +21,15 @@ import androidx.core.math.MathUtils
 import com.osfans.trime.data.base.DataManager
 import com.osfans.trime.data.theme.model.ColorScheme
 import com.osfans.trime.util.ColorUtils
+import com.osfans.trime.util.DiagnosticLog
 import com.osfans.trime.util.NinePatchBitmapFactory
 import com.osfans.trime.util.WeakHashSet
 import com.osfans.trime.util.isNightMode
 import timber.log.Timber
 
 object ColorManager {
+    private const val TAG = "color"
+
     private lateinit var theme: Theme
     private val prefs = ThemeManager.prefs
     private var normalModeColor by prefs.normalModeColor
@@ -108,7 +111,31 @@ object ColorManager {
     }
 
     fun onSystemNightModeChange(isNight: Boolean) {
-        isNightMode = isNight && followSystemDayNight
+        // The Application forwards *every* configuration change here, and a
+        // configuration change does not necessarily move the effective
+        // day/night mode (rotation, display resolution/density, keyboard
+        // attach, ui-mode bits unrelated to night mode, ...). Notifying the
+        // listeners for a palette that did not change is not merely wasteful:
+        // the IME's listener throws away and re-creates the whole input view
+        // (`setInputView()` → `mInputFrame.removeAllViews()`), and a rebuilt
+        // view tree that is laid out while the window is being hidden or
+        // re-shown is exactly what produces a wrongly sized keyboard for a
+        // frame or two. Act only when the effective mode actually moves.
+        val effective = isNight && followSystemDayNight
+        if (initDone && effective == isNightMode) {
+            DiagnosticLog.i(
+                TAG,
+                "night-mode config change (night=$isNight follow=$followSystemDayNight) " +
+                    "leaves mode=$effective unchanged, skipping palette rebuild",
+            )
+            return
+        }
+        isNightMode = effective
+        DiagnosticLog.i(
+            TAG,
+            "night-mode changed to $effective (night=$isNight follow=$followSystemDayNight), " +
+                "rebuilding palette",
+        )
         // On a cold start the system can deliver the ui-mode configuration
         // change BEFORE ColorManager.init has run (Rime is still starting),
         // so _activeColorScheme is not initialized yet. Rebuilding the palette
