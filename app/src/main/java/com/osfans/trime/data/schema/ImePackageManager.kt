@@ -10,6 +10,7 @@ import com.osfans.trime.util.yaml.Yaml
 import com.osfans.trime.util.yaml.mapping
 import com.osfans.trime.util.yaml.string
 import java.io.File
+import java.io.OutputStream
 
 /**
  * Facade over the IME package model. Package operations live in focused
@@ -99,7 +100,17 @@ object ImePackageManager {
         return true
     }
 
-    fun exportPackage(fileName: String): File = PackageArchive.exportPackage(fileName)
+    /**
+     * Stream a package workspace into [out] (see [PackageArchive.exportPackageTo]).
+     * The manual export writes into the document the user picked and the
+     * scheduled backup writes into the backup document, so both share this one
+     * writer instead of packing a temporary zip first.
+     */
+    fun exportPackageTo(
+        fileName: String,
+        out: OutputStream,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ) = PackageArchive.exportPackageTo(fileName, out, onProgress)
 
     fun importPackage(source: File): File = PackageArchive.importPackage(source)
 

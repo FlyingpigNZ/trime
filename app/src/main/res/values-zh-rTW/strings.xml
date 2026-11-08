@@ -136,6 +136,9 @@
     <string name="ime_package_importing">正在匯入輸入法方案包…</string>
     <string name="ime_package_compiling">正在編譯輸入法方案包…</string>
     <string name="ime_package_import_in_progress">輸入法包匯入/編譯正在進行中…</string>
+    <string name="ime_package_exporting">正在匯出輸入法包…</string>
+    <string name="ime_package_export_progress">正在寫入 %1$d%%</string>
+    <string name="ime_package_export_success">輸入法包已匯出</string>
     <string name="ime_package_compiled_active_refreshed">編譯完成，目前輸入法包已重新整理</string>
     <string name="ime_package_compile_failed">輸入法方案包編譯失敗</string>
     <string name="ime_package_activation_success">輸入方案包切換完成</string>

@@ -22,6 +22,7 @@ import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.prefs.PreferenceDelegate
 import com.osfans.trime.data.schema.ImePackageManager
 import com.osfans.trime.data.schema.PackageStore
+import com.osfans.trime.ui.common.DeterminateProgressDialog
 import com.osfans.trime.ui.common.PaddingPreferenceFragment
 import com.osfans.trime.ui.main.settings.EditTextIntPreference
 import com.osfans.trime.ui.main.settings.ImePickerDialog
@@ -33,6 +34,8 @@ import com.osfans.trime.util.toast
 import com.osfans.trime.worker.WorkspaceBackupWorker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -41,7 +44,8 @@ import java.io.File
 class ImeSettingsFragment : PaddingPreferenceFragment() {
     private lateinit var packageLauncher: ActivityResultLauncher<String>
     private lateinit var exportLauncher: ActivityResultLauncher<String>
-    private var pendingExportFile: File? = null
+    private var pendingExportPackage: ImePackageManager.ImePackage? = null
+    private var exportProgressDialog: AlertDialog? = null
     private var importPreference: Preference? = null
     private var importInProgress = false
 
@@ -74,6 +78,12 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
         private const val MIN_RETENTION = 1
         private const val MAX_RETENTION = 5
         private const val LARGE_WORKSPACE_WARNING_MB = 100
+
+        /**
+         * How long an export may take before its progress dialog appears, so a
+         * small package does not flash a dialog (mirrors withLoadingDialog).
+         */
+        private const val EXPORT_DIALOG_DELAY_MS = 200L
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,30 +93,10 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
         }
         exportLauncher =
             registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-                val file = pendingExportFile ?: return@registerForActivityResult
-                pendingExportFile = null
-                val ctx = requireContext()
-                if (uri == null) {
-                    file.delete()
-                    return@registerForActivityResult
-                }
-                lifecycleScope.launch {
-                    try {
-                        withContext(Dispatchers.IO) {
-                            val out =
-                                ctx.contentResolver.openOutputStream(uri)
-                                    ?: throw IllegalStateException("SAF returned no output stream for $uri")
-                            out.use { file.inputStream().use { it.copyTo(out) } }
-                        }
-                        ctx.toast(R.string.export)
-                    } catch (t: Exception) {
-                        if (t is CancellationException) throw t
-                        Timber.w(t, "Failed to export IME package")
-                        ctx.toast(R.string.install_schema_layout_package_failure)
-                    } finally {
-                        file.delete()
-                    }
-                }
+                val pkg = pendingExportPackage ?: return@registerForActivityResult
+                pendingExportPackage = null
+                if (uri == null || !isAdded) return@registerForActivityResult
+                startExportTo(pkg, uri)
             }
         backupTreeLauncher =
             registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
@@ -137,8 +127,9 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
         prefs.workspaceBackupIntervalHours.unregisterOnChangeListener(onWorkspaceBackupIntervalChanged)
         prefs.lastWorkspaceBackupTime.unregisterOnChangeListener(onLastWorkspaceBackupTimeChanged)
         prefs.lastWorkspaceBackupStatus.unregisterOnChangeListener(onLastWorkspaceBackupStatusChanged)
-        pendingExportFile?.delete()
-        pendingExportFile = null
+        pendingExportPackage = null
+        exportProgressDialog?.let { runCatching { it.dismiss() } }
+        exportProgressDialog = null
         super.onDestroy()
     }
 
@@ -386,23 +377,71 @@ class ImeSettingsFragment : PaddingPreferenceFragment() {
         totalBytes / (1024.0 * 1024.0)
     }
 
+    /**
+     * Ask for the destination *first*: the archive is produced only after the
+     * user picked where it goes. The old flow zipped the whole workspace into a
+     * temporary file and only then opened the system file picker, so exporting a
+     * large package left the UI waiting for minutes before anything appeared.
+     */
     private fun startExport(pkg: ImePackageManager.ImePackage) {
+        pendingExportPackage = pkg
+        exportLauncher.launch("${pkg.fileName.removeSuffix(".zip")}-export.zip")
+    }
+
+    /**
+     * Stream the package workspace straight into [uri], showing the write
+     * progress until it finishes. Nothing is staged in a temporary file, so the
+     * export neither delays the picker nor doubles the disk usage.
+     */
+    private fun startExportTo(pkg: ImePackageManager.ImePackage, uri: Uri) {
         val ctx = requireContext()
+        val ui = DeterminateProgressDialog(ctx, R.string.ime_package_exporting, R.string.ime_package_export_progress)
         lifecycleScope.launch {
-            var file: File? = null
+            // Do not flash a dialog for a small package: same threshold idea as
+            // withLoadingDialog(), which only shows up after 200 ms of waiting.
+            val showJob =
+                launch {
+                    delay(EXPORT_DIALOG_DELAY_MS)
+                    exportProgressDialog = ui.dialog
+                    ui.dialog.show()
+                }
+            val percent = MutableStateFlow(0)
+            val progressJob =
+                launch {
+                    percent.collect { ui.update(it) }
+                }
+            var succeeded = false
             try {
-                file = withContext(Dispatchers.IO) {
-                    ImePackageManager.exportPackage(pkg.fileName).also { file = it }
+                withContext(Dispatchers.IO) {
+                    val out =
+                        ctx.contentResolver.openOutputStream(uri)
+                            ?: throw IllegalStateException("SAF returned no output stream for $uri")
+                    var lastPercent = -1
+                    out.use {
+                        ImePackageManager.exportPackageTo(pkg.fileName, it) { written, total ->
+                            val current = if (total > 0L) ((written * 100L) / total).toInt() else 0
+                            if (current != lastPercent) {
+                                lastPercent = current
+                                percent.value = current.coerceIn(0, 100)
+                            }
+                        }
+                    }
                 }
-                pendingExportFile = file
-                exportLauncher.launch("${pkg.fileName.removeSuffix(".zip")}-export.zip")
+                succeeded = true
+                ctx.toast(R.string.ime_package_export_success)
             } catch (t: Exception) {
-                if (t is CancellationException) {
-                    file?.delete()
-                    throw t
-                }
-                Timber.w(t, "Failed to prepare IME package export")
+                if (t is CancellationException) throw t
+                Timber.w(t, "Failed to export IME package")
                 ctx.toast(R.string.install_schema_layout_package_failure)
+            } finally {
+                // Never leave a truncated or empty document behind (failure,
+                // cancellation, or a destroyed screen): the archive is only
+                // kept when it was written completely.
+                if (!succeeded) runCatching { ctx.contentResolver.delete(uri, null, null) }
+                showJob.cancel()
+                progressJob.cancel()
+                exportProgressDialog = null
+                runCatching { ui.dialog.dismiss() }
             }
         }
     }

@@ -7,6 +7,7 @@ package com.osfans.trime.worker
 
 import android.content.Context
 import android.net.Uri
+import android.os.SystemClock
 import androidx.documentfile.provider.DocumentFile
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -16,6 +17,7 @@ import androidx.work.WorkerParameters
 import com.osfans.trime.data.prefs.AppPrefs
 import com.osfans.trime.data.schema.PackageArchive
 import com.osfans.trime.data.schema.PackageStore
+import com.osfans.trime.util.DiagnosticLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -81,7 +83,8 @@ object WorkspaceBackupFiles {
 /**
  * One-shot whole-workspace backup into the user-chosen SAF folder: a zip
  * snapshot that includes user data and excludes compile artifacts — the same
- * rule as the manual package export ([PackageArchive.exportPackage]).
+ * rule (and the same streaming writer) as the manual package export
+ * ([PackageArchive.exportPackageTo]).
  *
  * Shared by the periodic [WorkspaceBackupWorker] and the keyboard "同步" key /
  * `SYNC_USER_DATA` command (both now drive this single code path), so the
@@ -117,39 +120,68 @@ object WorkspaceBackupRunner {
     fun runOnce(context: Context): Outcome {
         val profile = AppPrefs.defaultInstance().profile
         if (profile.workspaceBackupTreeUri.getValue().isBlank()) {
+            DiagnosticLog.i("backup", "skipped: no backup folder configured")
             return Outcome.NOT_CONFIGURED
         }
         val packageId = PackageStore.activePackageId() ?: PackageStore.DEFAULT_PACKAGE_ID
         val workspace = PackageStore.workspaceDir(packageId)
         if (!workspace.isDirectory) {
             Timber.w("Workspace backup skipped: workspace missing for $packageId")
+            DiagnosticLog.w("backup", "failed pkg=$packageId: workspace missing at $workspace")
             markLast(profile, success = false)
             return Outcome.FAILURE
         }
         val root =
             DocumentFile.fromTreeUri(context, Uri.parse(profile.workspaceBackupTreeUri.getValue()))
-                ?: return Outcome.NOT_CONFIGURED
+                ?: run {
+                    DiagnosticLog.w(
+                        "backup",
+                        "skipped: backup folder is no longer openable " +
+                            "uri=${profile.workspaceBackupTreeUri.getValue()}",
+                    )
+                    return Outcome.NOT_CONFIGURED
+                }
         val retention = profile.workspaceBackupRetention.getValue().coerceAtLeast(1)
 
+        val startedAt = SystemClock.elapsedRealtime()
+        var written = 0L
         return try {
-            val temp = PackageArchive.exportPackage("$packageId.zip")
+            val name = WorkspaceBackupFiles.fileName(packageId, System.currentTimeMillis())
+            val target =
+                root.createFile("application/zip", name)
+                    ?: throw IOException("Cannot create backup file in selected folder")
             try {
-                val name = WorkspaceBackupFiles.fileName(packageId, System.currentTimeMillis())
-                val target =
-                    root.createFile("application/zip", name)
-                        ?: throw IOException("Cannot create backup file in selected folder")
+                // Stream the workspace straight into the backup document: no
+                // temporary zip, so a large workspace is never written twice
+                // and a killed process cannot leave an orphaned
+                // `*-export-*.zip` behind in the package directory.
                 context.contentResolver.openOutputStream(target.uri)?.use { out ->
-                    temp.inputStream().use { input -> input.copyTo(out) }
+                    PackageArchive.exportPackageTo("$packageId.zip", out) { progress, _ ->
+                        written = progress
+                    }
                 } ?: throw IOException("Cannot open output stream for $name")
-                prune(root, packageId, retention)
-                markLast(profile, success = true)
-                Timber.i("Workspace backup written: ${target.uri}")
-                Outcome.SUCCESS
-            } finally {
-                temp.delete()
+            } catch (e: Exception) {
+                // A truncated archive must never be mistaken for a valid
+                // snapshot by a later restore.
+                target.delete()
+                throw e
             }
+            prune(root, packageId, retention)
+            markLast(profile, success = true)
+            Timber.i("Workspace backup written: ${target.uri}")
+            DiagnosticLog.i(
+                "backup",
+                "ok pkg=$packageId bytes=$written doc=${target.name} " +
+                    "retention=$retention ms=${SystemClock.elapsedRealtime() - startedAt}",
+            )
+            Outcome.SUCCESS
         } catch (e: Exception) {
             markLast(profile, success = false)
+            DiagnosticLog.w(
+                "backup",
+                "failed pkg=$packageId bytes=$written " +
+                    "ms=${SystemClock.elapsedRealtime() - startedAt}: ${e.javaClass.simpleName}: ${e.message}",
+            )
             throw e
         }
     }

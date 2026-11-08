@@ -136,6 +136,9 @@
     <string name="ime_package_importing">Importing IME package…</string>
     <string name="ime_package_compiling">Compiling IME package…</string>
     <string name="ime_package_import_in_progress">IME package import/compile is in progress…</string>
+    <string name="ime_package_exporting">Exporting IME package…</string>
+    <string name="ime_package_export_progress">Writing %1$d%%</string>
+    <string name="ime_package_export_success">IME package exported</string>
     <string name="ime_package_compiled_active_refreshed">Compiled. The current package has been refreshed.</string>
     <string name="ime_package_compile_failed">IME package compile failed</string>
     <string name="ime_package_activation_success">IME package switched</string>
