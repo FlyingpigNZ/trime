@@ -3,7 +3,8 @@
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
 > **最后更新于**：2026-11-13（**14键 token 键盘在英文(ascii)模式下泄漏内部码的修复**，
-> 见 §0 首节；CI 流程优化见 §10；v3.4.11 已发双端）。
+> 见 §0 首节；已 bump **3.4.12 / 20261113** 并发 Gitea release；CI 流程优化见 §10；
+> v3.4.11 已发双端）。
 > **CI 耗时诊断 + 两个修复 + 实测数据见 §10**（旧 §9 保留为发版当次的收尾记录）。
 > v3.4.11 修复的根因/设计见 §0 前几节；新会话请先读 §0 首节（本轮）与 §10「下一步 / 可选」。
 > **更早（2026-11-05）**：v3.4.10。`main` 已合入 **PR #31**（merge 提交 `27b777d6`）：
@@ -92,15 +93,18 @@
   需 PyYAML，本地未执行——zip 只改了一处 `save_options` 列表项，已由 `Shipped14KeyPackageTest`
   用 app 自己的 YAML 解析器验证可解析且内容符合预期。
 
-### 附带发现（未处理，需拍板）
-- **gitignored 源目录 `sample_theme_schemas/万象14键-nogram/` 仍是 token 之前的版本**
-  （`behavior.yaml` 发代表字母 `q,e,t,u,o,a,d,g,j,l,z,c,b,m`；`wanxiang_14jian.schema.yaml`
-  的 `alphabet` 只有 14 个代表字母、algebra 用 `/14jian`；没有 `rime/` 树、没有
-  `wanxiang_14jian.extended.yaml`），而跟踪的 zip 是 token 版。谁从这个源目录重建/刷新包，
-  就会得到“键盘发 token、方案折代表字母”的混合包 = 上面第 1 条那个症状。建议：把 zip 解到
-  该源目录使其一致（或删掉它，只以 zip 为准）。本轮未动它。
-- `ascii_mode` 是否也要跨重启记忆：现在**不记**（每次回中文）。若要记，需同时给
-  `KeyboardSwitcher` 一个“用户显式选择才写”的通道，别把被迫窗口写进去。
+### 附带发现（已处理）
+- **gitignored 源目录 `sample_theme_schemas/万象14键-nogram/` 已与跟踪的 zip 同步**（本轮把
+  zip 解进去覆盖，105 个文件逐字节一致）。它之前还是 token 之前的版本（`behavior.yaml` 发
+  代表字母 `q,e,t,u,o,a,d,g,j,l,z,c,b,m`；`wanxiang_14jian.schema.yaml` 的 `alphabet` 只有
+  14 个代表字母、algebra 用 `/14jian`；没有 `rime/` 树与 extended 表）——谁从那个源目录
+  重建/刷新包，都会得到“键盘发 token、方案折代表字母”的混合包 = 上面第 1 条那个症状。
+  ⚠ 该目录 gitignored、**不入库**：以后重构包以 zip 为准（或先解回该目录再改、改完重打包）。
+- `ascii_mode` **有意不跨重启记忆**（维护者 2026-11-13 拍板：重启即回中文符合预期）。要改
+  需给 `KeyboardSwitcher` 加一条“仅用户显式选择才写”的通道，别把被迫窗口写进去。
+- 本轮发版：版本 bump 提交（`versionCode 20261113`）+ annotated tag **`v3.4.12`** 推
+  `origin_home` 触发 Gitea Release CI。注意改 `app/build.gradle.kts` 会让 `actions/setup-java`
+  的 gradle 缓存 key 失效 → 这次 Gitea 冷启动（见 §10 的坑），会比平时慢几分钟。
 
 ## 0. 上一轮状态：锁屏瞬间出现"缩小版键盘"（2026-11-08，v3.4.11 修复）
 
