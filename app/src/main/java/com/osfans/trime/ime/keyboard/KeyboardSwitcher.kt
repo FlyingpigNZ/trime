@@ -15,6 +15,7 @@ import com.osfans.trime.data.theme.Theme
 import com.osfans.trime.data.theme.model.TextKeyboard
 import com.osfans.trime.ime.core.TrimeInputMethodService
 import com.osfans.trime.ime.keyboard.KeyboardPrefs.isLandscapeMode
+import com.osfans.trime.util.DiagnosticLog
 
 /**
  * IME policy for keyboard selection: resolves symbolic targets (`.default`,
@@ -77,9 +78,22 @@ class KeyboardSwitcher(
 
     private fun selectKeyboardConfig(name: String): TextKeyboard? = theme.presetKeyboards[name] ?: theme.presetKeyboards["default"]
 
-    private fun getOrCreateKeyboard(id: String): Keyboard = keyboards.getOrPut(id) {
-        Keyboard(context, theme, allowedWidth, selectKeyboardConfig(id), rime).also {
+    private fun getOrCreateKeyboard(id: String): Keyboard {
+        val current = context.currentKeyboardMetrics()
+        keyboards[id]?.let { cached ->
+            if (cached.metrics == current) return cached
+            // The cached model was built with other metrics (density, font scale
+            // or landscape mode) than the ones in effect now: its px geometry
+            // describes a different keyboard than the container we would draw it
+            // into. Drop the whole cache instead of reusing it. This covers the
+            // configuration changes that never arrive as a callback, which is
+            // the case `onConfigurationChanged` alone cannot guarantee.
+            DiagnosticLog.w("keyboard", "stale keyboard id=$id built=${cached.metrics} now=$current")
+            invalidateKeyboardCache()
+        }
+        return Keyboard(context, theme, allowedWidth, selectKeyboardConfig(id), rime).also {
             it.lastAsciiMode = savedAsciiModes[id] ?: it.asciiMode
+            keyboards[id] = it
         }
     }
 

@@ -127,6 +127,12 @@ class KeyboardView(
         setMeasuredDimension(measuredWidth, fullHeight)
     }
 
+    /**
+     * Whether this view was built from [model]. Its key bounds are that model's
+     * px geometry, so a view can only be reused for the very model it wraps.
+     */
+    internal fun isBuiltFrom(model: Keyboard): Boolean = keyboard === model
+
     fun invalidateAllKeys() {
         children.forEach { it.invalidate() }
     }

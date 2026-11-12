@@ -141,6 +141,14 @@ class Keyboard(
     val resetAsciiMode = selfConfig?.resetAsciiMode ?: true
     var lastAsciiMode: Boolean = asciiMode
 
+    /**
+     * Configuration numbers this model's px geometry was built with (see
+     * [KeyboardMetrics]). Caches compare it before handing the model back, so a
+     * model that predates a configuration change can never be painted into a
+     * container laid out for the current one.
+     */
+    internal val metrics: KeyboardMetrics = context.currentKeyboardMetrics()
+
     val landscapeKeyboard: String? = selfConfig?.landscapeKeyboard
     private val preferredSplitPercent by AppPrefs.defaultInstance().keyboard.splitSpacePercent
     private val landscapePercent =
