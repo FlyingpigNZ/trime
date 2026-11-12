@@ -87,7 +87,9 @@ jobs:
         id: jni-cache
         with:
           path: "app/prebuilt"
-          key: ${{ matrix.os }}-trime-jni-debug-${{ steps.cache-hash.outputs.native-cache-hash }}
+          # v2: entries written before the switch to stripped libraries hold
+          # merged (unstripped) ones and must not be reused.
+          key: ${{ matrix.os }}-trime-jni-debug-v2-${{ steps.cache-hash.outputs.native-cache-hash }}
 
       - name: Fetch submodules
         if: ${{ !steps.jni-cache.outputs.cache-hit }}
@@ -110,7 +112,18 @@ jobs:
         run: |
           make debug
 
+      - name: Verify native libs are stripped
+        # A cache-hit build packages `app/prebuilt` without configuring a CMake
+        # build, so a missing strip tool would ship the cached libraries
+        # verbatim (they are 4-7x larger unstripped, ~3x the APK size). Loud,
+        # because the size regression is otherwise invisible in the release.
+        run: bash script/check-native-libs-stripped.sh app/build/outputs/apk/debug/*.apk
+
       - name: Add JNI cache
         if: ${{ !steps.jni-cache.outputs.cache-hit }}
         shell: bash
-        run: cp -R app/build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib app/prebuilt
+        # Stripped, not merged: while `app/prebuilt` exists the build packages it as
+        # jniLibs and never configures CMake, so on a cache hit the stripping AGP
+        # would do is skipped when no strip tool is available — the unstripped
+        # libraries then land in the APK as-is.
+        run: cp -R app/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib app/prebuilt
