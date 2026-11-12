@@ -93,6 +93,38 @@
   需 PyYAML，本地未执行——zip 只改了一处 `save_options` 列表项，已由 `Shipped14KeyPackageTest`
   用 app 自己的 YAML 解析器验证可解析且内容符合预期。
 
+### 发版事故：v3.4.12 的 APK 从 8MB 涨到 21MB（2026-11-13 修复）
+- 现象：Gitea release 出来后发现 arm64 APK **8MB → 21MB**，代码内容无变化（本轮唯一动过的大
+  文件是包内 zip，+332 字节；测试/doc 不进 APK）。
+- 根因（两条既有事实叠加，`NativeBaseConventionPlugin` 是分叉点）：
+  1. `app/prebuilt` **存在**时该插件只把它当 `jniLibs` 打包、**不配置 CMake 构建**；而四个
+     workflow 的 JNI 缓存自 **2024-05**（上游 `0798519e` debug / `a1e616d6` release）起就从
+     **`merged_native_libs`（未 strip）** 取库——插件注释写着该用 `stripped_native_libs`，
+     实现与注释从那天起不一致。只要打包时 strip 工具可用，AGP 仍会 strip，所以一直没事。
+  2. **2026-11-08 的 CI 改造（`c5d25721`）**把缓存 key 计算从 Gradle 任务换成
+     `script/native-cache-hash.py`，本意是省掉「配置 Android 工程 → AGP 顺手装 NDK」那 95s；
+     副作用是：当次 run **缓存命中**时既没有 CMake 构建、也没有人装 NDK → strip 工具不可用 →
+     AGP 打 `Unable to strip the following libraries, packaging them as they are` → 把缓存里
+     那份未 strip 的库原样打进 APK（未 strip 93MB / strip 后 13.6MB；release 编译的未 strip
+     库小一些，正好 +13MB）。v3.4.10/11/12 三个 tag 的 `app/src/main/jni` 树与全部子模块指针
+     完全一致 → 缓存 key 未变 → 这次必然命中；v3.4.11 发版在上述 CI 改造**之前**，所以是 8MB。
+- 本地复现手段（本容器可用）：造一个 `llvm-strip` 指向 `/bin/false` 的假 SDK 并让
+  `local.properties` 临时指过去，`app/prebuilt` 放未 strip 库 → APK 33.5MB / `.so` 未 strip
+  97.7MB；换放**已 strip** 库 → APK 10.6MB（说明「缓存里存 strip 过的库」这条修法在 strip
+  工具缺失时也成立）。实验后记得恢复 `local.properties`、删 `app/prebuilt`。
+- 修法（已推 `main` = `4a92dbc9`，CI-only）：①四个 workflow 的 "Add JNI cache" 改从
+  `stripped_native_libs/<variant>/strip<X>DebugSymbols/out/lib` 取库；②缓存 key 加 `-v2`
+  弃用已有未 strip 条目（代价：一次冷原生构建）；③新增
+  `script/check-native-libs-stripped.sh`，release/debug 构建后检查每个 APK 的 `.so` 尺寸
+  （>24MB 即 `::error::` 失败），这类回归不再静默发版。
+- v3.4.12 处理：`v3.4.12` tag **重指**到 `4a92dbc9`（与原 `8bcc88fc` 的差异仅 `.github/workflows/*`
+  + 新脚本，APP 代码/数据零差异，APK 内容不受影响），force-push 后按 `push: tags: v*` 自动重跑
+  release-ci（workflow 取自 tag 自身 = 修复版）。产物名带新 hash（`…-g4a92dbc9-…`），旧的
+  `…-g8bcc88fc-…` 四个资产需在 release 页手动删，否则会变成 8 个（release 步骤只追加不上删）。
+- 待复核：本次 run 是 v2 key 的**冷启动**（10–20min）；日志里应出现
+  `Verify native libs are stripped` 步骤与 `librime_jni.so = 13638608 bytes`；APK 应回到 ~8MB。
+  顺带验证 §10 那条「tag push 只跑 release-ci、不跑 commit-ci」。
+
 ### 附带发现（已处理）
 - **gitignored 源目录 `sample_theme_schemas/万象14键-nogram/` 已与跟踪的 zip 同步**（本轮把
   zip 解进去覆盖，105 个文件逐字节一致）。它之前还是 token 之前的版本（`behavior.yaml` 发
