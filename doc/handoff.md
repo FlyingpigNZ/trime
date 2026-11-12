@@ -1230,3 +1230,21 @@ git cherry-pick --quit; git reset --hard main
   在构造时取一次；显示模式切换后编辑器预览的描边粗细会留在旧 density（**未修**，只影响设置页观感）。
 - IME 侧目前所有"密度/字号/机型方向"输入都走 `KeyboardMetrics` 这一条；新增会烘死 px 的缓存时，
   请把它的输入并进 `KeyboardMetrics`，或在取用处加同样的比对。
+
+### 11.5 当前交接点（2026-11-12 傍晚）
+- 维护者已装 **diag2** 包，准备跑几天：**"有问题/没问题都会回来报告"**。
+  → 新会话开工先问一句"diag2 这几天还有没有复现"，别默认已解决、也别默认还在坏。
+- 分支状态：`main` 顶端 = 本节提交（未推送）。诊断提交链
+  `e976900a`（窗口层诊断）→ `358a4a90`（缓存修复）→ 文档提交。
+- **如果还是复现**，先按 §11 的三条判读走，日志里分别对应：
+  - `keyboard: stale keyboard id=… built=… now=…` → 缓存没拦住，看 `built=` 里的哪一项在变；
+  - `keyboard: drop stale view id=…` → View 缓存侧还有路径没走到，查 `switchKeyboard`/`attachKeyboard` 的调用点；
+  - `keyboard view hidden metrics built=… now=…` / `height model=… container=…` → 配置/容器不一致被拦住了，
+    接着看紧跟的 `rebuilding keyboard for changed metrics` 有没有把它恢复；
+  - 三条都没有、几何全程正常仍能看见缩小键盘 → 转 §11 的窗口/compositor 分支（看 show/hide 行的 `anim=`）。
+- **如果不再复现**（跑几天没再出现）：按门禁走一次发版流程
+  （`make style-lint`、`validate-definitions --check-shipped`、4 ABI release），
+  versionName `3.4.12` / versionCode `>20261108`，tag 触发双端 Release CI；
+  发版说明里把"缓存按构造时配置失效"写成根因，别再写成"密度切换"。
+  诊断日志（窗口层那批）**建议保留**：它们每行只在事件/尺寸变化时写，量很小。
+- 若要开 PR：按 CLAUDE.md 推 `origin_home`，用 `tea pull create --repo Home/trime`。
