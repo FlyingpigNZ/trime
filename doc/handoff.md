@@ -1180,3 +1180,53 @@ git cherry-pick --quit; git reset --hard main
    （主界面 → 开发者 → 实时日志 → 导出）。
 2. 按上面「复现后的判读」两条分支定性，再决定改我们的排版还是关窗口动画。
 3. 判读结论与修复落地后，更新本文件 §11 并把诊断提交（`chore(diagnostics): …`）随修复合入。
+
+### 11.1 维护者反馈（2026-11-12 下午）：装 diag1 后**不再复现**，怀疑是进程内缓存
+- 观察：同一台机器、同样的熄屏操作，换成新进程（重装 = 进程重启）就不出现。
+  ⇒ 说明问题不在"每次熄屏都会走到的路径"，而在**只在某个进程存活期内累积/固化的状态**。
+- 复核代码后确认：键盘侧确实有两个"按 id 缓存、但不知道自己是什么配置/挂的哪个模型"的缓存，
+  它们都只在"宽度变了"或"收到 `onConfigurationChanged` 回调"时才失效：
+
+  1. `KeyboardSwitcher.keyboards`（id → `Keyboard` 模型）。模型的 px 几何在**构造时**
+     把 density / fontScale / landscape 烘死；缓存失效条件只有 `updateAllowedWidth()`
+     的宽度变化与 `invalidateKeyboardCache()`（由重建路径调用）。
+  2. `KeyboardWindow.cachedKeyboardViews`（id → `KeyboardView`）。View 在构造时把模型的
+     **px 键位**烘死，但缓存从不校验"这个 View 挂的还是不是一个模型"——模型被重建
+     （宽度/配置变化）后，旧 View 仍可能被继续复用，画出一份"已经不存在的键盘"。
+- 这解释了日志里"几何恒等于 1064x571 却仍能看到缩小键盘"：被拍下来的那一帧可能来自
+  **旧模型/旧 View**，而日志里的 `kw/container/view` 描述的是当前对象。
+
+### 11.2 修复：把"构造这些几何时的配置"变成缓存的有效性条件
+- 新文件 `ime/keyboard/KeyboardMetrics.kt`：`KeyboardMetrics(densityDpi, fontScale, landscapeMode)`
+  + `Context.currentKeyboardMetrics()`。三项就是 `Keyboard` 在构造时换算 dp/sp、选横屏变体
+  所用到的全部输入。
+- `Keyboard`：新增 `internal val metrics = context.currentKeyboardMetrics()`。
+- `KeyboardSwitcher.getOrCreateKeyboard`：取缓存前比对 metrics，不一致 → 打
+  `keyboard: stale keyboard id=… built=… now=…` 并 `invalidateKeyboardCache()` 后重建
+  （=覆盖"配置变化根本没作为回调送达"的情形，这正是 `onConfigurationChanged` 兜不住的那半）。
+- `KeyboardWindow.attachKeyboard`：View 必须 `isBuiltFrom(keyboard)`（模型身份相同）才复用，
+  否则丢弃并重建（`keyboard: drop stale view id=…`）；`switchKeyboard` 的"已经是当前键盘"
+  快速返回也加上同一校验，避免旧 View 被当成新鲜视图短路。
+- `KeyboardWindow.syncKeyboardVisibility`：除"容器高 ≠ 模型高"外，再要求
+  `keyboard.metrics == 当前 metrics` 才可见（日志写明原因：`height …` 或 `metrics built=… now=…`），
+  不一致时 `post { rebuildKeyboards() }` 触发**一次**按当前配置的重建 —— 不再是"一直不画"。
+- `KeyboardWindow.geometry()`：追加 `built=<density/fontScale/landscape>`，与实时 `density=`
+  `fontScale=` 并列，一眼看出模型是不是旧配置。
+- 单测 `KeyboardMetricsTest`（4 例）：完全相等可复用 + 三个字段**各单独**变化都必须失效
+  （有人把某个字段从比较里去掉时用例会红）。
+
+### 11.3 验证与产物
+- `:app:compileDebugKotlin`、`spotlessCheck`、`:app:lintDebug`（50 条 warning 全是既有类别
+  `NewerVersionAvailable`/`UseKtx`/…，本次改动文件 0 条）、全量 `:app:testDebugUnitTest`
+  **212 例 0 失败 0 跳过**（原 208 + 新 4）、`BUILD_ABI=arm64-v8a :app:assembleRelease`。
+- 诊断+修复包（release key `eba1e3b0…dabd13`，versionCode 仍 `20261108`，可覆盖安装）：
+  `app/build/outputs/apk/release/com.osfans.trime-v3.4.11-diag2-arm64-v8a-release.apk`
+  sha256 `f067d9c4b7dd1e2062bc6bfbca33c161b18372f40cecd769f895d2a40880d529`
+  （Build Git Hash `358a4a90`）
+- 仍未推送远端。
+
+### 11.4 同类的"脏缓存"清单（下次顺手看）
+- `ui/main/settings/theme/KeyboardBackgroundPreview.kt` 里 `private val density = context.resources.displayMetrics.density`
+  在构造时取一次；显示模式切换后编辑器预览的描边粗细会留在旧 density（**未修**，只影响设置页观感）。
+- IME 侧目前所有"密度/字号/机型方向"输入都走 `KeyboardMetrics` 这一条；新增会烘死 px 的缓存时，
+  请把它的输入并进 `KeyboardMetrics`，或在取用处加同样的比对。
