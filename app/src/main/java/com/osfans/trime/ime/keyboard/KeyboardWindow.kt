@@ -105,6 +105,9 @@ class KeyboardWindow :
     private var measuredContainerWidth = 0
     private var measuredInLandscape: Boolean? = null
 
+    /** Reused by [geometry] so the diagnostics path allocates nothing per call. */
+    private val containerLocation = IntArray(2)
+
     /** The device orientation, independent of the landscape-mode preference. */
     private val isLandscapeOrientation: Boolean
         get() = context.resources.configuration.isLandscape()
@@ -289,18 +292,28 @@ class KeyboardWindow :
      * keyboard model's own size, the width it was built on, and the sizes of
      * the container / view that are actually laid out. A mismatch between
      * `kw` and `container`/`view` is what draws a wrongly sized keyboard.
+     *
+     * `at` is the container's on-screen origin and `density`/`fontScale` are the
+     * numbers every dp/sp in the model was converted with, so one line says both
+     * *where* the keyboard sits and *which* metrics produced it — the two things
+     * needed to tell a bad layout from a compositor-side transform.
      */
     internal fun geometry(): String {
         val keyboard = currentKeyboard
         val view = currentKeyboardView
         val container =
             if (this::keyboardView.isInitialized) {
-                "${keyboardView.width}x${keyboardView.height} vis=${keyboardView.windowVisibility}"
+                keyboardView.getLocationOnScreen(containerLocation)
+                val attached = if (keyboardView.isAttachedToWindow) "1" else "0"
+                "${keyboardView.width}x${keyboardView.height} at=${containerLocation[0]},${containerLocation[1]} " +
+                    "vis=${keyboardView.windowVisibility} attached=$attached"
             } else {
                 "uninitialized"
             }
+        val conf = context.resources.configuration
         return "kw=${keyboard?.minWidth}x${keyboard?.height} allowed=${switcher.allowedWidth} " +
-            "container=$container view=${view?.width}x${view?.height}"
+            "container=$container view=${view?.width}x${view?.height} " +
+            "density=${conf.densityDpi} fontScale=${conf.fontScale}"
     }
 
     /**

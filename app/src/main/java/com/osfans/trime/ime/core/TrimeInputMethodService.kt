@@ -301,13 +301,39 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             DiagnosticLog.i("ime", "applying deferred input view rebuild")
             rebuild()
         }
-        DiagnosticLog.i("ime", "window shown ${inputView?.geometry()}")
+        DiagnosticLog.i("ime", "window shown ${windowGeometry()} ${inputView?.geometry()}")
     }
 
     override fun onWindowHidden() {
         super.onWindowHidden()
         windowShown = false
-        DiagnosticLog.i("ime", "window hidden ${inputView?.geometry()}")
+        DiagnosticLog.i("ime", "window hidden ${windowGeometry()} ${inputView?.geometry()}")
+    }
+
+    /**
+     * Window-level snapshot for the persistent log, printed next to the view
+     * geometry on every show/hide.
+     *
+     * The window identity answers a question the view geometry cannot: whether
+     * the framework *reused* the IME window or built a new one. A fresh id means
+     * a new surface, which is the one situation where a stale frame and a new
+     * (possibly differently laid out) frame can be composited at the same time —
+     * the "complete but shrunken keyboard over the real one" shape.
+     * `params` and `anim` cover the compositor side of the same question: the
+     * window animation style our theme hands to the OEM's show/hide transition
+     * is what a scale/fade on the whole window would come from.
+     */
+    private fun windowGeometry(): String {
+        val win = runCatching { window?.window }.getOrNull()
+        val attrs = win?.attributes
+        val decor =
+            if (this::decorView.isInitialized) {
+                "${decorView.width}x${decorView.height} attached=${decorView.isAttachedToWindow}"
+            } else {
+                "uninitialized"
+            }
+        return "win=${win?.let { System.identityHashCode(it) } ?: 0} decor=$decor " +
+            "params=${attrs?.width}x${attrs?.height} gravity=${attrs?.gravity} anim=${attrs?.windowAnimations}"
     }
 
     override fun onDestroy() {
@@ -487,6 +513,9 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     private val inputViewLocation = intArrayOf(0, 0)
 
+    /** Last insets/hit-test record written to the persistent log. */
+    private var lastInsetsRecord: String? = null
+
     override fun onComputeInsets(outInsets: Insets) {
         if (inputDeviceManager.useVirtualKeyboard) {
             inputView?.keyboardView?.getLocationInWindow(inputViewLocation)
@@ -504,6 +533,18 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
                 touchableInsets = Insets.TOUCHABLE_INSETS_VISIBLE
             }
         }
+        // The insets are how the editor learns where our UI sits. A change with
+        // no configuration change behind it means the window was laid out again
+        // (screen on/off, IME window rebuild); the keyboard's own top edge is
+        // the number a "shrunken keyboard" would move.
+        val record =
+            "content=${outInsets.contentTopInsets} visible=${outInsets.visibleTopInsets} " +
+                "keyboardTop=${inputViewLocation[1]} " +
+                "decor=${if (this::decorView.isInitialized) "${decorView.width}x${decorView.height}" else "?"}"
+        if (record != lastInsetsRecord) {
+            lastInsetsRecord = record
+            DiagnosticLog.i("ime", "insets $record")
+        }
     }
 
     // always show InputView since we delegate CandidatesView's visibility to it
@@ -514,6 +555,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     override fun onCreateInputView(): View? {
         Timber.d("onCreateInputView")
+        // The framework asks for a new input view exactly when it needs content
+        // for a (re)built IME window. That is the one event that explains a
+        // stale surface standing next to a fresh one, so it goes to the
+        // persistent log along with the window it is being built into.
+        DiagnosticLog.i("ime", "create input view ${windowGeometry()} themeReady=${ThemeManager.isInitialized}")
         // If Rime is not ready yet and no package has been activated, return a
         // lightweight placeholder instead of blocking the IME main thread on
         // package activation. The background activation replaces it with the
@@ -547,6 +593,10 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     override fun setInputView(view: View) {
         super.setInputView(view)
+        DiagnosticLog.i(
+            "ime",
+            "set input view view=${System.identityHashCode(view)} ${windowGeometry()}",
+        )
         val inputArea = contentView.findViewById<FrameLayout>(android.R.id.inputArea)
         inputArea.updateLayoutParams<ViewGroup.LayoutParams> {
             height = ViewGroup.LayoutParams.MATCH_PARENT
@@ -562,6 +612,11 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         isCandidatesOnly: Boolean,
     ) {
         win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        DiagnosticLog.i(
+            "ime",
+            "configure window fullscreen=$isFullscreen candidatesOnly=$isCandidatesOnly " +
+                "layout=${win.attributes.width}x${win.attributes.height} anim=${win.attributes.windowAnimations}",
+        )
     }
 
     override fun onStartInput(
