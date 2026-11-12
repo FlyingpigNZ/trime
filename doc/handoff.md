@@ -1107,3 +1107,76 @@ git cherry-pick --quit; git reset --hard main
 3. tag 跳过 commit-ci 的路径还没被真实 tag push 验证过（下次发版时确认只有 release-ci 在跑，
    且 `Check code style` / `Android Lint` 步骤名出现在日志里）。
 4. v3.4.11 真机冒烟仍未做（见 §9 未决问题 4）。
+
+## 11. 2026-11-12：锁屏"缩小版键盘"复发 → 上次的根因通道**没有**命中，转查窗口层
+
+### 报障与日志
+- 维护者报「关屏幕时缩小的键盘又回来了」，日志：
+  `/mnt/shares/com.osfans.trime-2026-11-12T02_16_48Z.txt`
+  （`v3.4.11-0-g267fcc4f-release`、versionCode `20261108`，荣耀 WIN，覆盖 11-09 ~ 11-12）
+- 设备当前显示参数：`Screen Size 1080 x 2378`、`Screen Density 2.975`（= dpi 476），
+  IME 窗口 `input=1080x2263`。
+
+### 关键结论：§0 那个密度/重建通道这次**完全没有触发**
+- 全天（pid 23140，11-11 17:54 起）**0** 条 `keyboard: rebuild`、**0** 条
+  `ime: onConfigurationChanged`、**0** 条 `color changed -> replace input views`、
+  0 条 `keyboard view hidden`。
+- 1446 条 `ime:` 行里几何**恒定**：
+  `board=1064x571/571 kw=1064x571 allowed=1064 container=1064x571 view=1064x571`
+  ——模型高度、容器高度、实际 View 高度三者始终相等，宽度也始终是实测值 1064。
+- 旧的"1272 档 / density 560"证据只出现在 **11-11 17:54 之前**的旧进程（pid 19998）里：
+  那之后设备落到 1080/476 档，`display=1080 density=476` 贯穿到日志结尾。
+  即 §0 里"两种显示模式来回切 + density 失配"这条通道，这一整天没有发生过。
+- 所以这次**不是** `ColorManager` 重建那条链路：v3.4.11 的三道守卫（日夜判断、
+  隐藏时延后重建、容器/模型高度不一致则 INVISIBLE）都在生效，日志可证。
+
+### 日志里唯一剩下的"异常"：熄屏瞬间 IME 窗口被反复摘挂
+- 熄屏/亮屏时刻的成对行形如：
+  ```
+  ime: window shown input=1080x2263 vis=8 ...
+  ime: window hidden input=1080x2263 vis=8 ...
+  ime: window shown input=1080x2263 vis=8 ...
+  ```
+  `vis=8` 是 `InputView.getWindowVisibility()` = **GONE**，即"窗口已经接到
+  `onWindowShown`，但视图树还没挂到可见窗口上"。全天 479/1441 条 show/hide 行是 `vis=8`。
+- 这符合"系统在熄屏过程中重建/摘挂 IME 窗口（新 surface）"，也就是**上一帧与新一帧可能
+  被同时合成**的那种情形 —— 形态正是"一块完整的、缩小的键盘压在真实键盘左上"。
+  目前还没有直接证据断定是系统动画，故本轮**只加诊断、不改行为**（先量再改）。
+
+### 本会话新增的诊断（纯日志，无行为改动，未推送）
+- `TrimeInputMethodService`
+  - `create input view …` / `set input view view=<hash> …`（窗口被重建时必然出现）；
+  - `configure window fullscreen=… candidatesOnly=… layout=… anim=…`（`onConfigureWindow`）；
+  - show/hide 行前面加**窗口级**快照：`win=<identityHashCode> decor=WxH attached=… params=WxH gravity=… anim=<windowAnimations>`
+    —— `win` 变化 = 系统换了窗口/surface；`anim` 非 0 = 我们的主题把某个窗口动画交给了系统；
+  - `insets content=… visible=… keyboardTop=… decor=WxH`（`onComputeInsets` 变化时各记一次）。
+- `BaseInputView`：`input view attached/detached`、`input view size=WxH was=WxH`
+  （窗口内的尺寸变化是唯一不经过 `onConfigurationChanged` 的几何变化源）。
+- `KeyboardWindow.geometry()`：追加 `at=<屏幕坐标> vis=… attached=… density=… fontScale=…`
+  （一行同时说"画在哪"和"用什么密度算的"）。
+- `KeyboardView`：`view attached/detached`、以及**每次实际绘制尺寸变化**记一行
+  `view drawn view=WxH model=WxH keys=N`（`dispatchDraw` 里三个 int 比较，不进热路径）。
+
+### 复现后的判读（下次先看这两条）
+1. 出现 `keyboard: view drawn view=…` 且 `view` 明显小于 `model`（或出现只出现一次的临时尺寸）
+   → 仍是我们这边的排版，按 §0 的思路继续（那时会有 `input view size=` /
+   `container=` 的新证据）。
+2. 几何全程不变（`view drawn` 只有正常尺寸）却仍能看到缩小键盘
+   → 缩小来自**视图之外**（窗口过渡 / compositor 缩放）。此时看 `anim=`：
+   非 0 就说明主题把 OEM 的窗口动画交给了系统，下一轮可试
+   `window.window.attributes.windowAnimations = 0`（关掉 IME 窗口动画）来验证。
+
+### 产物与验证
+- 诊断包（release key 同 `eba1e3b0…dabd13`，可与现装 v3.4.11 直接覆盖安装；
+  versionCode 未变 `20261108`，`-PbuildVersionName=v3.4.11-diag1`）：
+  `app/build/outputs/apk/release/com.osfans.trime-v3.4.11-diag1-arm64-v8a-release.apk`
+  sha256 `b57de0a3ff16dda286f8e2d2f3fd944c92ffb6462ed7457247979d04d41dc91e`
+- 本机门禁：`:app:compileDebugKotlin`、`spotlessApply/Check`、全量
+  `:app:testDebugUnitTest`（**208 例 0 失败 0 跳过**）、`BUILD_ABI=arm64-v8a :app:assembleRelease`。
+- **未推送**：诊断提交只在本地（维护者确认判读结论后再决定是否随修复合入）。
+
+### 下一步
+1. 维护者装 `v3.4.11-diag1`，按原路径复现（键盘开着 → 熄屏），然后导出日志
+   （主界面 → 开发者 → 实时日志 → 导出）。
+2. 按上面「复现后的判读」两条分支定性，再决定改我们的排版还是关窗口动画。
+3. 判读结论与修复落地后，更新本文件 §11 并把诊断提交（`chore(diagnostics): …`）随修复合入。
