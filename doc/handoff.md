@@ -2,9 +2,10 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-08 深夜（**v3.4.11 已发双端**；CI 流程优化已落地并双端实跑验证）。
+> **最后更新于**：2026-11-13（**14键 token 键盘在英文(ascii)模式下泄漏内部码的修复**，
+> 见 §0 首节；CI 流程优化见 §10；v3.4.11 已发双端）。
 > **CI 耗时诊断 + 两个修复 + 实测数据见 §10**（旧 §9 保留为发版当次的收尾记录）。
-> v3.4.11 修复的根因/设计见 §0 前三节；新会话请先读 §10「下一步 / 可选」。
+> v3.4.11 修复的根因/设计见 §0 前几节；新会话请先读 §0 首节（本轮）与 §10「下一步 / 可选」。
 > **更早（2026-11-05）**：v3.4.10。`main` 已合入 **PR #31**（merge 提交 `27b777d6`）：
 > 从上游 `osfans/trime` 移植 33 个修复/小功能 + 升级 librime/librime-lua/snappy；版本 bump
 > **3.4.10 / 20261106**，tag **`v3.4.10`** 打在同一提交，Gitea / GitHub 各自触发 Release CI。
@@ -35,7 +36,73 @@
 > 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
 > §0b（备份功能）、§1–§7（键盘背景）为历史记录。
 
-## 0. 最新状态：锁屏瞬间出现"缩小版键盘"（2026-11-08，v3.4.11 修复）
+## 0. 最新状态：14键 在英文(ascii)模式下按键变 a/b/c、rime 不转换（2026-11-13 修复）
+
+### 现象（维护者报）
+用着用着，14键 的按键映射“变了”：按 QW 出 `a`、ER 出 `b`，以此类推；这些字母没有对应
+编码，rime 不转换。其他万象键盘正常，只有 14键 中招。维护者自查发现：**万象状态面板
+（展开工具）里 14键小鹤 自己切到了 ANSI 模式，里面几个开关也像是被 reset 成默认**。
+
+### 根因（两条链，各自独立）
+1. **token 只在中文模式有意义**：`behavior.yaml` 里 `14keyqw: send: A` …（14 个内部
+   token，只有 `/14jian-token` 折叠空间认得）。引擎一旦进 ascii，librime 的 ascii 段直通
+   字母 → token 被当英文字母原样上屏（`a`、`b`…）且不转换。26键/9键 的键发真字母，所以
+   它们没问题。
+2. **ascii 状态与挂着的布局会脱节，而且会被“记死”**：
+   - `KeyboardWindow.onRimeOptionUpdated` 原来对 `ascii_mode` 只做 `resetShift()`，**不换
+     布局** → 从状态面板/快捷键把 ascii 打开时，中文 14键 布局仍挂着 → 上面那条 token 泄漏。
+   - `KeyboardSwitcher.detachCurrentKeyboard()` 原来在**每次键盘 detach** 时把**引擎当前**
+     的 ascii 状态写进**离开的那个键盘**的 `lastAsciiMode`；而 `14jian` 在数据里是
+     `reset_ascii_mode: false` → `syncAsciiMode()` 选中它时无条件按 `lastAsciiMode` 重放。
+     于是“中英键按一下（`Eisu_toggle` 先改了 ascii，再切键盘 → detach 快照到的就是 true）”
+     或“英文状态下发生转屏/密度重建”都会让 14键 被记成“偏好英文”，之后每次回到它都强制
+     英文（内存态，杀进程才回默认，所以观感是“它自己 reset 成英文了”）。
+3. **“设置被重置”**：状态面板的开关只有列在 `switcher/save_options`（包内 `rime/default.yaml`）
+   里的才会写进 `<工作区>/user.yaml` 的 `var/option/*`。14键 方案声明的开关里，
+   `ascii_mode`/`context_reorder`/`char_priority`/`english` 以及**三个分组开关组的成员**
+   （`raw_input`、`comment_off`+`toneless_hint`、`s2s`）原先都没列 → 每次重新部署/重启
+   就回到方案默认值。（`ascii_mode` 保持“不记住”是有意的。）
+
+### 修法（本轮 3 处，均已实现）
+- **A（app，`KeyboardSwitcher`）**：删掉 detach 快照，改为在**观察到** `ascii_mode` 变化时
+  记进当前键盘（`rememberAsciiMode`）——用户意图（状态面板/中英键/快捷键）都在 option 消息里；
+  两类情况不记：①声明了 `ascii_keyboard` 的键盘（它把另一模式交给那个布局，记忆只会反过来
+  压制布局切换）②被迫的 ascii 窗口（密码/数字框，`tempAsciiMode`）。纯策略函数
+  `remembersAsciiMode`。
+- **B（app，杜绝泄漏）**：`ascii_mode` 变化时按数据声明切布局：进英文 → 切当前键盘的
+  `ascii_keyboard`（14键 → `letter_14jian`）；回中文 → 切回**声明该布局**的键盘
+  （`asciiLayoutTarget`，单一声明者才动，多家声明如 `letter` 则原地不动）。无声明者行为不变。
+- **C（数据，包内 `rime/default.yaml`）**：`save_options` 补 `context_reorder`、`char_priority`、
+  `english`、`comment_off`、`toneless_hint`、`raw_input`、`s2s`（写进 zip，附注释说明；
+  上游列表顺序未动，便于下次同步）。
+- 回归防线：新增 `Shipped14KeyPackageTest`（3 例，读**跟踪的 zip**）钉死三条跨文件一致性——
+  ①14键 各键 sends 恰好是 `A..N` 且方案 `speller/algebra` 引用 `/14jian-token`（防止再次
+  出现“键盘发 token、方案没折 token”的混合包）；②`ascii_keyboard: letter_14jian` 声明存在且
+  该 preset 真实存在（B 的数据前提）；③方案声明的开关除 `ascii_mode` 外全部在 `save_options`
+  里（这条例行检查当场又抓出 `raw_input`/`s2s`）。
+
+### 验证
+- 全量单测 **220 例 0 失败**（208 → +12：`AsciiModePolicyTest` 9 + `Shipped14KeyPackageTest` 3）；
+  `spotlessCheck`、`:app:lintDebug`（仍 35 条既有 warning、无新增）、`compileDebugKotlin` 均通过。
+- **未做真机冒烟**（容器无设备）：请维护者确认四项：①面板切「英文」时键盘自动换成英文
+  14键（不再是中文布局打 a/b/c）；②从英文切回中文，布局回到 14键 中文键盘；③中英键来回按
+  不再出现“停在英文/按键变 a,b,c”；④状态面板里 `上下文/单词优先/英文` 与三个开关组的选择
+  在重启输入法/重新部署后仍在。
+- 本容器无 PyYAML（`make python-verifiers` 跑不了，CI 会跑）；`validate-definitions --check-shipped`
+  需 PyYAML，本地未执行——zip 只改了一处 `save_options` 列表项，已由 `Shipped14KeyPackageTest`
+  用 app 自己的 YAML 解析器验证可解析且内容符合预期。
+
+### 附带发现（未处理，需拍板）
+- **gitignored 源目录 `sample_theme_schemas/万象14键-nogram/` 仍是 token 之前的版本**
+  （`behavior.yaml` 发代表字母 `q,e,t,u,o,a,d,g,j,l,z,c,b,m`；`wanxiang_14jian.schema.yaml`
+  的 `alphabet` 只有 14 个代表字母、algebra 用 `/14jian`；没有 `rime/` 树、没有
+  `wanxiang_14jian.extended.yaml`），而跟踪的 zip 是 token 版。谁从这个源目录重建/刷新包，
+  就会得到“键盘发 token、方案折代表字母”的混合包 = 上面第 1 条那个症状。建议：把 zip 解到
+  该源目录使其一致（或删掉它，只以 zip 为准）。本轮未动它。
+- `ascii_mode` 是否也要跨重启记忆：现在**不记**（每次回中文）。若要记，需同时给
+  `KeyboardSwitcher` 一个“用户显式选择才写”的通道，别把被迫窗口写进去。
+
+## 0. 上一轮状态：锁屏瞬间出现"缩小版键盘"（2026-11-08，v3.4.11 修复）
 
 ### 现象（维护者报）
 荣耀 WIN，键盘开着时锁屏：屏幕熄灭过程中的一瞬间出现一块**完整但缩小了的键盘**，压在真实键盘
