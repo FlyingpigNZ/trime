@@ -41,9 +41,9 @@ import kotlinx.coroutines.withContext
  * maps to `gan`/`gao`/`han`/`hao`) and the 14-key letter fold (`ca` can be
  * 擦's 双拼 `ca` or 中's 双拼 `vs`) — so Rime produces the union 汉字 for all
  * of them. This controller owns the *input*: it keeps the full typed key-code
- * string the user entered ([lastDigits]; digits for T9, the 14 representative
- * letters for 14-key) and the list of pinyin syllables the user confirmed from
- * the panel ([confirmed]). On a pick or an undo it assembles a **mixed
+ * string the user entered (digits for T9, the 14 representative letters for
+ * 14-key) and the list of pinyin syllables the user confirmed from the panel
+ * ([PinyinDisambiguationState]). On a pick or an undo it assembles a **mixed
  * composition** and feeds it to Rime via `setInput`:
  *
  *     confirmed code, `'`-joined, + remaining un-confirmed typed code
@@ -60,6 +60,16 @@ import kotlinx.coroutines.withContext
  * confirmed, Rime's raw input is `hao'…` / `vs'…` (not the raw typed fold), so
  * the controller owns the typed code string and does not try to reverse-engineer
  * it from Rime.
+ *
+ * The one thing that IS taken from Rime is its raw input, which is re-anchored
+ * on every composition update ([reconcileFromEngine] →
+ * [PinyinDisambiguationState.reconcile]): the engine can shrink the input behind
+ * our back — Escape (`Context::ClearPreviousSegment`) truncates it at the last
+ * segment and keeps the composition non-empty — and a forward-only
+ * interpretation of the composition left the confirmed syllables in the owned
+ * list, so the next pick re-fed them (2026-11-13 report: type `llgevzmo`,
+ * pick 两个, panel-pick `zhou`/`mo`, press Escape, type `vz`: the panel then fed
+ * `zhou'mo'zhou`).
  *
  * The panel only appears while the extension is enabled for the active schema
  * and the current keyboard matches the declared overlay keyboard
@@ -87,30 +97,15 @@ class PinyinDisambiguationController(
     val isAttached: Boolean
         get() = panel != null
 
-    /** The typed key-code string the user has entered (digits for T9, letters for 14-key). */
-    private var lastDigits: String = ""
-
     /**
-     * A confirmed pinyin syllable. [pinyin] is the *display* form (full pinyin,
-     * e.g. `cha`); [code] is what is fed to Rime (the full pinyin for FULL, the
-     * 小鹤双拼 code for FLYPY, e.g. `ia`). The two differ only in flypy mode:
-     * the panel shows the readable pinyin but Rime's dictionary is indexed by
-     * the 双拼 code. `consumed` accumulates into the panel's leading offset.
-     *
-     * An **opaque** entry records an external 词组 pick that went beyond the
-     * panel-confirmed syllables: [pinyin] is empty and [code] is the typed
-     * key-code run the pick consumed (its folded spelling). Backspace pops it
-     * to roll the pick back ([onBackspace] distinguishes it by `pinyin.isEmpty()`).
+     * The owned input state: the typed key-code string and the confirmed
+     * syllables. See [PinyinDisambiguationState] for the model and for why the
+     * engine's raw input (not our own bookkeeping) decides what is still typed.
      */
-    private data class Confirmed(val pinyin: String, val code: String, val consumed: Int)
-
-    private val confirmed = mutableListOf<Confirmed>()
+    private val state = PinyinDisambiguationState { isOwnedCodeChar(it) }
 
     /** Leading candidates currently displayed (a segment per pinyin option). */
     private var leadingSegments: List<PinyinDisambiguationDecoder.Segment> = emptyList()
-
-    /** How many leading typed code characters the confirmed syllables have consumed. */
-    private val consumedDigits: Int get() = confirmed.sumOf { it.consumed }
 
     /** Attach the panel to [keyboardView] (a FrameLayout that hosts the keyboard). */
     fun attach(
@@ -161,7 +156,7 @@ class PinyinDisambiguationController(
         currentKeyboardId = ""
         leadingSegments = emptyList()
         // Schema binding (extension/decoder/currentSchemaId) and the owned input
-        // state (lastDigits/confirmed) are deliberately preserved: a window swap
+        // state are deliberately preserved: a window swap
         // (e.g. the unrolled candidate window replacing the keyboard window) does
         // NOT commit Rime's composition, so re-attaching must keep decoding the
         // same digit string instead of starting over and desyncing from Rime.
@@ -188,8 +183,7 @@ class PinyinDisambiguationController(
         val ext = SchemaExtensionResolver.loadForSchema(schemaId)
         extension = ext?.t9Disambiguation
         decoder = extension?.let { PinyinDisambiguationDecoder(it) }
-        lastDigits = ""
-        confirmed.clear()
+        state.clear()
         leadingSegments = emptyList()
         // The panel geometry follows the extension's input_method (first column
         // for T9, first row for flypy14). A same-schema restart can change the
@@ -244,7 +238,9 @@ class PinyinDisambiguationController(
             // converts a segment); librime re-anchors itself by marking the
             // consumed segments selected and opening a new trailing segment.
             // Ask the engine where that trailing segment actually starts and
-            // re-anchor the owned state there.
+            // re-anchor the owned state there. The engine's raw input also decides
+            // what is still typed: it shrinks when Escape / an editor delete
+            // truncates the composition (see PinyinDisambiguationState.reconcile).
             reconcileFromEngine()
         }
     }
@@ -260,7 +256,7 @@ class PinyinDisambiguationController(
      * characters the pick left behind (digits for T9, 14-key representative
      * letters or uppercase tokens for flypy14), so the consumed span, in
      * owned code characters, is
-     * `lastDigits.length - tail.length`. Raw-character arithmetic is not used:
+     * `typedCode.length - tail.length`. Raw-character arithmetic is not used:
      * a feed head mixes confirmed letter codes (`vi` = two letters plus one
      * delimiter) with digits, so raw characters do not map 1:1 to typed digits
      * and counting them re-counts previously consumed syllables (diag: with
@@ -268,8 +264,9 @@ class PinyinDisambiguationController(
      * past 洋人 digits that were never picked).
      *
      * This also covers the case the old code skipped entirely: a picked 词组
-     * that covers syllables beyond the panel-confirmed ones ([confirmed]
-     * non-empty), e.g. "confirm zhi from the panel, then pick 治不了".
+     * that covers syllables beyond the panel-confirmed ones
+     * ([PinyinDisambiguationState.hasConfirmations]), e.g. "confirm zhi from the
+     * panel, then pick 治不了".
      *
      * Every step is guarded: nothing changes unless the composition preedit
      * shows selected candidate text (non-ASCII) before the trailing segment,
@@ -277,10 +274,10 @@ class PinyinDisambiguationController(
      * true suffix of the owned code, and the implied consumption is larger
      * than what we already track. The code characters consumed beyond the
      * panel-confirmed pinyin are
-     * appended to [confirmed] as an opaque entry whose code is the typed-digit
-     * run itself: it is the folded spelling the engine matched, so re-feeding
-     * it verbatim keeps the composition narrowed, and Backspace pops it to
-     * roll the pick back.
+     * appended to the owned state as an opaque entry whose code is the
+     * typed-digit run itself: it is the folded spelling the engine matched, so
+     * re-feeding it verbatim keeps the composition narrowed, and Backspace pops
+     * it to roll the pick back.
      */
     private fun reconcileFromEngine() {
         if (!isActive()) return
@@ -298,6 +295,12 @@ class PinyinDisambiguationController(
                     // pending disambiguation.
                     resetState()
                 } else {
+                    // The engine's raw input is the authority for what is still
+                    // typed: it shrinks when Escape / an editor delete truncates
+                    // the composition, and Rime appends typed characters to it
+                    // without asking us to re-feed. Re-anchor first, then fold
+                    // in an external pick (which does not shrink the input).
+                    state.reconcile(api.getRawInput())
                     advanceOwnedFromEngineTail(api, composition, preedit)
                 }
                 refreshPanel()
@@ -319,20 +322,13 @@ class PinyinDisambiguationController(
         val tail = api.remainingInputTail()
         if (tail == null || tail.isEmpty()) return
         if (tail.any { !isOwnedCodeChar(it) }) return
-        // The trailing segment starts right after the consumed part, so the
-        // consumed span in owned code characters is lastDigits minus the tail.
-        // The tail must be a true suffix of what the user typed: anything else
-        // means the engine's remainder is not our code string (e.g. a swallowed
+        // The engine's remainder must be a true suffix of what the user typed:
+        // anything else means it is not our code string (e.g. a swallowed
         // character), and advancing on it would mis-anchor the panel.
-        val newConsumed = lastDigits.length - tail.length
-        if (!lastDigits.endsWith(tail)) return
-        // tail is non-empty here, so newConsumed < lastDigits.length holds.
-        if (newConsumed <= consumedDigits) return
-        val gapDigits = lastDigits.substring(consumedDigits, newConsumed)
-        if (gapDigits.isNotEmpty()) {
-            confirmed.add(Confirmed(pinyin = "", code = gapDigits, consumed = gapDigits.length))
+        if (!state.typedCode.endsWith(tail)) return
+        if (state.absorbConsumedPrefix(tail.length)) {
+            leadingSegments = emptyList()
         }
-        leadingSegments = emptyList()
     }
 
     /**
@@ -346,7 +342,7 @@ class PinyinDisambiguationController(
      */
     fun onDigitKey(digit: Char): Boolean {
         if (!isActive() || !isT9Mode()) return false
-        lastDigits += digit
+        state.appendTyped(digit)
         refreshPanel()
         return false
     }
@@ -363,7 +359,7 @@ class PinyinDisambiguationController(
     fun onKeyLetter(letter: Char): Boolean {
         if (!isActive() || !is14KeyMode()) return false
         if (letter !in FOURTEEN_KEY_LETTERS && letter !in FOURTEEN_KEY_TOKENS) return false
-        lastDigits += letter
+        state.appendTyped(letter)
         refreshPanel()
         return false
     }
@@ -379,8 +375,8 @@ class PinyinDisambiguationController(
      */
     fun onBackspace(): Boolean {
         if (!isActive()) return false
-        if (confirmed.isNotEmpty()) {
-            val popped = confirmed.removeAt(confirmed.size - 1)
+        val popped = state.undo()
+        if (popped != null) {
             if (popped.pinyin.isEmpty()) {
                 // Opaque entry (an external 词组 pick recorded as the typed-digit
                 // run it consumed). Its code is pure digits, so popping it can
@@ -394,24 +390,23 @@ class PinyinDisambiguationController(
                 // (no commit) and re-parses the pre-pick standard input from an
                 // empty composition in one step: the fresh segments are
                 // unselected, so reconcile no longer re-advances.
-                rime.launchOnReady { api -> api.clearAndSetInput(buildFeed()) }
+                rime.launchOnReady { api -> api.clearAndSetInput(state.feed) }
             } else {
                 feedMixedComposition()
             }
             refreshPanel()
             return true
         }
-        // Plain digit delete in the all-number composition. We drop the last
-        // digit from our owned string so the panel stays in sync, but do NOT
-        // consume — Rime deletes it from its own composition too.
-        lastDigits = lastDigits.dropLast(1)
+        // Plain code-character delete in the all-code composition. We drop the
+        // last character from our owned string so the panel stays in sync, but do
+        // NOT consume — Rime deletes it from its own composition too.
+        state.dropTrailingTyped()
         refreshPanel()
         return false
     }
 
     private fun resetState() {
-        lastDigits = ""
-        confirmed.clear()
+        state.clear()
         leadingSegments = emptyList()
     }
 
@@ -449,7 +444,7 @@ class PinyinDisambiguationController(
             hidePanel(panel)
             return
         }
-        val digits = lastDigits.substring(minOf(consumedDigits, lastDigits.length))
+        val digits = state.pendingCode
         val segments = decoder.decodeLeading(digits)
         leadingSegments = segments
         if (segments.isEmpty()) {
@@ -486,31 +481,8 @@ class PinyinDisambiguationController(
         Keyboard.PinyinOverlay.FIRST_COLUMN
     }
 
-    /**
-     * The input string that encodes everything confirmed so far + the trailing
-     * un-confirmed digits: confirmed codes `'`-joined, then the remaining typed
-     * digits. Form: `hao'de'33` — confirmed syllables (full pinyin for FULL,
-     * 小鹤双拼 code for FLYPY — the form Rime's dictionary is indexed by), then
-     * the digit tail through the folded index. With no confirmed entries the
-     * pure-digit string is returned (stay on the fold path).
-     */
-    private fun buildFeed(): String {
-        val codePart = confirmed.joinToString("'") { it.code }
-        val digitsPart = lastDigits.substring(minOf(consumedDigits, lastDigits.length))
-        return if (codePart.isEmpty()) {
-            lastDigits
-        } else if (digitsPart.isEmpty()) {
-            // Everything is confirmed: no trailing delimiter — a dangling "'"
-            // would leave librime waiting for another syllable and can corrupt
-            // the terminal composition (Backspace after full confirm broke).
-            codePart
-        } else {
-            "$codePart'$digitsPart"
-        }
-    }
-
     private fun feedMixedComposition() {
-        val feed = buildFeed()
+        val feed = state.feed
         if (feed.isNotEmpty()) {
             rime.launchOnReady { it.setInput(feed) }
         }
@@ -567,7 +539,7 @@ class PinyinDisambiguationController(
      */
     private fun onPick(pinyin: String) {
         val segment = leadingSegments.firstOrNull { it.pinyin[0] == pinyin } ?: return
-        confirmed.add(Confirmed(segment.pinyin[0], segment.code, segment.consumed))
+        state.confirm(segment.pinyin[0], segment.code, segment.consumed)
         feedMixedComposition()
         refreshPanel()
     }

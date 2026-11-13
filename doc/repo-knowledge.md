@@ -267,8 +267,22 @@ Kotlin wiring:
   first digit row — intercepts touches), `PinyinDisambiguationController`
   (drives the panel from the owned key-code string, feeds the picked pinyin /
   双拼 code back via `setInput` / `clearAndSetInput` (mixed composition),
-  Backspace rolls the last confirmation back). The「键盘样式」`pinyin_filter`
-  master switch (default on) gates both flows.
+  Backspace rolls the last confirmation back), `PinyinDisambiguationState`
+  (the owned input state alone: typed key code + confirmed syllables + `feed`;
+  `reconcile(rawInput)` re-anchors it to the engine's raw input). The「键盘样式」
+  `pinyin_filter` master switch (default on) gates both flows.
+  - The engine's raw input is authoritative for what is still typed: the
+    composition can shrink behind the controller's back — Escape (librime
+    `Editor::CancelComposition` → `Context::ClearPreviousSegment`) truncates the
+    input at the last segment **without** clearing the composition, so
+    `onCompositionUpdate(length <= 0)` never fires — and a forward-only
+    interpretation of the composition re-fed confirmed syllables that the
+    engine had already dropped (2026-11-13 report: `llgevzmo` → 两个 →
+    panel `zhou`/`mo` → Escape → `vz` produced `zhou'mo'zhou`).
+    `PinyinDisambiguationState.reconcile` keeps the longest confirmed prefix
+    whose code spelling still sits at the head of the raw input and trims the
+    typed tail to the engine's; `PinyinDisambiguationStateTest` covers the
+    Escape path, the cut-inside-a-code edge and the normal typing/pick flows.
 - Naming decision (2026-09): the Kotlin types/files use the generic
   `PinyinDisambiguation*` names (`PinyinDisambiguationController/Panel/Adapter/
   Decoder`, field `KeyboardWindow.pinyinDisambiguation`); the **data** layer
