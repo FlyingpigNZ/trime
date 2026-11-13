@@ -28,6 +28,8 @@ import android.widget.FrameLayout
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.core.RimeApi
@@ -296,6 +298,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
     override fun onWindowShown() {
         super.onWindowShown()
         windowShown = true
+        applyImeWindowHeight()
         pendingInputViewRebuild?.let { rebuild ->
             pendingInputViewRebuild = null
             DiagnosticLog.i("ime", "applying deferred input view rebuild")
@@ -611,13 +614,96 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         isFullscreen: Boolean,
         isCandidatesOnly: Boolean,
     ) {
-        win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        // AOSP's semantics, with one difference: instead of MATCH_PARENT the IME
+        // window is only as tall as our keyboard plus the room our popups and the
+        // preedit strip need above it.
+        //
+        // A full-screen window means the compositor keeps blending a
+        // display-sized layer at 120Hz whenever the keyboard is up. On Honor's
+        // MagicOS that is enough for the platform to classify the app as a game
+        // and render *the whole process* at a reduced resolution upscaled to the
+        // panel (see doc/handoff.md §13: `apsResolutionRatio = 0.8493`, thawed for
+        // one frame at screen-off as a "shrunken keyboard"). Making the window
+        // describe what it actually paints keeps the surface small and stops
+        // looking like a full-screen game.
+        val compactHeight = compactWindowHeight()
+        val height =
+            when {
+                isFullscreen -> ViewGroup.LayoutParams.MATCH_PARENT
+                isCandidatesOnly -> ViewGroup.LayoutParams.WRAP_CONTENT
+                compactHeight > 0 -> fitWindowHeight(compactHeight)
+                // Nothing measured yet (very first show after a process start):
+                // keep the window out of the way until the keyboard has a height.
+                else -> ViewGroup.LayoutParams.MATCH_PARENT
+            }
+        appliedWindowHeight = height.takeIf { it > 0 } ?: 0
+        win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, height)
         DiagnosticLog.i(
             "ime",
             "configure window fullscreen=$isFullscreen candidatesOnly=$isCandidatesOnly " +
                 "layout=${win.attributes.width}x${win.attributes.height} anim=${win.attributes.windowAnimations}",
         )
     }
+
+    /**
+     * Re-size the IME window to [InputView.requestedWindowHeight] after the
+     * keyboard changed (theme, layout, orientation, density). The window must
+     * never be shorter than the keyboard, or the keys would be clipped in a
+     * window that cannot grow, and never taller than needed, or we are back to a
+     * display-sized surface.
+     */
+    fun applyImeWindowHeight() {
+        if (isFullscreenMode() || !isInputViewShown) return
+        val wanted = compactWindowHeight()
+        if (wanted <= 0) return
+        val height = fitWindowHeight(wanted)
+        if (height == appliedWindowHeight) return
+        appliedWindowHeight = height
+        window.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, height)
+        DiagnosticLog.i("ime", "ime window height=$height ${inputView?.geometry()}")
+    }
+
+    /**
+     * [wanted] when the window may actually be that tall, otherwise `MATCH_PARENT`.
+     *
+     * Requesting more than the window can get is not harmless: the window manager
+     * clamps the *frame* but the view tree keeps the requested size, so everything
+     * anchored to the bottom (the keyboard) ends up below the visible area. A
+     * landscape keyboard plus its headroom does not fit, which is why AOSP runs a
+     * full-screen window there as well.
+     */
+    private fun fitWindowHeight(wanted: Int): Int {
+        val available = availableWindowHeight()
+        return if (available <= 0 || wanted < available) wanted else ViewGroup.LayoutParams.MATCH_PARENT
+    }
+
+    /** Display height the IME window may use: the screen minus the status bar/cutout. */
+    private fun availableWindowHeight(): Int {
+        if (!this::decorView.isInitialized) return 0
+        val insets = ViewCompat.getRootWindowInsets(decorView) ?: return 0
+        val top =
+            insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            ).top
+        return resources.displayMetrics.heightPixels - top
+    }
+
+    /** Window height we last asked for; 0 means MATCH_PARENT (nothing applied yet). */
+    private var appliedWindowHeight = 0
+
+    /**
+     * Keyboard plus its headroom, remembered across views.
+     *
+     * The keyboard height only changes with the theme/layout/orientation, but a
+     * freshly created [InputView] has nothing measured yet. Remembering the last
+     * value keeps a show from starting with a full-screen window, which would
+     * report a much higher keyboard top (`contentTopInsets` 1881 instead of 784
+     * here) and then shrink, re-laying out the editor under it.
+     */
+    private var lastCompactHeight = 0
+
+    private fun compactWindowHeight(): Int = inputView?.requestedWindowHeight()?.takeIf { it > 0 }?.also { lastCompactHeight = it }
+        ?: lastCompactHeight
 
     override fun onStartInput(
         attribute: EditorInfo,

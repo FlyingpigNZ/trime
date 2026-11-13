@@ -51,15 +51,21 @@ internal fun resolveKeyboardWidth(
 }
 
 /**
- * Guard for the window-metrics estimate against stale insets.
+ * Guard for the window-metrics estimate.
  *
- * A [windowWidth] narrower than [displayWidth] by more than [tolerancePx]
- * cannot describe the window the app is actually configured for (its insets
- * were derived for another orientation or display), so the display width is the
- * better estimate; a difference within the tolerance is rounding noise.
+ * [android.view.WindowManager.getMaximumWindowMetrics] reports the largest
+ * window the app *may* be given, which is not necessarily the display the app is
+ * running on: when the platform renders an app at a reduced resolution (display
+ * mode / "smart resolution" / size-compat), the maximum metrics keep describing
+ * the panel while `displayMetrics` describe what the app actually draws on. The
+ * estimate is only there to cover the window before the container is measured,
+ * and an estimate wider than the display lays every row out wider than the
+ * surface, clipping the right-hand keys — so any disagreement beyond rounding
+ * noise resolves to the display width, which is an upper bound for every window
+ * on it. A difference within [tolerancePx] is rounding noise and is believed.
  */
 internal fun resolveWindowMetricsWidth(
     windowWidth: Int,
     displayWidth: Int,
     tolerancePx: Int,
-): Int = if (windowWidth < displayWidth - tolerancePx) displayWidth else windowWidth
+): Int = if (kotlin.math.abs(windowWidth - displayWidth) > tolerancePx) displayWidth else windowWidth

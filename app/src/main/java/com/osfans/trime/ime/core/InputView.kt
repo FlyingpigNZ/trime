@@ -240,6 +240,33 @@ class InputView(
                 centerInParent()
             },
         )
+
+        // The IME window is sized to the keyboard (see
+        // `TrimeInputMethodService.onConfigureWindow`), so every height change of
+        // the things that live above it has to re-apply that size.
+        val reapplyWindowHeight =
+            View.OnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+                if (bottom - top != oldBottom - oldTop) service.applyImeWindowHeight()
+            }
+        keyboardView.addOnLayoutChangeListener(reapplyWindowHeight)
+        preedit.ui.root.addOnLayoutChangeListener(reapplyWindowHeight)
+    }
+
+    /**
+     * Height the IME window needs while the keyboard is shown: the keyboard
+     * container plus headroom for everything drawn above it.
+     *
+     * The container is what paints the input bar, the keys and the bottom
+     * padding. Above it live the preedit strip, the key preview and the popup
+     * keyboard (a grid of `popupKeyHeight` rows), all positioned relative to the
+     * key they belong to, so one keyboard height of headroom covers them without
+     * hard-coding a theme's popup metrics. Returns 0 until the keyboard has been
+     * laid out once.
+     */
+    fun requestedWindowHeight(): Int {
+        val container = keyboardView.height
+        if (container <= 0) return 0
+        return container + maxOf(container, preedit.ui.root.height)
     }
 
     private fun updateKeyboardSize() {
