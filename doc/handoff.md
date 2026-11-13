@@ -2,7 +2,8 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-13 深夜（**§13：锁屏"缩小版键盘"终于定性 —— 根因在 ROM 侧，不是我们的排版/缓存/动画**。
+> **最后更新于**：2026-11-13 深夜（**v3.4.13 双端已发**：§13 定性的根因 + 键盘高窗口已实测合入，见 §13.2。
+> **§13：锁屏"缩小版键盘"终于定性 —— 根因在 ROM 侧，不是我们的排版/缓存/动画**。
 > 结论：荣耀"智能分辨率"把 `com.osfans.trime` 当成游戏做**整应用降分辨率渲染**（`apsResolutionRatio=0.8493`），
 > 熄屏过渡丢掉那层 1.1774 放大 → 0.849 倍键盘。用户侧把"屏幕分辨率"设成**高/完整**即消失（已实测）。
 > §11.2 的"缓存按构造时配置失效"**不是**根因，是假阴性；发版说明需要更正。）
@@ -1363,6 +1364,18 @@ git cherry-pick --quit; git reset --hard main
 > **规则变更（2026-11-13，维护者要求）**：以后改完就推 `origin_home`，**别把提交攒在本地 `main`**
 > —— 维护者多机交替，另一台从 Gitea `main` 继续，本地未推的提交必然造成本次这种分叉。
 > 已写入 `CLAUDE.md`（Git push target / Working style）；未验证的改动就放 `origin_home` 的分支或不提交。
+
+### 13.2 发版 v3.4.13（2026-11-13 深夜，**双端已出**）
+- `versionName 3.4.13` / `versionCode 20261114`（20261113 已被 v3.4.12 用掉），annotated tag `v3.4.13`
+  打在 `4bc4aadb`（= bump 提交 = `main` 头）。
+- 双端 release 各 4 个 ABI，arm64 **9.23MB**（`.so` strip 守卫正常，不是 §12 那种 21MB 回归）：
+  - Gitea run `337`（排队 ~10min + 构建，总 ~25min）；
+  - GitHub Release run `43396207451`（~20min，`Build Trime` 一步占大头；JNI 缓存 v2 命中）。
+  - tag push 触发的 GitHub `Commit` run 如预期 `skipped`（验证 §10 那条"tag push 只跑 release-ci"）。
+- **release 正文手工补写**了"现象 / 根因 / 改动 / 兜底 + 英文摘要"，自动 changelog 只是提交列表、太开发味
+  （Gitea `PATCH /releases/{id}`、GitHub `PATCH /releases/{id}`，均已生效）。
+- GitHub 端按 §10.3 顺序：先 `develop`（sync 合并 `cad7dd41`，`git diff main develop` 为空）再推 tag。
+- 回滚方式：`git revert -m 1 cbfb94a4`（窗口改造那个 merge），或单独 revert `7402a7ce`/`4e46daee`。
 
 ## 12. 2026-11-13 傍晚：diag2 未复现 → 两条分叉合流，v3.4.12 重打 tag 补上缓存修复
 
