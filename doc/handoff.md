@@ -1496,3 +1496,20 @@ logcat @ 熄屏
 ### 本轮动手痕迹（都已恢复）
 - 输入法切回 `com.osfans.trime`；`support_off_screen_animation_dynamic` 恢复 1；`aps_display_resolution` 现为 1（维护者设的，保持）。
 - 期间 force-stop 过 trime 进程、切换过微信输入法做对照、录了几段 `/sdcard/*.mp4`（可删）。
+
+### 13.1 A 版实现（分支 `feat/ime-window-height`，未真机验证）
+- 改动：`onConfigureWindow` 按 AOSP 语义 + **紧凑高度** —— `isFullscreen` → `MATCH_PARENT`，
+  `isCandidatesOnly` → `WRAP_CONTENT`，否则 = **键盘容器高 + 一个键盘高的留白**；
+  `InputView.requestedWindowHeight()` 算这个值；键盘/预编辑条高度变了就调
+  `TrimeInputMethodService.applyImeWindowHeight()` 重新下发；`onWindowShown` 也补一次。
+- `onComputeInsets` **不需要改**：`contentTopInsets` 取的是键盘容器在窗口里的 y，窗口变矮后它自动变成
+  "留白高度"，`TOUCHABLE_INSETS_VISIBLE` 的触摸穿透语义不变（上方透明区照样可点穿）。
+- 留白取"一个键盘高"而不是主题里的 popup 尺寸：长按预览键盘是 `popupKeyHeight × 行数` 的网格，行数取决于
+  该键在主题里写了多少个候选，静态算不出来；一个键盘高对任何主题都够，也不引入魔数。
+- 本机验证：`compileDebugKotlin`、`spotlessCheck`、225 例单测全过；release APK
+  `app/build/outputs/apk/release/com.osfans.trime-3.4.12-diagwin-arm64-v8a-release.apk`（arm64，可覆盖安装）。
+- **真机待验（关键）**：① 把"屏幕分辨率"切回**智能** → App 的 `display=` 应等于真实屏宽（1272），
+  且 `dumpsys activity processes` 里不应再有 `apsResolutionRatio`（= 不再被当游戏降分辨率）；
+  ② 长按顶排键的预览、浮层候选、展开工具栏、横屏、切主题各过一遍（留白不够会裁）；
+  ③ 若 ROM 仍按包降分辨率（判定可能按包粘住、与窗口大小无关），这条改动就只剩"surface 变小 +
+  键盘回到原生分辨率"两个好处，用户侧仍需把分辨率设"高"。
