@@ -139,6 +139,13 @@ class Keyboard(
     /** Keyboard default ascii mode  */
     val asciiMode = selfConfig?.asciiMode ?: false
     val resetAsciiMode = selfConfig?.resetAsciiMode ?: true
+
+    /**
+     * Whether this keyboard declares the layout that takes over in ascii mode.
+     * Such a keyboard hands the other mode over to that layout (see
+     * [asciiLayoutTarget]) instead of remembering it — see [asciiModeEffect].
+     */
+    val hasAsciiKeyboard = !selfConfig?.asciiKeyboard.isNullOrEmpty()
     var lastAsciiMode: Boolean = asciiMode
 
     /**

@@ -163,7 +163,6 @@ class KeyboardWindow :
             it.onDetach()
             keyboardView.removeView(it)
         }
-        switcher.detachCurrentKeyboard()
     }
 
     /**
@@ -478,9 +477,18 @@ class KeyboardWindow :
                 }
             }
 
-            option == "ascii_mode" && !value.value -> {
-                // 回到中文时，释放 Shift 锁定
-                currentKeyboard?.resetShift()
+            option == "ascii_mode" -> {
+                if (!value.value) {
+                    // 回到中文时，释放 Shift 锁定
+                    currentKeyboard?.resetShift()
+                }
+                // One decision for both halves of the ascii policy: the mode and
+                // the attached layout must agree (a keyboard whose keys encode a
+                // scheme-specific code — the 14键 token keyboard — types that
+                // internal code out as literal English letters when the engine is
+                // in ascii mode while its layout stays attached), and only a
+                // keyboard the user stays on remembers the new mode.
+                switcher.onAsciiModeChanged(value.value)?.let { switchKeyboard(it) }
             }
         }
         currentKeyboardView?.invalidateAllKeys()
