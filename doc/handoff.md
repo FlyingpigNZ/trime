@@ -1381,14 +1381,37 @@ git cherry-pick --quit; git reset --hard main
   **删 tag 重建 → 指向合并后的 `main` 顶端 → force-push**（与上午 `4a92dbc9` 那次同一手法），
   workflow 取自 tag 自身，release-ci 自动重跑。
 - ⚠ 重跑产物名带新 hash（`…-g<新提交>-…`），release 步骤**只追加不删除** → 旧的 4 个资产要
-  手工/API 删掉，否则 release 页会变成 8 个 APK。
+  手工/API 删掉，否则 release 页会变成 8 个 APK。（本次事后只看到 4 个新资产，旧的
+  `…-g4a92dbc9-…` 四个已不在 release 65 上；谁删的没查，总之**重指 tag 前把旧资产列出来
+  核对一次**仍是要做的动作。）
 - 合并后本地门禁（全绿）：`spotlessCheck`、`:app:compileDebugKotlin`、
   `:app:testDebugUnitTest`（**224 例 0 失败 0 跳过**；本地 212 + 上午那批 `AsciiModePolicyTest` /
   `Shipped14KeyPackageTest` 12）、`make style-lint`（含 clang-format，本机有 `/usr/bin/clang-format`）、
   `python3 script/validate-definitions.py --check-shipped`。4 ABI release 仍由 CI 出（§9.6）。
 
-### 同步到 GitHub：v3.4.10 / 3.4.11 / 3.4.12 一次性补齐
-- 同步前 GitHub 端只到 **v3.4.9**（`develop` = `a6ca2eff`），v3.4.10 之后三个版本的代码都没同步过。
-- 按 `doc/repo-knowledge.md` §10.3：`develop` 合并 `main` → **先推 `develop`** → 再推 tag
-  `v3.4.12`（顺序不能反，否则 changelog base == HEAD，release body 变 "- no changes"）。
+### 同步到 GitHub：`develop` 追平（**不是**"补齐三个版本的 tag"）
+- ⚠ 同步前我以为 GitHub 只到 v3.4.9 —— **错了**：`v3.4.10` / `v3.4.11` 的 tag 与 release
+  （各 4 个 APK）都早就在 GitHub 上（tag push 各自触发过 release-ci）。`git ls-remote` 的默认
+  排序是**字典序**，`v3.4.10`/`v3.4.11` 排在 `v3.4.1` 与 `v3.4.2` 之间，`tail` 只看到 `v3.4.9` 就会
+  得出错误结论 —— 用 `sort -V` 或直接查 API。
+- 真正落后的是**分支**：GitHub `develop` 停在 `a6ca2eff`（= `5c847865` 那条线），
+  v3.4.10 / 11 / 12 三个版本的代码从未进过 `develop`。
+- 按 `doc/repo-knowledge.md` §10.3：`develop` 合并 `main`（merge 提交 `fe3e2437`，
+  `git diff main develop` 为空）→ **先推 `develop`** → 再推 tag `v3.4.12`
+  （顺序不能反，否则 changelog base == HEAD，release body 变 "- no changes"）。
 - GitHub release 由 release-ci 的 GitHub 分支生成（`ncipollo/release-action`，4 ABI APK）。
+
+### 结果（2026-11-13 16:12–16:33 +13:00，双端均 success）
+| | Gitea | GitHub |
+|---|---|---|
+| run | release `328`（success）；同代码的 commit-ci `326` 也绿 | release `43357427312`（success，job 19m58s，冷构建）；**tag push 的 commit-ci `43357427328` = skipped** |
+| release | id 65（upsert），4 资产 `…-g74a4d3e5-…` | id `443783014`，4 资产 `…-g74a4d3e5-…` |
+| APK 体积 | arm64 9,231,461B / v7a 8,980,390B / x86 9,349,968B / x86_64 9,310,076B | 同量级（9,231,492 / 8,980,335 / 9,349,998 / 9,310,120） |
+| changelog base | `v3.4.11`（Gitea 走上一个 tag） | `v3.4.11`（body 非 "- no changes"） |
+- ✅ 这顺带验证了 §10「下一步 3」那条未验证的路径：**tag push 只跑 release-ci，commit-ci 被 job 级
+  `if` 跳过**（GitHub 侧 `skipped` 已实证；Gitea 侧 release 328 与 commit 326 是两次独立 run）。
+- 产物核验（下载 GitHub 上的 arm64 APK，`v3.4.12-0-g74a4d3e5`）：
+  - `lib/arm64-v8a/librime_jni.so` = 5,607,712B（**已 strip**；未 strip 是 93MB，这就是上午
+    21MB APK 事故的来源），`classes.dex` 里能检出 `KeyboardMetrics` → **缓存修复确实在这个包里**；
+  - 签名证书 SHA-256 `eba1e3b0…dabd13`（release key，可与已装 diag2 覆盖安装）；
+  - `versionName`/`versionCode` = `3.4.12` / `20261113`（`resources.arsc` 与 dex 均能检出 3.4.12）。

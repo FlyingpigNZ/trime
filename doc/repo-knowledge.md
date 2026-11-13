@@ -717,6 +717,11 @@ release body ends up "- no changes".
   first and verify with `git ls-remote --heads --tags <remote>` — e.g. the
   `v3.4.8` tag already existed on Gitea before this session's sync, while local
   `main` was still on the older head.
+- ⚠ **`git ls-remote --tags` output is sorted lexicographically**, so
+  `v3.4.10` / `v3.4.11` sit between `v3.4.1` and `v3.4.2`, not at the end.
+  Piping through `tail` therefore makes it look like the remote only has up to
+  `v3.4.9` (2026-11-13, this exact mistake: GitHub already had v3.4.10/v3.4.11
+  tags + releases). Sort with `sort -V` or query `/releases/tags/<tag>`.
 
 ### 10.6 Verify after sync
 
