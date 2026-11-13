@@ -2,8 +2,8 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-14（**14键拼音过滤面板：ESC 后确认过的拼音仍留在缓存里** —— 已修，
-> 见下方新 §0 首节；**单测已过、未真机冒烟**，分支 `fix/pinyin-panel-escape-resync`）。
+> **最后更新于**：2026-11-13 深夜（**v3.4.13.1 补丁版**：14键/9键拼音过滤面板在 ESC 后
+> 仍保留已确认拼音的缓存问题已修、已真机冒烟通过，见下方新 §0 首节。
 > **上一轮（2026-11-13 深夜）**：**v3.4.13 双端已发**（锁屏"缩小版键盘"的根因定性 + 键盘高窗口，见 §13 / §13.2）。
 > **§13：锁屏"缩小版键盘"终于定性 —— 根因在 ROM 侧，不是我们的排版/缓存/动画**。
 > 结论：荣耀"智能分辨率"把 `com.osfans.trime` 当成游戏做**整应用降分辨率渲染**（`apsResolutionRatio=0.8493`），
@@ -45,7 +45,7 @@
 > 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
 > §0b（备份功能）、§1–§7（键盘背景）为历史记录。
 
-## 0. 最新状态：14键/9键拼音过滤 —— ESC 取消了输入，但面板缓存里的拼音没跟着取消（2026-11-14 修复）
+## 0. 最新状态：14键/9键拼音过滤 —— ESC 取消了输入，但面板缓存里的拼音没跟着取消（2026-11-13 修复，v3.4.13.1）
 
 ### 现象（维护者报，2026-11-13）
 14键（`wanxiang_14jian` / 键盘 `14jian`）下输入「两个周末」`llgevzmo` → 选「两个」后
@@ -87,14 +87,21 @@
   确认后继续打字不误判为收缩、引擎多出字符的采纳、彻底对不上时丢弃、`undo`、T9 full 数字流。
 - `GRADLE_USER_HOME=$PWD/.gradle-home ./gradlew --offline testDebugUnitTest spotlessCheck`：
   **235 例 0 失败**（含新增 10 例）、`spotlessCheck` PASS。
-- **未真机冒烟**（本轮无设备）：请按「现象」那段原样复现一次 —— ESC 后再点 `zhou`，预上屏应为
-  `llo?…` 之后只剩本次的 `zhou`，不再出现 `zhou mo zhou`；另外补三条：①只打字时 ESC 后面板候选
-  立刻跟着变短；②ESC 后再 Backspace 不吞键；③正常流程（不按 ESC）行为与之前完全一致。
+- **真机冒烟通过（维护者 2026-11-13 晚确认）**：按「现象」原样复现（ESC 后再点 `zhou`）不再出现
+  `zhou mo zhou`，其余三条（只打字时 ESC 后面板候选跟着变短 / ESC 后 Backspace 不吞键 /
+  正常流程不变）一并确认。冒烟包 = 分支上的 arm64 release APK
+  `com.osfans.trime-v3.4.13-2-g6dcf6e8e-arm64-v8a-release.apk`（与已发版同一 keystore，可直接覆盖）。
 
-### 下一步（按顺序）
-1. 真机冒烟上面 4 条。（分支 `fix/pinyin-panel-escape-resync`，已推 `origin_home`；过了再合 `main`。）
-2. 过了之后 `main` 合入 + 按需 bump 版本发 v3.4.14。
-3. 可选：`popup_candidates_mode = always` 时 `InputView` 把每条 composition 报文都换成
+### 发版：v3.4.13.1（2026-11-13 深夜，补丁版）
+- 维护者拍板：小 fix 不值得开 3.4.14，用 **`versionName 3.4.13.1` / `versionCode 202611141`**
+  （`20261114` 已被 v3.4.13 用掉；补丁位拼在日期后一位，不去抢第二天的日期）。
+- `main` 已 ff 合入 `6dcf6e8e`，版本 bump 提交在其上，annotated tag **`v3.4.13.1`** 打在 bump 提交。
+- 分支 `fix/pinyin-panel-escape-resync` 已并入 `main`，可删。
+
+### 下一步 / 遗留（按顺序）
+1. GitHub 端同步（**需维护者自己推**：`~/.git-credentials` 在 pi-sandbox 里是硬遮的）：
+   先 `git merge main` 到 `develop` 推 `origin`，再推 tag `v3.4.13.1`（顺序见 `doc/repo-knowledge.md` §10.3）。
+2. 可选：`popup_candidates_mode = always` 时 `InputView` 把每条 composition 报文都换成
    `CompositionProto()`（空），面板会被每个 composition 更新重置 —— 与本轮无关但属同一处假定，
    以后有人报「always 模式下面板不工作」先看这里。
 
