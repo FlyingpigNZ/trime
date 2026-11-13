@@ -2,11 +2,13 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-13 深夜（**v3.4.13 双端已发**：§13 定性的根因 + 键盘高窗口已实测合入，见 §13.2。
+> **最后更新于**：2026-11-14（**14键拼音过滤面板：ESC 后确认过的拼音仍留在缓存里** —— 已修，
+> 见下方新 §0 首节；**单测已过、未真机冒烟**，分支 `fix/pinyin-panel-escape-resync`）。
+> **上一轮（2026-11-13 深夜）**：**v3.4.13 双端已发**（锁屏"缩小版键盘"的根因定性 + 键盘高窗口，见 §13 / §13.2）。
 > **§13：锁屏"缩小版键盘"终于定性 —— 根因在 ROM 侧，不是我们的排版/缓存/动画**。
 > 结论：荣耀"智能分辨率"把 `com.osfans.trime` 当成游戏做**整应用降分辨率渲染**（`apsResolutionRatio=0.8493`），
 > 熄屏过渡丢掉那层 1.1774 放大 → 0.849 倍键盘。用户侧把"屏幕分辨率"设成**高/完整**即消失（已实测）。
-> §11.2 的"缓存按构造时配置失效"**不是**根因，是假阴性；发版说明需要更正。）
+> §11.2 的"缓存按构造时配置失效"**不是**根因，是假阴性；发版说明需要更正。
 > **上一轮（2026-11-13 傍晚）**：**v3.4.12 重打 tag**：把 §11「键盘缓存按构造时配置失效」
 > 的修复与 14键 ascii 修复合流，双端一次补齐 —— 见 §12。**diag2 从 11-12 到 11-13 未再复现**，
 > 故 §11.2 的修法即当前根因解释。14键 ascii 修复本身与 v3.4.12 首次发版见 §0 首节；
@@ -43,7 +45,60 @@
 > 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
 > §0b（备份功能）、§1–§7（键盘背景）为历史记录。
 
-## 0. 最新状态：14键 在英文(ascii)模式下按键变 a/b/c、rime 不转换（2026-11-13 修复）
+## 0. 最新状态：14键/9键拼音过滤 —— ESC 取消了输入，但面板缓存里的拼音没跟着取消（2026-11-14 修复）
+
+### 现象（维护者报，2026-11-13）
+14键（`wanxiang_14jian` / 键盘 `14jian`）下输入「两个周末」`llgevzmo` → 选「两个」后
+在面板里依次点 `zhou`、`mo` → 发现 `vzmo` 不是想要的编码，键盘回退键**左滑（ESC）**整体取消 →
+预览里尾部编码消失、已选字还在 → 重新输 `vz`，面板给出 `vz` 的候选，点 `zhou` →
+**候选/预上屏里冒出 `zhou mo zhou`**：ESC 只取消了编码，之前确认过的 `zhou`/`mo` 还留在缓存里。
+
+### 根因（不是 librime 的 bug，是我们状态机只朝前走）
+- ESC 在 librime 走 `Editor::CancelComposition` → `Context::ClearPreviousSegment()`
+  （`librime/src/rime/gear/editor.cc:172`）：只在**最后一个 segment 的起点**截断 raw input，
+  已转换的前缀保留。所以 composition **不为空** ⇒ `onCompositionUpdate(length <= 0)` 不触发
+  ⇒ `resetState()` 不执行。`ClearPreviousSegment` 返回 false（最后一个 segment 的 start == input 长度）
+  时才回落到 `Context::Clear()`，那种情况反而没问题。
+- `PinyinDisambiguationController` 只从「composition 收缩」这一件事里读出外部拾取
+  （`advanceOwnedFromEngineTail`：`lastDigits.length - tail.length`，且要求
+  `newConsumed > consumedDigits`），**没有任何向后收缩的通道**：`lastDigits`/`confirmed`
+  原样留着，下一次点选 `buildFeed()` 就把 `zhou'mo` 一起重新喂给引擎 ⇒ `zhou'mo'zhou`。
+- 同类但没被报的：只打字、没确认过拼音时按 ESC，`lastDigits` 也会与引擎的 raw input 脱节
+  （面板按旧串解码、点选后把旧串整串重喂）。
+
+### 修法
+- 新增 `ime/disambiguation/PinyinDisambiguationState.kt`：把「自己的输入状态」从 controller 里
+  拆成纯 Kotlin 可测类（`typedCode` + `confirmed` + `feed`），controller 只保留 Rime 调用和面板视图。
+- 新增 `reconcile(raw: String)`：以**引擎的 raw input 为准**重新锚定。
+  1. 保留 `confirmed` 里「code 拼写仍在 raw 开头」的最长前缀（丢掉对应已消耗的 typed 字符）；
+  2. 尾部按引擎的剩余部分裁剪（ESC/删除把尾部截短）或采纳（引擎比我们多出的字符，
+     且都是本模式可打出的字符 —— 覆盖「截断落在某个 code 拼写中间」与
+     「按键与 setInput 竞争」两种边角）；
+  3. 两者都对不上（比如光标编辑挪了位置）⇒ 直接丢掉自有状态，绝不重喂过期音节；面板从下一次按键重启。
+- `reconcileFromEngine()` 在 `onCompositionUpdate` 与 `attach()`（未展开候选窗口换回键盘窗口）
+  两处都先 `reconcile(api.getRawInput())` 再走原来的 `advanceOwnedFromEngineTail`（外部 词组 拾取
+  不缩短 input，逻辑不变）。
+- 顺带把 `buildFeed()` 里的「确认码 `'` 连接 + 剩余 typed 串」搬到 `PinyinDisambiguationState.feed`，
+  行为不变（无确认时返回纯打字串、无尾部时不发悬空 `'`）。
+
+### 验证
+- 新增 `PinyinDisambiguationStateTest`（10 例）：报告里的完整复现链（`llge'vz'mo` → `reconcile("llge'vz")`
+  → 重打 `vz` → `feed == "llge'vz'vz"`）、只打字时的 ESC 截断、截断落在 code 拼写中间、
+  确认后继续打字不误判为收缩、引擎多出字符的采纳、彻底对不上时丢弃、`undo`、T9 full 数字流。
+- `GRADLE_USER_HOME=$PWD/.gradle-home ./gradlew --offline testDebugUnitTest spotlessCheck`：
+  **235 例 0 失败**（含新增 10 例）、`spotlessCheck` PASS。
+- **未真机冒烟**（本轮无设备）：请按「现象」那段原样复现一次 —— ESC 后再点 `zhou`，预上屏应为
+  `llo?…` 之后只剩本次的 `zhou`，不再出现 `zhou mo zhou`；另外补三条：①只打字时 ESC 后面板候选
+  立刻跟着变短；②ESC 后再 Backspace 不吞键；③正常流程（不按 ESC）行为与之前完全一致。
+
+### 下一步（按顺序）
+1. 真机冒烟上面 4 条。（分支 `fix/pinyin-panel-escape-resync`，已推 `origin_home`；过了再合 `main`。）
+2. 过了之后 `main` 合入 + 按需 bump 版本发 v3.4.14。
+3. 可选：`popup_candidates_mode = always` 时 `InputView` 把每条 composition 报文都换成
+   `CompositionProto()`（空），面板会被每个 composition 更新重置 —— 与本轮无关但属同一处假定，
+   以后有人报「always 模式下面板不工作」先看这里。
+
+## 0. 上一轮状态：14键 在英文(ascii)模式下按键变 a/b/c、rime 不转换（2026-11-13 修复）
 
 ### 现象（维护者报）
 用着用着，14键 的按键映射“变了”：按 QW 出 `a`、ER 出 `b`，以此类推；这些字母没有对应
