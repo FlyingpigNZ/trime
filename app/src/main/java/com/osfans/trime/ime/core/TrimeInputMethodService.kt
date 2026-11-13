@@ -28,6 +28,8 @@ import android.widget.FrameLayout
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.osfans.trime.core.RimeApi
@@ -629,7 +631,7 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
             when {
                 isFullscreen -> ViewGroup.LayoutParams.MATCH_PARENT
                 isCandidatesOnly -> ViewGroup.LayoutParams.WRAP_CONTENT
-                compactHeight > 0 -> compactHeight
+                compactHeight > 0 -> fitWindowHeight(compactHeight)
                 // Nothing measured yet (first show): keep the window out of the
                 // way until the keyboard has a height we can size it to.
                 else -> ViewGroup.LayoutParams.MATCH_PARENT
@@ -652,11 +654,37 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
      */
     fun applyImeWindowHeight() {
         if (isFullscreenMode() || !isInputViewShown) return
-        val height = inputView?.requestedWindowHeight()?.takeIf { it > 0 } ?: return
+        val wanted = inputView?.requestedWindowHeight()?.takeIf { it > 0 } ?: return
+        val height = fitWindowHeight(wanted)
         if (height == appliedWindowHeight) return
         appliedWindowHeight = height
         window.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, height)
         DiagnosticLog.i("ime", "ime window height=$height ${inputView?.geometry()}")
+    }
+
+    /**
+     * [wanted] when the window may actually be that tall, otherwise `MATCH_PARENT`.
+     *
+     * Requesting more than the window can get is not harmless: the window manager
+     * clamps the *frame* but the view tree keeps the requested size, so everything
+     * anchored to the bottom (the keyboard) ends up below the visible area. A
+     * landscape keyboard plus its headroom does not fit, which is why AOSP runs a
+     * full-screen window there as well.
+     */
+    private fun fitWindowHeight(wanted: Int): Int {
+        val available = availableWindowHeight()
+        return if (available <= 0 || wanted < available) wanted else ViewGroup.LayoutParams.MATCH_PARENT
+    }
+
+    /** Display height the IME window may use: the screen minus the status bar/cutout. */
+    private fun availableWindowHeight(): Int {
+        if (!this::decorView.isInitialized) return 0
+        val insets = ViewCompat.getRootWindowInsets(decorView) ?: return 0
+        val top =
+            insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            ).top
+        return resources.displayMetrics.heightPixels - top
     }
 
     /** Window height we last asked for; 0 means MATCH_PARENT (nothing applied yet). */
