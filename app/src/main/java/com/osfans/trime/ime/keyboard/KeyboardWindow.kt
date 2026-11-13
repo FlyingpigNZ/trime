@@ -105,6 +105,9 @@ class KeyboardWindow :
     private var measuredContainerWidth = 0
     private var measuredInLandscape: Boolean? = null
 
+    /** Reused by [geometry] so the diagnostics path allocates nothing per call. */
+    private val containerLocation = IntArray(2)
+
     /** The device orientation, independent of the landscape-mode preference. */
     private val isLandscapeOrientation: Boolean
         get() = context.resources.configuration.isLandscape()
@@ -160,7 +163,6 @@ class KeyboardWindow :
             it.onDetach()
             keyboardView.removeView(it)
         }
-        switcher.detachCurrentKeyboard()
     }
 
     /**
@@ -255,9 +257,22 @@ class KeyboardWindow :
     private fun attachKeyboard(target: String) {
         val keyboard = switcher.selectKeyboard(target)
         val keyboardId = switcher.currentKeyboardId
+        // A cached view is only reusable while it still wraps the very model we
+        // are about to paint: it bakes that model's px key bounds at
+        // construction, so a view left over from an older model (the switcher
+        // drops models whenever the width or the metrics change) would draw a
+        // keyboard that no longer exists anywhere else.
+        val cachedView = cachedKeyboardViews[keyboardId]
         val view =
-            cachedKeyboardViews.getOrPut(keyboardId) {
+            if (cachedView != null && cachedView.isBuiltFrom(keyboard)) {
+                cachedView
+            } else {
+                cachedView?.let { stale ->
+                    DiagnosticLog.i(TAG, "drop stale view id=$keyboardId ${geometry()}")
+                    (stale.parent as? android.view.ViewGroup)?.removeView(stale)
+                }
                 KeyboardView(context, theme, keyboard, popup, service, keyboardActionListener, enterKeyDisplay, rime)
+                    .also { cachedKeyboardViews[keyboardId] = it }
             }
 
         keyboard.also {
@@ -289,18 +304,29 @@ class KeyboardWindow :
      * keyboard model's own size, the width it was built on, and the sizes of
      * the container / view that are actually laid out. A mismatch between
      * `kw` and `container`/`view` is what draws a wrongly sized keyboard.
+     *
+     * `at` is the container's on-screen origin and `density`/`fontScale` are the
+     * numbers every dp/sp in the model was converted with, so one line says both
+     * *where* the keyboard sits and *which* metrics produced it — the two things
+     * needed to tell a bad layout from a compositor-side transform.
      */
     internal fun geometry(): String {
         val keyboard = currentKeyboard
         val view = currentKeyboardView
         val container =
             if (this::keyboardView.isInitialized) {
-                "${keyboardView.width}x${keyboardView.height} vis=${keyboardView.windowVisibility}"
+                keyboardView.getLocationOnScreen(containerLocation)
+                val attached = if (keyboardView.isAttachedToWindow) "1" else "0"
+                "${keyboardView.width}x${keyboardView.height} at=${containerLocation[0]},${containerLocation[1]} " +
+                    "vis=${keyboardView.windowVisibility} attached=$attached"
             } else {
                 "uninitialized"
             }
-        return "kw=${keyboard?.minWidth}x${keyboard?.height} allowed=${switcher.allowedWidth} " +
-            "container=$container view=${view?.width}x${view?.height}"
+        val conf = context.resources.configuration
+        return "kw=${keyboard?.minWidth}x${keyboard?.height} built=${keyboard?.metrics} " +
+            "allowed=${switcher.allowedWidth} " +
+            "container=$container view=${view?.width}x${view?.height} " +
+            "density=${conf.densityDpi} fontScale=${conf.fontScale}"
     }
 
     /**
@@ -321,11 +347,45 @@ class KeyboardWindow :
         if (!this::keyboardView.isInitialized) return
         val keyboard = currentKeyboard ?: return
         val view = currentKeyboardView ?: return
-        val matches = keyboardView.height > 0 && keyboard.height == keyboardView.height
+        // Two ways the attached keyboard can describe a different layout than
+        // the space it is drawn in: a container height it was not built for,
+        // and metrics (density / font scale / landscape) that changed since it
+        // was built. Either one paints a whole keyboard at the wrong size, so
+        // neither may be shown.
+        val current = context.currentKeyboardMetrics()
+        val heightMatches = keyboardView.height > 0 && keyboard.height == keyboardView.height
+        val metricsMatch = keyboard.metrics == current
+        val matches = heightMatches && metricsMatch
         val visibility = if (matches) View.VISIBLE else View.INVISIBLE
         if (view.visibility != visibility) {
-            DiagnosticLog.i(TAG, "keyboard view ${if (matches) "shown" else "hidden"} (${geometry()})")
+            val why =
+                when {
+                    matches -> ""
+                    !heightMatches -> " height model=${keyboard.height} container=${keyboardView.height}"
+                    else -> " metrics built=${keyboard.metrics} now=$current"
+                }
+            DiagnosticLog.i(TAG, "keyboard view ${if (matches) "shown" else "hidden"}$why (${geometry()})")
             view.visibility = visibility
+        }
+        if (!metricsMatch) {
+            // Nothing else will: the configuration change never reached us as a
+            // callback (that is why the metrics are stale), so rebuild the
+            // keyboard for the metrics that are in effect instead of leaving it
+            // hidden until the next keyboard switch.
+            scheduleMetricsRebuild()
+        }
+    }
+
+    /** One pending metrics-triggered rebuild; guards against a config flap loop. */
+    private var metricsRebuildScheduled = false
+
+    private fun scheduleMetricsRebuild() {
+        if (metricsRebuildScheduled) return
+        metricsRebuildScheduled = true
+        keyboardView.post {
+            metricsRebuildScheduled = false
+            DiagnosticLog.i(TAG, "rebuilding keyboard for changed metrics (${geometry()})")
+            rebuildKeyboards()
         }
     }
 
@@ -335,8 +395,13 @@ class KeyboardWindow :
     ) {
         val target = switcher.resolveKeyboard(to)
         ContextCompat.getMainExecutor(service).execute {
-            if (cachedKeyboardViews.containsKey(target)) {
-                if (target == switcher.currentKeyboardId) {
+            if (target == switcher.currentKeyboardId) {
+                val cachedView = cachedKeyboardViews[target]
+                val currentModel = switcher.currentKeyboard
+                // Only skip the re-attach when the attached view still wraps
+                // the current model; a view left over from an older model has
+                // to be rebuilt together with it.
+                if (cachedView != null && currentModel != null && cachedView.isBuiltFrom(currentModel)) {
                     // Target is already current; the post-switch callback must
                     // still run (e.g. the start-input ascii policy).
                     onSwitched?.invoke()
@@ -412,9 +477,18 @@ class KeyboardWindow :
                 }
             }
 
-            option == "ascii_mode" && !value.value -> {
-                // 回到中文时，释放 Shift 锁定
-                currentKeyboard?.resetShift()
+            option == "ascii_mode" -> {
+                if (!value.value) {
+                    // 回到中文时，释放 Shift 锁定
+                    currentKeyboard?.resetShift()
+                }
+                // One decision for both halves of the ascii policy: the mode and
+                // the attached layout must agree (a keyboard whose keys encode a
+                // scheme-specific code — the 14键 token keyboard — types that
+                // internal code out as literal English letters when the engine is
+                // in ascii mode while its layout stays attached), and only a
+                // keyboard the user stays on remembers the new mode.
+                switcher.onAsciiModeChanged(value.value)?.let { switchKeyboard(it) }
             }
         }
         currentKeyboardView?.invalidateAllKeys()

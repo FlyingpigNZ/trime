@@ -2,9 +2,12 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-08 深夜（**v3.4.11 已发双端**；CI 流程优化已落地并双端实跑验证）。
+> **最后更新于**：2026-11-13 傍晚（**v3.4.12 重打 tag**：把 §11「键盘缓存按构造时配置失效」
+> 的修复与 14键 ascii 修复合流，双端一次补齐 —— 见 §12。**diag2 从 11-12 到 11-13 未再复现**，
+> 故 §11.2 的修法即当前根因解释。14键 ascii 修复本身与 v3.4.12 首次发版见 §0 首节；
+> CI 流程优化见 §10）。
 > **CI 耗时诊断 + 两个修复 + 实测数据见 §10**（旧 §9 保留为发版当次的收尾记录）。
-> v3.4.11 修复的根因/设计见 §0 前三节；新会话请先读 §10「下一步 / 可选」。
+> v3.4.11 修复的根因/设计见 §0 前几节；新会话请先读 §0 首节（本轮）与 §10「下一步 / 可选」。
 > **更早（2026-11-05）**：v3.4.10。`main` 已合入 **PR #31**（merge 提交 `27b777d6`）：
 > 从上游 `osfans/trime` 移植 33 个修复/小功能 + 升级 librime/librime-lua/snappy；版本 bump
 > **3.4.10 / 20261106**，tag **`v3.4.10`** 打在同一提交，Gitea / GitHub 各自触发 Release CI。
@@ -35,7 +38,108 @@
 > 更早内容：§0 其余小节（诊断日志 / release-ci / 14键 token 试点）、§0a（14键拼音过滤）、
 > §0b（备份功能）、§1–§7（键盘背景）为历史记录。
 
-## 0. 最新状态：锁屏瞬间出现"缩小版键盘"（2026-11-08，v3.4.11 修复）
+## 0. 最新状态：14键 在英文(ascii)模式下按键变 a/b/c、rime 不转换（2026-11-13 修复）
+
+### 现象（维护者报）
+用着用着，14键 的按键映射“变了”：按 QW 出 `a`、ER 出 `b`，以此类推；这些字母没有对应
+编码，rime 不转换。其他万象键盘正常，只有 14键 中招。维护者自查发现：**万象状态面板
+（展开工具）里 14键小鹤 自己切到了 ANSI 模式，里面几个开关也像是被 reset 成默认**。
+
+### 根因（两条链，各自独立）
+1. **token 只在中文模式有意义**：`behavior.yaml` 里 `14keyqw: send: A` …（14 个内部
+   token，只有 `/14jian-token` 折叠空间认得）。引擎一旦进 ascii，librime 的 ascii 段直通
+   字母 → token 被当英文字母原样上屏（`a`、`b`…）且不转换。26键/9键 的键发真字母，所以
+   它们没问题。
+2. **ascii 状态与挂着的布局会脱节，而且会被“记死”**：
+   - `KeyboardWindow.onRimeOptionUpdated` 原来对 `ascii_mode` 只做 `resetShift()`，**不换
+     布局** → 从状态面板/快捷键把 ascii 打开时，中文 14键 布局仍挂着 → 上面那条 token 泄漏。
+   - `KeyboardSwitcher.detachCurrentKeyboard()` 原来在**每次键盘 detach** 时把**引擎当前**
+     的 ascii 状态写进**离开的那个键盘**的 `lastAsciiMode`；而 `14jian` 在数据里是
+     `reset_ascii_mode: false` → `syncAsciiMode()` 选中它时无条件按 `lastAsciiMode` 重放。
+     于是“中英键按一下（`Eisu_toggle` 先改了 ascii，再切键盘 → detach 快照到的就是 true）”
+     或“英文状态下发生转屏/密度重建”都会让 14键 被记成“偏好英文”，之后每次回到它都强制
+     英文（内存态，杀进程才回默认，所以观感是“它自己 reset 成英文了”）。
+3. **“设置被重置”**：状态面板的开关只有列在 `switcher/save_options`（包内 `rime/default.yaml`）
+   里的才会写进 `<工作区>/user.yaml` 的 `var/option/*`。14键 方案声明的开关里，
+   `ascii_mode`/`context_reorder`/`char_priority`/`english` 以及**三个分组开关组的成员**
+   （`raw_input`、`comment_off`+`toneless_hint`、`s2s`）原先都没列 → 每次重新部署/重启
+   就回到方案默认值。（`ascii_mode` 保持“不记住”是有意的。）
+
+### 修法（本轮 3 处，均已实现）
+- **A（app，`KeyboardSwitcher`）**：删掉 detach 快照，改为在**观察到** `ascii_mode` 变化时
+  记进当前键盘（`rememberAsciiMode`）——用户意图（状态面板/中英键/快捷键）都在 option 消息里；
+  两类情况不记：①声明了 `ascii_keyboard` 的键盘（它把另一模式交给那个布局，记忆只会反过来
+  压制布局切换）②被迫的 ascii 窗口（密码/数字框，`tempAsciiMode`）。纯策略函数
+  `remembersAsciiMode`。
+- **B（app，杜绝泄漏）**：`ascii_mode` 变化时按数据声明切布局：进英文 → 切当前键盘的
+  `ascii_keyboard`（14键 → `letter_14jian`）；回中文 → 切回**声明该布局**的键盘
+  （`asciiLayoutTarget`，单一声明者才动，多家声明如 `letter` 则原地不动）。无声明者行为不变。
+- **C（数据，包内 `rime/default.yaml`）**：`save_options` 补 `context_reorder`、`char_priority`、
+  `english`、`comment_off`、`toneless_hint`、`raw_input`、`s2s`（写进 zip，附注释说明；
+  上游列表顺序未动，便于下次同步）。
+- 回归防线：新增 `Shipped14KeyPackageTest`（3 例，读**跟踪的 zip**）钉死三条跨文件一致性——
+  ①14键 各键 sends 恰好是 `A..N` 且方案 `speller/algebra` 引用 `/14jian-token`（防止再次
+  出现“键盘发 token、方案没折 token”的混合包）；②`ascii_keyboard: letter_14jian` 声明存在且
+  该 preset 真实存在（B 的数据前提）；③方案声明的开关除 `ascii_mode` 外全部在 `save_options`
+  里（这条例行检查当场又抓出 `raw_input`/`s2s`）。
+
+### 验证
+- 全量单测 **220 例 0 失败**（208 → +12：`AsciiModePolicyTest` 9 + `Shipped14KeyPackageTest` 3）；
+  `spotlessCheck`、`:app:lintDebug`（仍 35 条既有 warning、无新增）、`compileDebugKotlin` 均通过。
+- **未做真机冒烟**（容器无设备）：请维护者确认四项：①面板切「英文」时键盘自动换成英文
+  14键（不再是中文布局打 a/b/c）；②从英文切回中文，布局回到 14键 中文键盘；③中英键来回按
+  不再出现“停在英文/按键变 a,b,c”；④状态面板里 `上下文/单词优先/英文` 与三个开关组的选择
+  在重启输入法/重新部署后仍在。
+- 本容器无 PyYAML（`make python-verifiers` 跑不了，CI 会跑）；`validate-definitions --check-shipped`
+  需 PyYAML，本地未执行——zip 只改了一处 `save_options` 列表项，已由 `Shipped14KeyPackageTest`
+  用 app 自己的 YAML 解析器验证可解析且内容符合预期。
+
+### 发版事故：v3.4.12 的 APK 从 8MB 涨到 21MB（2026-11-13 修复）
+- 现象：Gitea release 出来后发现 arm64 APK **8MB → 21MB**，代码内容无变化（本轮唯一动过的大
+  文件是包内 zip，+332 字节；测试/doc 不进 APK）。
+- 根因（两条既有事实叠加，`NativeBaseConventionPlugin` 是分叉点）：
+  1. `app/prebuilt` **存在**时该插件只把它当 `jniLibs` 打包、**不配置 CMake 构建**；而四个
+     workflow 的 JNI 缓存自 **2024-05**（上游 `0798519e` debug / `a1e616d6` release）起就从
+     **`merged_native_libs`（未 strip）** 取库——插件注释写着该用 `stripped_native_libs`，
+     实现与注释从那天起不一致。只要打包时 strip 工具可用，AGP 仍会 strip，所以一直没事。
+  2. **2026-11-08 的 CI 改造（`c5d25721`）**把缓存 key 计算从 Gradle 任务换成
+     `script/native-cache-hash.py`，本意是省掉「配置 Android 工程 → AGP 顺手装 NDK」那 95s；
+     副作用是：当次 run **缓存命中**时既没有 CMake 构建、也没有人装 NDK → strip 工具不可用 →
+     AGP 打 `Unable to strip the following libraries, packaging them as they are` → 把缓存里
+     那份未 strip 的库原样打进 APK（未 strip 93MB / strip 后 13.6MB；release 编译的未 strip
+     库小一些，正好 +13MB）。v3.4.10/11/12 三个 tag 的 `app/src/main/jni` 树与全部子模块指针
+     完全一致 → 缓存 key 未变 → 这次必然命中；v3.4.11 发版在上述 CI 改造**之前**，所以是 8MB。
+- 本地复现手段（本容器可用）：造一个 `llvm-strip` 指向 `/bin/false` 的假 SDK 并让
+  `local.properties` 临时指过去，`app/prebuilt` 放未 strip 库 → APK 33.5MB / `.so` 未 strip
+  97.7MB；换放**已 strip** 库 → APK 10.6MB（说明「缓存里存 strip 过的库」这条修法在 strip
+  工具缺失时也成立）。实验后记得恢复 `local.properties`、删 `app/prebuilt`。
+- 修法（已推 `main` = `4a92dbc9`，CI-only）：①四个 workflow 的 "Add JNI cache" 改从
+  `stripped_native_libs/<variant>/strip<X>DebugSymbols/out/lib` 取库；②缓存 key 加 `-v2`
+  弃用已有未 strip 条目（代价：一次冷原生构建）；③新增
+  `script/check-native-libs-stripped.sh`，release/debug 构建后检查每个 APK 的 `.so` 尺寸
+  （>24MB 即 `::error::` 失败），这类回归不再静默发版。
+- v3.4.12 处理：`v3.4.12` tag **重指**到 `4a92dbc9`（与原 `8bcc88fc` 的差异仅 `.github/workflows/*`
+  + 新脚本，APP 代码/数据零差异，APK 内容不受影响），force-push 后按 `push: tags: v*` 自动重跑
+  release-ci（workflow 取自 tag 自身 = 修复版）。产物名带新 hash（`…-g4a92dbc9-…`），旧的
+  `…-g8bcc88fc-…` 四个资产需在 release 页手动删，否则会变成 8 个（release 步骤只追加不上删）。
+- 待复核：本次 run 是 v2 key 的**冷启动**（10–20min）；日志里应出现
+  `Verify native libs are stripped` 步骤与 `librime_jni.so = 13638608 bytes`；APK 应回到 ~8MB。
+  顺带验证 §10 那条「tag push 只跑 release-ci、不跑 commit-ci」。
+
+### 附带发现（已处理）
+- **gitignored 源目录 `sample_theme_schemas/万象14键-nogram/` 已与跟踪的 zip 同步**（本轮把
+  zip 解进去覆盖，105 个文件逐字节一致）。它之前还是 token 之前的版本（`behavior.yaml` 发
+  代表字母 `q,e,t,u,o,a,d,g,j,l,z,c,b,m`；`wanxiang_14jian.schema.yaml` 的 `alphabet` 只有
+  14 个代表字母、algebra 用 `/14jian`；没有 `rime/` 树与 extended 表）——谁从那个源目录
+  重建/刷新包，都会得到“键盘发 token、方案折代表字母”的混合包 = 上面第 1 条那个症状。
+  ⚠ 该目录 gitignored、**不入库**：以后重构包以 zip 为准（或先解回该目录再改、改完重打包）。
+- `ascii_mode` **有意不跨重启记忆**（维护者 2026-11-13 拍板：重启即回中文符合预期）。要改
+  需给 `KeyboardSwitcher` 加一条“仅用户显式选择才写”的通道，别把被迫窗口写进去。
+- 本轮发版：版本 bump 提交（`versionCode 20261113`）+ annotated tag **`v3.4.12`** 推
+  `origin_home` 触发 Gitea Release CI。注意改 `app/build.gradle.kts` 会让 `actions/setup-java`
+  的 gradle 缓存 key 失效 → 这次 Gitea 冷启动（见 §10 的坑），会比平时慢几分钟。
+
+## 0. 上一轮状态：锁屏瞬间出现"缩小版键盘"（2026-11-08，v3.4.11 修复）
 
 ### 现象（维护者报）
 荣耀 WIN，键盘开着时锁屏：屏幕熄灭过程中的一瞬间出现一块**完整但缩小了的键盘**，压在真实键盘
@@ -1107,3 +1211,184 @@ git cherry-pick --quit; git reset --hard main
 3. tag 跳过 commit-ci 的路径还没被真实 tag push 验证过（下次发版时确认只有 release-ci 在跑，
    且 `Check code style` / `Android Lint` 步骤名出现在日志里）。
 4. v3.4.11 真机冒烟仍未做（见 §9 未决问题 4）。
+
+## 11. 2026-11-12：锁屏"缩小版键盘"复发 → 上次的根因通道**没有**命中，转查窗口层
+
+### 报障与日志
+- 维护者报「关屏幕时缩小的键盘又回来了」，日志：
+  `/mnt/shares/com.osfans.trime-2026-11-12T02_16_48Z.txt`
+  （`v3.4.11-0-g267fcc4f-release`、versionCode `20261108`，荣耀 WIN，覆盖 11-09 ~ 11-12）
+- 设备当前显示参数：`Screen Size 1080 x 2378`、`Screen Density 2.975`（= dpi 476），
+  IME 窗口 `input=1080x2263`。
+
+### 关键结论：§0 那个密度/重建通道这次**完全没有触发**
+- 全天（pid 23140，11-11 17:54 起）**0** 条 `keyboard: rebuild`、**0** 条
+  `ime: onConfigurationChanged`、**0** 条 `color changed -> replace input views`、
+  0 条 `keyboard view hidden`。
+- 1446 条 `ime:` 行里几何**恒定**：
+  `board=1064x571/571 kw=1064x571 allowed=1064 container=1064x571 view=1064x571`
+  ——模型高度、容器高度、实际 View 高度三者始终相等，宽度也始终是实测值 1064。
+- 旧的"1272 档 / density 560"证据只出现在 **11-11 17:54 之前**的旧进程（pid 19998）里：
+  那之后设备落到 1080/476 档，`display=1080 density=476` 贯穿到日志结尾。
+  即 §0 里"两种显示模式来回切 + density 失配"这条通道，这一整天没有发生过。
+- 所以这次**不是** `ColorManager` 重建那条链路：v3.4.11 的三道守卫（日夜判断、
+  隐藏时延后重建、容器/模型高度不一致则 INVISIBLE）都在生效，日志可证。
+
+### 日志里唯一剩下的"异常"：熄屏瞬间 IME 窗口被反复摘挂
+- 熄屏/亮屏时刻的成对行形如：
+  ```
+  ime: window shown input=1080x2263 vis=8 ...
+  ime: window hidden input=1080x2263 vis=8 ...
+  ime: window shown input=1080x2263 vis=8 ...
+  ```
+  `vis=8` 是 `InputView.getWindowVisibility()` = **GONE**，即"窗口已经接到
+  `onWindowShown`，但视图树还没挂到可见窗口上"。全天 479/1441 条 show/hide 行是 `vis=8`。
+- 这符合"系统在熄屏过程中重建/摘挂 IME 窗口（新 surface）"，也就是**上一帧与新一帧可能
+  被同时合成**的那种情形 —— 形态正是"一块完整的、缩小的键盘压在真实键盘左上"。
+  目前还没有直接证据断定是系统动画，故本轮**只加诊断、不改行为**（先量再改）。
+
+### 本会话新增的诊断（纯日志，无行为改动，未推送）
+- `TrimeInputMethodService`
+  - `create input view …` / `set input view view=<hash> …`（窗口被重建时必然出现）；
+  - `configure window fullscreen=… candidatesOnly=… layout=… anim=…`（`onConfigureWindow`）；
+  - show/hide 行前面加**窗口级**快照：`win=<identityHashCode> decor=WxH attached=… params=WxH gravity=… anim=<windowAnimations>`
+    —— `win` 变化 = 系统换了窗口/surface；`anim` 非 0 = 我们的主题把某个窗口动画交给了系统；
+  - `insets content=… visible=… keyboardTop=… decor=WxH`（`onComputeInsets` 变化时各记一次）。
+- `BaseInputView`：`input view attached/detached`、`input view size=WxH was=WxH`
+  （窗口内的尺寸变化是唯一不经过 `onConfigurationChanged` 的几何变化源）。
+- `KeyboardWindow.geometry()`：追加 `at=<屏幕坐标> vis=… attached=… density=… fontScale=…`
+  （一行同时说"画在哪"和"用什么密度算的"）。
+- `KeyboardView`：`view attached/detached`、以及**每次实际绘制尺寸变化**记一行
+  `view drawn view=WxH model=WxH keys=N`（`dispatchDraw` 里三个 int 比较，不进热路径）。
+
+### 复现后的判读（下次先看这两条）
+1. 出现 `keyboard: view drawn view=…` 且 `view` 明显小于 `model`（或出现只出现一次的临时尺寸）
+   → 仍是我们这边的排版，按 §0 的思路继续（那时会有 `input view size=` /
+   `container=` 的新证据）。
+2. 几何全程不变（`view drawn` 只有正常尺寸）却仍能看到缩小键盘
+   → 缩小来自**视图之外**（窗口过渡 / compositor 缩放）。此时看 `anim=`：
+   非 0 就说明主题把 OEM 的窗口动画交给了系统，下一轮可试
+   `window.window.attributes.windowAnimations = 0`（关掉 IME 窗口动画）来验证。
+
+### 产物与验证
+- 诊断包（release key 同 `eba1e3b0…dabd13`，可与现装 v3.4.11 直接覆盖安装；
+  versionCode 未变 `20261108`，`-PbuildVersionName=v3.4.11-diag1`）：
+  `app/build/outputs/apk/release/com.osfans.trime-v3.4.11-diag1-arm64-v8a-release.apk`
+  sha256 `b57de0a3ff16dda286f8e2d2f3fd944c92ffb6462ed7457247979d04d41dc91e`
+- 本机门禁：`:app:compileDebugKotlin`、`spotlessApply/Check`、全量
+  `:app:testDebugUnitTest`（**208 例 0 失败 0 跳过**）、`BUILD_ABI=arm64-v8a :app:assembleRelease`。
+- **未推送**：诊断提交只在本地（维护者确认判读结论后再决定是否随修复合入）。
+
+### 下一步
+1. 维护者装 `v3.4.11-diag1`，按原路径复现（键盘开着 → 熄屏），然后导出日志
+   （主界面 → 开发者 → 实时日志 → 导出）。
+2. 按上面「复现后的判读」两条分支定性，再决定改我们的排版还是关窗口动画。
+3. 判读结论与修复落地后，更新本文件 §11 并把诊断提交（`chore(diagnostics): …`）随修复合入。
+
+### 11.1 维护者反馈（2026-11-12 下午）：装 diag1 后**不再复现**，怀疑是进程内缓存
+- 观察：同一台机器、同样的熄屏操作，换成新进程（重装 = 进程重启）就不出现。
+  ⇒ 说明问题不在"每次熄屏都会走到的路径"，而在**只在某个进程存活期内累积/固化的状态**。
+- 复核代码后确认：键盘侧确实有两个"按 id 缓存、但不知道自己是什么配置/挂的哪个模型"的缓存，
+  它们都只在"宽度变了"或"收到 `onConfigurationChanged` 回调"时才失效：
+
+  1. `KeyboardSwitcher.keyboards`（id → `Keyboard` 模型）。模型的 px 几何在**构造时**
+     把 density / fontScale / landscape 烘死；缓存失效条件只有 `updateAllowedWidth()`
+     的宽度变化与 `invalidateKeyboardCache()`（由重建路径调用）。
+  2. `KeyboardWindow.cachedKeyboardViews`（id → `KeyboardView`）。View 在构造时把模型的
+     **px 键位**烘死，但缓存从不校验"这个 View 挂的还是不是一个模型"——模型被重建
+     （宽度/配置变化）后，旧 View 仍可能被继续复用，画出一份"已经不存在的键盘"。
+- 这解释了日志里"几何恒等于 1064x571 却仍能看到缩小键盘"：被拍下来的那一帧可能来自
+  **旧模型/旧 View**，而日志里的 `kw/container/view` 描述的是当前对象。
+
+### 11.2 修复：把"构造这些几何时的配置"变成缓存的有效性条件
+- 新文件 `ime/keyboard/KeyboardMetrics.kt`：`KeyboardMetrics(densityDpi, fontScale, landscapeMode)`
+  + `Context.currentKeyboardMetrics()`。三项就是 `Keyboard` 在构造时换算 dp/sp、选横屏变体
+  所用到的全部输入。
+- `Keyboard`：新增 `internal val metrics = context.currentKeyboardMetrics()`。
+- `KeyboardSwitcher.getOrCreateKeyboard`：取缓存前比对 metrics，不一致 → 打
+  `keyboard: stale keyboard id=… built=… now=…` 并 `invalidateKeyboardCache()` 后重建
+  （=覆盖"配置变化根本没作为回调送达"的情形，这正是 `onConfigurationChanged` 兜不住的那半）。
+- `KeyboardWindow.attachKeyboard`：View 必须 `isBuiltFrom(keyboard)`（模型身份相同）才复用，
+  否则丢弃并重建（`keyboard: drop stale view id=…`）；`switchKeyboard` 的"已经是当前键盘"
+  快速返回也加上同一校验，避免旧 View 被当成新鲜视图短路。
+- `KeyboardWindow.syncKeyboardVisibility`：除"容器高 ≠ 模型高"外，再要求
+  `keyboard.metrics == 当前 metrics` 才可见（日志写明原因：`height …` 或 `metrics built=… now=…`），
+  不一致时 `post { rebuildKeyboards() }` 触发**一次**按当前配置的重建 —— 不再是"一直不画"。
+- `KeyboardWindow.geometry()`：追加 `built=<density/fontScale/landscape>`，与实时 `density=`
+  `fontScale=` 并列，一眼看出模型是不是旧配置。
+- 单测 `KeyboardMetricsTest`（4 例）：完全相等可复用 + 三个字段**各单独**变化都必须失效
+  （有人把某个字段从比较里去掉时用例会红）。
+
+### 11.3 验证与产物
+- `:app:compileDebugKotlin`、`spotlessCheck`、`:app:lintDebug`（50 条 warning 全是既有类别
+  `NewerVersionAvailable`/`UseKtx`/…，本次改动文件 0 条）、全量 `:app:testDebugUnitTest`
+  **212 例 0 失败 0 跳过**（原 208 + 新 4）、`BUILD_ABI=arm64-v8a :app:assembleRelease`。
+- 诊断+修复包（release key `eba1e3b0…dabd13`，versionCode 仍 `20261108`，可覆盖安装）：
+  `app/build/outputs/apk/release/com.osfans.trime-v3.4.11-diag2-arm64-v8a-release.apk`
+  sha256 `f067d9c4b7dd1e2062bc6bfbca33c161b18372f40cecd769f895d2a40880d529`
+  （Build Git Hash `358a4a90`）
+- 仍未推送远端。
+
+### 11.4 同类的"脏缓存"清单（下次顺手看）
+- `ui/main/settings/theme/KeyboardBackgroundPreview.kt` 里 `private val density = context.resources.displayMetrics.density`
+  在构造时取一次；显示模式切换后编辑器预览的描边粗细会留在旧 density（**未修**，只影响设置页观感）。
+- IME 侧目前所有"密度/字号/机型方向"输入都走 `KeyboardMetrics` 这一条；新增会烘死 px 的缓存时，
+  请把它的输入并进 `KeyboardMetrics`，或在取用处加同样的比对。
+
+### 11.5 当前交接点（2026-11-12 傍晚）
+> **已结案（2026-11-13）**：diag2 从 11-12 到 11-13 未再复现 → 按 §12 与另一条线（14键 ascii
+> 修复）合流，以**同一个 3.4.12**重打 tag 双端发版。下面保留当时的分支说明与判读清单
+> （复发时仍按它排查）。
+- 维护者已装 **diag2** 包，准备跑几天：**"有问题/没问题都会回来报告"**。
+  → 新会话开工先问一句"diag2 这几天还有没有复现"，别默认已解决、也别默认还在坏。
+- 分支状态：`main` 顶端 = 本节提交（未推送）。诊断提交链
+  `e976900a`（窗口层诊断）→ `358a4a90`（缓存修复）→ 文档提交。
+- **如果还是复现**，先按 §11 的三条判读走，日志里分别对应：
+  - `keyboard: stale keyboard id=… built=… now=…` → 缓存没拦住，看 `built=` 里的哪一项在变；
+  - `keyboard: drop stale view id=…` → View 缓存侧还有路径没走到，查 `switchKeyboard`/`attachKeyboard` 的调用点；
+  - `keyboard view hidden metrics built=… now=…` / `height model=… container=…` → 配置/容器不一致被拦住了，
+    接着看紧跟的 `rebuilding keyboard for changed metrics` 有没有把它恢复；
+  - 三条都没有、几何全程正常仍能看见缩小键盘 → 转 §11 的窗口/compositor 分支（看 show/hide 行的 `anim=`）。
+- **如果不再复现**（跑几天没再出现）：按门禁走一次发版流程
+  （`make style-lint`、`validate-definitions --check-shipped`、4 ABI release），
+  versionName `3.4.12` / versionCode `>20261108`，tag 触发双端 Release CI；
+  发版说明里把"缓存按构造时配置失效"写成根因，别再写成"密度切换"。
+  诊断日志（窗口层那批）**建议保留**：它们每行只在事件/尺寸变化时写，量很小。
+- 若要开 PR：按 CLAUDE.md 推 `origin_home`，用 `tea pull create --repo Home/trime`。
+
+## 12. 2026-11-13 傍晚：diag2 未复现 → 两条分叉合流，v3.4.12 重打 tag 补上缓存修复
+
+### 维护者回报：diag2 从 11-12 到 11-13 未再复现
+- 装 `v3.4.11-diag2`（`358a4a90`）后按原路径（键盘开着 → 熄屏）一天多未复现 → §11.2 的
+  「缓存按构造时配置失效」这条修法**成立**。发版说明里按此写根因，**别**再写成「密度切换」。
+- §11 那批窗口层诊断（`e976900a`）**保留**：每行只在事件/尺寸变化时写，量很小。
+
+### 为什么这次要先合并：两条线从 `5c847865` 分叉（别当成"谁覆盖谁"）
+- 本地 `main`：`e976900a`（窗口层诊断）→ `a444a524` → `358a4a90`（缓存修复）→ `c8f814d6`
+  → `c60d0a5c`（文档）。当时按 §11.3 **故意未推送**，等 diag2 结果。
+- Gitea `main`（2026-11-13 上午，另一台机器修的**另一个** bug）：`7f6cde69`（14键 ascii 模式
+  泄漏内部 token）→ `8bcc88fc`（bump `3.4.12 / 20261113`）→ `4a92dbc9`（JNI 缓存改存 strip
+  后的库 + APK `.so` 体积守卫；`v3.4.12` tag 打在这里）→ `2c095f98`（文档：APK 8MB→21MB 事故）。
+- 后果：Gitea 上的 v3.4.12 **不含**键盘缓存修复（`KeyboardMetrics.kt` 不在那棵树里），
+  本地这条线**不含** 14键 ascii 修复；两边共同祖先 = `5c847865`（11-08 文档提交）。
+- 处理：本地 `main` 上 `git merge --no-ff origin_home/main`，文本**零冲突**
+  （`doc/handoff.md` 两边都改了顶部，git 自动并成「远端 §0 首节 + 本地 §0 上一轮状态」）。
+- **不 bump 版本**：沿用 Gitea 的 `3.4.12 / 20261113` —— 本轮只是把两条线并进同一个版本，
+  版本号已经消耗过，再 bump 只会让同一个版本号出现两套包。
+
+### v3.4.12 的处理：tag 重指到合并后的提交
+- Gitea 上 v3.4.12 的 release 已经发过（4 个 APK ~9.2MB，体积回归已修），但缺缓存修复 →
+  **删 tag 重建 → 指向合并后的 `main` 顶端 → force-push**（与上午 `4a92dbc9` 那次同一手法），
+  workflow 取自 tag 自身，release-ci 自动重跑。
+- ⚠ 重跑产物名带新 hash（`…-g<新提交>-…`），release 步骤**只追加不删除** → 旧的 4 个资产要
+  手工/API 删掉，否则 release 页会变成 8 个 APK。
+- 合并后本地门禁（全绿）：`spotlessCheck`、`:app:compileDebugKotlin`、
+  `:app:testDebugUnitTest`（**224 例 0 失败 0 跳过**；本地 212 + 上午那批 `AsciiModePolicyTest` /
+  `Shipped14KeyPackageTest` 12）、`make style-lint`（含 clang-format，本机有 `/usr/bin/clang-format`）、
+  `python3 script/validate-definitions.py --check-shipped`。4 ABI release 仍由 CI 出（§9.6）。
+
+### 同步到 GitHub：v3.4.10 / 3.4.11 / 3.4.12 一次性补齐
+- 同步前 GitHub 端只到 **v3.4.9**（`develop` = `a6ca2eff`），v3.4.10 之后三个版本的代码都没同步过。
+- 按 `doc/repo-knowledge.md` §10.3：`develop` 合并 `main` → **先推 `develop`** → 再推 tag
+  `v3.4.12`（顺序不能反，否则 changelog base == HEAD，release body 变 "- no changes"）。
+- GitHub release 由 release-ci 的 GitHub 分支生成（`ncipollo/release-action`，4 ABI APK）。

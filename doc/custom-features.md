@@ -68,6 +68,12 @@
   - `有声调/无声调`：完整音节转拼音显示（注释可转时优先）；
   - 残余/无注释 token 自动回显键位首字母，不再出现 A..N 原始字形。
 - 单字符键 L/M 通过键级 `key_text_size: 16` 与 Q W 等双字符键字重一致。
+- **英文（ascii）模式下必须换到英文键盘**：14键 的键发的是内部 token，只有本方案的折叠
+  空间认得；若引擎进了英文模式而中文 14键 布局仍挂着，这些 token 会被当成英文字母原样
+  上屏（按 QW 出 `a`、ER 出 `b`…，且不转换）。故 app 在 `ascii_mode` 变化时按数据声明的
+  `ascii_keyboard`（14键 → `letter_14jian`）切换布局，回到中文再切回声明它的那个键盘
+  （`asciiLayoutTarget`）；`14jian` 也不再记忆“detach 那一刻引擎的中英状态”，避免一次偶发
+  英文被永久重放（`remembersAsciiMode`，均在 `KeyboardSwitcher.kt`）。
 
 ### 数据与文件
 - 音节表：`<schemaId>.extended.yaml` 的 `t9_disambiguation.syllables`

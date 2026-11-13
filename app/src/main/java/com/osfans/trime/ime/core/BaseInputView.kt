@@ -26,6 +26,7 @@ import com.osfans.trime.data.theme.ThemeColor
 import com.osfans.trime.data.theme.ThemeManager
 import com.osfans.trime.data.theme.ThemePrefs
 import com.osfans.trime.ime.keyboard.InputFeedbackManager
+import com.osfans.trime.util.DiagnosticLog
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import splitties.dimensions.dp
@@ -139,9 +140,30 @@ abstract class BaseInputView(
         // on API 35+, we must call requestApplyInsets() manually after replacing views,
         // otherwise View#onApplyWindowInsets won't be called. ¯\_(ツ)_/¯
         requestApplyInsets()
+        // Attach/detach is the boundary between "our view tree is on screen" and
+        // "it is not": a detach+reattach while the user believes the keyboard is
+        // still up means the IME window was thrown away and rebuilt, which is a
+        // new surface that can be composited next to the old one.
+        DiagnosticLog.i("ime", "input view attached (${width}x$height)")
+    }
+
+    override fun onSizeChanged(
+        w: Int,
+        h: Int,
+        oldw: Int,
+        oldh: Int,
+    ) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        // The size of the tree inside the IME window is the last thing that can
+        // change without a configuration change ever reaching us. The keyboard
+        // derives its geometry from the *container*, so a size measured
+        // mid-transition (screen on/off, window rebuild) is exactly what turns
+        // into a wrongly sized keyboard — see KeyboardWindow.
+        DiagnosticLog.i("ime", "input view size=${w}x$h was=${oldw}x$oldh")
     }
 
     override fun onDetachedFromWindow() {
+        DiagnosticLog.i("ime", "input view detached (${width}x$height)")
         handleMessages = false
         dismissCandidateActionMenu()
         super.onDetachedFromWindow()
