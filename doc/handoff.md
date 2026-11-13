@@ -2,7 +2,11 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-13 傍晚（**v3.4.12 重打 tag**：把 §11「键盘缓存按构造时配置失效」
+> **最后更新于**：2026-11-13 深夜（**§13：锁屏"缩小版键盘"终于定性 —— 根因在 ROM 侧，不是我们的排版/缓存/动画**。
+> 结论：荣耀"智能分辨率"把 `com.osfans.trime` 当成游戏做**整应用降分辨率渲染**（`apsResolutionRatio=0.8493`），
+> 熄屏过渡丢掉那层 1.1774 放大 → 0.849 倍键盘。用户侧把"屏幕分辨率"设成**高/完整**即消失（已实测）。
+> §11.2 的"缓存按构造时配置失效"**不是**根因，是假阴性；发版说明需要更正。）
+> **上一轮（2026-11-13 傍晚）**：**v3.4.12 重打 tag**：把 §11「键盘缓存按构造时配置失效」
 > 的修复与 14键 ascii 修复合流，双端一次补齐 —— 见 §12。**diag2 从 11-12 到 11-13 未再复现**，
 > 故 §11.2 的修法即当前根因解释。14键 ascii 修复本身与 v3.4.12 首次发版见 §0 首节；
 > CI 流程优化见 §10）。
@@ -1365,6 +1369,9 @@ git cherry-pick --quit; git reset --hard main
 ### 维护者回报：diag2 从 11-12 到 11-13 未再复现
 - 装 `v3.4.11-diag2`（`358a4a90`）后按原路径（键盘开着 → 熄屏）一天多未复现 → §11.2 的
   「缓存按构造时配置失效」这条修法**成立**。发版说明里按此写根因，**别**再写成「密度切换」。
+  > ⚠️ **本节结论已被 §13 推翻（2026-11-13 深夜）**：「一天多没复现」是假阴性。真正根因是 ROM 的
+  > 智能分辨率把本 App 当游戏降分辨率渲染（`apsResolutionRatio=0.8493`），熄屏过渡丢掉那层放大。
+  > 缓存修复本身仍保留（它是对的加固），但**不是**这个病的根因；v3.4.12 的发版说明需要更正。
 - §11 那批窗口层诊断（`e976900a`）**保留**：每行只在事件/尺寸变化时写，量很小。
 
 ### 为什么这次要先合并：两条线从 `5c847865` 分叉（别当成"谁覆盖谁"）
@@ -1419,3 +1426,73 @@ git cherry-pick --quit; git reset --hard main
     21MB APK 事故的来源），`classes.dex` 里能检出 `KeyboardMetrics` → **缓存修复确实在这个包里**；
   - 签名证书 SHA-256 `eba1e3b0…dabd13`（release key，可与已装 diag2 覆盖安装）；
   - `versionName`/`versionCode` = `3.4.12` / `20261113`（`resources.arsc` 与 dex 均能检出 3.4.12）。
+
+## 13. 2026-11-13 深夜：锁屏"缩小版键盘"真正定性 —— ROM 的智能分辨率把我们当游戏降分辨率
+
+### 这一轮换了方法：不再猜，直接测
+- 维护者开了**无线 adb**（`adb pair` + `adb connect`），之后全部证据都由这边自动采集：
+  `screenrecord` + `logcat -b all` + `dumpsys window/display/activity processes/input_method` + `screencap`。
+- 复现配方（可复用）：`screenrecord --time-limit 8` → 2s 后 `input keyevent 26` 熄屏 → 4s 后亮屏 →
+  `ffmpeg` 抽帧 → 逐帧算亮度找过渡帧。熄屏前那几帧会保留下来，问题帧**静止约 0.2s**。
+
+### 观测到的形态（数字全部实测）
+- 问题帧里**键盘顶边从 y=2016 跳到 y=1732**，宽度 1272 → 1080，即 **整体缩放 0.849**、枢轴是窗口原点 `(0,135)`；
+  画面右侧/下方露出**上一帧没被擦掉的真键盘** → 就是"完整缩小键盘压在真键盘左上"。
+- 同一帧里 **App 内容不变**（同一区域位移最佳匹配 = 0，残差 0.008）→ 缩的只是 IME 那一层。
+- 我们自己的诊断日志在那一瞬**没有任何重建**（`rebuild` / `view drawn` / `stale keyboard` / `onConfigurationChanged` 全 0），
+  几何 `kw=container=view` 恒定 → **不是排版**（这一点和 §11 的判读一致）。
+- 关掉全部动画缩放后照旧 → **不是窗口动画**（`anim=16973910 = @android:style/Animation.InputMethod`，无关）。
+- 键盘收起时同操作**不出现**；微信输入法（`com.tencent.wetype`）**不出现** → 只有我们中招。
+
+### 根因（dumpsys 直接读出来的）
+```
+dumpsys activity processes → u0a365 (com.osfans.trime)
+    compat={560dpi resizing apsResolutionRatio = 0.8493}      ← 全系统只有这一个进程
+
+dumpsys window windows → Window{... u0 InputMethod}
+    Requested w=1080 h=2263   mCompatFrame=[0,115][1080,2378]
+    mEnforceSizeCompat=true   mGlobalScale=1.1774402 (= 2800/2378 = 1272/1080)
+    mInputWindowHandle ... touchableRegion=(0,1597,1080,2263) scaleFactor=0.8493
+
+logcat @ 熄屏
+    ash_trans: com.osfans.trime ... reason: app_type_game
+    PG_ash  : nap package: com.osfans.trime ... reason: app_type_game
+    AGPService: SolutionManager com.osfans.trime : setDiscStateName ...
+```
+- 荣耀的**智能分辨率 / APS**（省电+游戏性能那套）把**整个 App 进程**按 `1080×2378` 渲染，再由 WM 放大
+  `1.1774` 铺满 `1272×2800` 的屏。除我们之外**所有进程**都是 `compat={560dpi}`、`scale=1.0`、`req=1272x2800`
+  （短信、设置、微信、桌面、连微信输入法的 IME 窗口都是 `req=1272x2665 compat=false`）。
+- 被盯上的原因高度可能是**我们的 IME 窗口是整屏的**（`params=-1x-1`、`decor=1272x2800`、只有底部 666px 有内容），
+  打字时 120Hz 整屏重绘 → 被启发式认成 `app_type_game`。
+- 熄屏那一瞬 IME 窗口被挂到 `animation-leash of insets_animation`，**那层 1.1774 放大没有生效**，
+  于是 1080 宽的原始 surface 按原尺寸贴在窗口原点 → 0.849 倍、位置偏左上。
+
+### 用户侧解法（维护者实测生效，2026-11-13）
+- 设置 → 显示和亮度 → **屏幕分辨率：从"智能"改成"高/完整"** → 问题消失。
+- 改完这边复核过：`dumpsys activity processes` 里**再没有任何进程带 `apsResolutionRatio`**，
+  我们的 IME 窗口回到 `Requested w=1272 h=2665`、`mGivenContentInsets=[0,1881]`、无 compat 缩放。
+- 附带好处：之前键盘一直在"1080 渲染 + 17.7% 放大"上屏，**字是虚的**；现在回到原生分辨率。
+  `aps_display_resolution` 这个键 2=智能、1=高（维护者改的是它；`support_off_screen_animation_dynamic` 无关，试过无效）。
+
+### 结论更正（重要）
+- **§11.2 的"键盘缓存按构造时配置失效"不是这个问题的根因**：diag2 "一天多没复现" 是假阴性；
+  杀掉进程重起、重装都不会清掉 APS 的判定（实测 `am force-stop` 后新进程仍是 `compat=true`）。
+  v3.4.12 release 说明里写的根因需要更正（可以保留缓存修复本身 —— 它是对的加固，只是与本病无关）。
+- 这类"重启/重装后好一阵子"的观察**不能当验证**：ROM 侧状态是按包的，且降分辨率只在特定显示档位下生效。
+
+### 下一步（按价值排）
+1. **让"智能分辨率"也不再中招（推荐，需单独出包验）**：把 IME 窗口从"整屏 MATCH_PARENT"改成
+   "键盘高 + 留白 H"（`onConfigureWindow` 尊重 `isFullscreen`/`isCandidatesOnly`、`setInputView` 别再强设
+   `MATCH_PARENT`、`onComputeInsets` 按新窗口重算）。目标：不再像游戏（不被降分辨率）＋ 原生分辨率渲染。
+   风险：H 不够会裁掉长按预览/浮层（`popup.root` 里 `PopupEntryUi`/`PopupKeyboardUi`/`PopupContainerUi`）。
+2. **加一条诊断（很便宜）**：`onWindowShown` 时若 `resources.displayMetrics`（如 1080×2378）与
+   `windowManager.currentWindowMetrics`（如 1272×2800）不一致，写一行
+   `ime: downscaled rendering detected metrics=… window=…` —— 下次复发一眼可见，不用再挖 adb。
+3. 顺手修确认的独立缺陷：`resolveWindowMetricsWidth` 只拦"比 display 窄"，不拦"更宽"；
+   降分辨率/compat 时 `maximumWindowMetrics` 仍报 1272 → `layout width=1256` 首帧右侧被裁（26ms 后自纠）。
+   修法：`min(最大窗口, 当前 display)` 或双向容差。
+4. 文档/发行说明：给荣耀/华为用户写一句"若锁屏出现缩小键盘，把屏幕分辨率设为高"。
+
+### 本轮动手痕迹（都已恢复）
+- 输入法切回 `com.osfans.trime`；`support_off_screen_animation_dynamic` 恢复 1；`aps_display_resolution` 现为 1（维护者设的，保持）。
+- 期间 force-stop 过 trime 进程、切换过微信输入法做对照、录了几段 `/sdcard/*.mp4`（可删）。
