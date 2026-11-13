@@ -626,14 +626,14 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
         // one frame at screen-off as a "shrunken keyboard"). Making the window
         // describe what it actually paints keeps the surface small and stops
         // looking like a full-screen game.
-        val compactHeight = inputView?.requestedWindowHeight() ?: 0
+        val compactHeight = compactWindowHeight()
         val height =
             when {
                 isFullscreen -> ViewGroup.LayoutParams.MATCH_PARENT
                 isCandidatesOnly -> ViewGroup.LayoutParams.WRAP_CONTENT
                 compactHeight > 0 -> fitWindowHeight(compactHeight)
-                // Nothing measured yet (first show): keep the window out of the
-                // way until the keyboard has a height we can size it to.
+                // Nothing measured yet (very first show after a process start):
+                // keep the window out of the way until the keyboard has a height.
                 else -> ViewGroup.LayoutParams.MATCH_PARENT
             }
         appliedWindowHeight = height.takeIf { it > 0 } ?: 0
@@ -654,7 +654,8 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
      */
     fun applyImeWindowHeight() {
         if (isFullscreenMode() || !isInputViewShown) return
-        val wanted = inputView?.requestedWindowHeight()?.takeIf { it > 0 } ?: return
+        val wanted = compactWindowHeight()
+        if (wanted <= 0) return
         val height = fitWindowHeight(wanted)
         if (height == appliedWindowHeight) return
         appliedWindowHeight = height
@@ -689,6 +690,20 @@ open class TrimeInputMethodService : LifecycleInputMethodService() {
 
     /** Window height we last asked for; 0 means MATCH_PARENT (nothing applied yet). */
     private var appliedWindowHeight = 0
+
+    /**
+     * Keyboard plus its headroom, remembered across views.
+     *
+     * The keyboard height only changes with the theme/layout/orientation, but a
+     * freshly created [InputView] has nothing measured yet. Remembering the last
+     * value keeps a show from starting with a full-screen window, which would
+     * report a much higher keyboard top (`contentTopInsets` 1881 instead of 784
+     * here) and then shrink, re-laying out the editor under it.
+     */
+    private var lastCompactHeight = 0
+
+    private fun compactWindowHeight(): Int = inputView?.requestedWindowHeight()?.takeIf { it > 0 }?.also { lastCompactHeight = it }
+        ?: lastCompactHeight
 
     override fun onStartInput(
         attribute: EditorInfo,
