@@ -1497,19 +1497,31 @@ logcat @ 熄屏
 - 输入法切回 `com.osfans.trime`；`support_off_screen_animation_dynamic` 恢复 1；`aps_display_resolution` 现为 1（维护者设的，保持）。
 - 期间 force-stop 过 trime 进程、切换过微信输入法做对照、录了几段 `/sdcard/*.mp4`（可删）。
 
-### 13.1 A 版实现（分支 `feat/ime-window-height`，未真机验证）
+### 13.1 A 版实现（**已真机验证** 2026-11-13 深夜，合入 `main` `cbfb94a4`）
 - 改动：`onConfigureWindow` 按 AOSP 语义 + **紧凑高度** —— `isFullscreen` → `MATCH_PARENT`，
   `isCandidatesOnly` → `WRAP_CONTENT`，否则 = **键盘容器高 + 一个键盘高的留白**；
   `InputView.requestedWindowHeight()` 算这个值；键盘/预编辑条高度变了就调
-  `TrimeInputMethodService.applyImeWindowHeight()` 重新下发；`onWindowShown` 也补一次。
+  `TrimeInputMethodService.applyImeWindowHeight()` 重新下发；`onWindowShown` 也补一次；
+  `fitWindowHeight()` 在"键盘+留白放不下"时回退 `MATCH_PARENT`；`lastCompactHeight` 跨视图记住高度。
 - `onComputeInsets` **不需要改**：`contentTopInsets` 取的是键盘容器在窗口里的 y，窗口变矮后它自动变成
-  "留白高度"，`TOUCHABLE_INSETS_VISIBLE` 的触摸穿透语义不变（上方透明区照样可点穿）。
+  "留白高度"（真机值：`content=784`，窗口 `decor=1272x1568`），`TOUCHABLE_INSETS_VISIBLE` 的穿透语义不变。
 - 留白取"一个键盘高"而不是主题里的 popup 尺寸：长按预览键盘是 `popupKeyHeight × 行数` 的网格，行数取决于
-  该键在主题里写了多少个候选，静态算不出来；一个键盘高对任何主题都够，也不引入魔数。
-- 本机验证：`compileDebugKotlin`、`spotlessCheck`、225 例单测全过；release APK
-  `app/build/outputs/apk/release/com.osfans.trime-3.4.12-diagwin-arm64-v8a-release.apk`（arm64，可覆盖安装）。
-- **真机待验（关键）**：① 把"屏幕分辨率"切回**智能** → App 的 `display=` 应等于真实屏宽（1272），
-  且 `dumpsys activity processes` 里不应再有 `apsResolutionRatio`（= 不再被当游戏降分辨率）；
-  ② 长按顶排键的预览、浮层候选、展开工具栏、横屏、切主题各过一遍（留白不够会裁）；
-  ③ 若 ROM 仍按包降分辨率（判定可能按包粘住、与窗口大小无关），这条改动就只剩"surface 变小 +
-  键盘回到原生分辨率"两个好处，用户侧仍需把分辨率设"高"。
+  该键在主题里写了多少个候选，静态算不出来；一个键盘高（真机 784px = 224dp）远大于主题最大需求
+  （`popup_height 48 + popup_bottom_margin 68 = 116dp`）。
+- **验证结果**：
+  - 模拟器 Pixel_9_Pro：竖屏/横屏、打字、候选、预编辑条、符号页、旋转来回均正常；
+    **横屏发现并修掉一个真 bug**（见下）。
+  - 真机（荣耀 WIN + 万象14键）：竖屏 5 排键 + 预编辑 + 候选 + **拼音过滤浮条**全部画在留白里且完整；
+    横屏走回退路径（行为同旧版）。
+  - **本问题的因果链断开**：`智能` 分辨率下 `layout width=` 行从 `display=1080 density=476` 变为
+    `display=1272 density=560`（旧包 20:45 → 新包 21:25、21:40 均如此），即 ROM 不再按包降分辨率。
+  - 7 次弹出的日志：6 次直接 `layout=-1x1568`、1 次（进程重启后首次）`-1x-1` 引导；
+    `stale keyboard`/`drop stale view`/`keyboard view hidden`/`deferred`/`onConfigurationChanged` 全 0。
+- 两个已修的自己踩的坑：
+  1. **横屏**：紧凑高度 2028 > 可用 1124，WM 只夹 frame、视图树仍按 2028 布局，键盘被挤到屏幕外
+     （`at=156,1290` 而屏高 1280）→ `fitWindowHeight()` 回退 `MATCH_PARENT`；
+  2. **每次弹出先整屏再缩**（inset 1881 → 784，编辑器抖一下）→ `lastCompactHeight` 跨视图记住高度。
+- 唯一没亲眼验到的：长按气泡（`popup_on_key_press` 默认 false，模拟器上没法用设置打开）；
+  按算术留白 784px ≫ 需求 348px，裁不到，但真机上把该偏好打开后值得瞄一眼。
+- 若 ROM 仍按包降分辨率（判定可能按包粘住、与窗口大小无关），这条改动就只剩"surface 变小 +
+  键盘回到原生分辨率"两个好处，用户侧仍需把分辨率设"高"——本轮实测**没有**发生这种情况。
