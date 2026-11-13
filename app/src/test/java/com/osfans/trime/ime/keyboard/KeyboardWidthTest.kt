@@ -92,20 +92,28 @@ class KeyboardWidthTest :
             ) shouldBe 1078
         }
 
-        "window metrics wider than the display are believed, and corrected by the measurement" {
-            // getMaximumWindowMetrics reports the largest window the app may be
-            // given, which may exceed the display: that is precisely why the
-            // measured container must win over it.
+        "window metrics wider than the display are clamped to the display" {
+            // The case this guards: the platform renders the app at a reduced
+            // resolution (display mode / size compat) while the maximum window
+            // metrics keep describing the panel. Believing them lays every row
+            // out wider than the surface and clips the right-hand keys away.
+            resolveWindowMetricsWidth(
+                windowWidth = 1272,
+                displayWidth = 1080,
+                tolerancePx = 3,
+            ) shouldBe 1080
+        }
+
+        "a clamped estimate is what the keyboard is laid out on until measured" {
             val estimate =
                 resolveWindowMetricsWidth(
-                    windowWidth = 2400,
+                    windowWidth = 1272,
                     displayWidth = 1080,
                     tolerancePx = 3,
                 )
-            estimate shouldBe 2400
             resolveKeyboardWidth(
-                measuredContainerWidth = 1080,
-                measuredInLandscape = false,
+                measuredContainerWidth = 0,
+                measuredInLandscape = null,
                 isLandscape = false,
                 estimateWidth = estimate,
             ) shouldBe 1080
