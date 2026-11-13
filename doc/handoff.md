@@ -1356,6 +1356,10 @@ git cherry-pick --quit; git reset --hard main
   诊断日志（窗口层那批）**建议保留**：它们每行只在事件/尺寸变化时写，量很小。
 - 若要开 PR：按 CLAUDE.md 推 `origin_home`，用 `tea pull create --repo Home/trime`。
 
+> **规则变更（2026-11-13，维护者要求）**：以后改完就推 `origin_home`，**别把提交攒在本地 `main`**
+> —— 维护者多机交替，另一台从 Gitea `main` 继续，本地未推的提交必然造成本次这种分叉。
+> 已写入 `CLAUDE.md`（Git push target / Working style）；未验证的改动就放 `origin_home` 的分支或不提交。
+
 ## 12. 2026-11-13 傍晚：diag2 未复现 → 两条分叉合流，v3.4.12 重打 tag 补上缓存修复
 
 ### 维护者回报：diag2 从 11-12 到 11-13 未再复现

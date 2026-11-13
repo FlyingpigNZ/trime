@@ -71,6 +71,16 @@ also be read before implementing the corresponding area.
 - Prefer schema-first validation over defensive code.
 - Keep generated assets consistent with their source schemas.
 - Do not push unverified or unfinished work to remote.
+- **Never leave commits sitting only in the local repo.** The maintainer works
+  from several machines, and every other machine continues from Gitea
+  `main`. Commits that exist only locally make the next session from another
+  machine fork the history (this happened on 2026-11-13: five local commits
+  held back for a verification result, meanwhile another machine pushed its
+  own fix and released — the two lines had to be merged and the release
+  re-tagged, see `doc/handoff.md` §12).
+  - Finished and verified → push immediately: `git push origin_home main`.
+  - Not verified yet → either keep it uncommitted, or push it to a **branch on
+    `origin_home`** (never accumulate it on local `main`).
 - **Format code before pushing.** CI runs `make style-lint` (Gradle
   `spotlessCheck` for Kotlin/Java + `script/clang-format.sh -n` for
   `app/src/main/jni/librime_jni/*.{h,cc}`) and rejects unformatted code. Before
