@@ -2,9 +2,10 @@
 
 > 每个新 session 开工前必须通读本文件 + `doc/repo-knowledge.md`（见 `CLAUDE.md`
 > 顶部的必读条款），再决定下一步。
-> **最后更新于**：2026-11-13（**14键 token 键盘在英文(ascii)模式下泄漏内部码的修复**，
-> 见 §0 首节；已 bump **3.4.12 / 20261113** 并发 Gitea release；CI 流程优化见 §10；
-> v3.4.11 已发双端）。
+> **最后更新于**：2026-11-13 傍晚（**v3.4.12 重打 tag**：把 §11「键盘缓存按构造时配置失效」
+> 的修复与 14键 ascii 修复合流，双端一次补齐 —— 见 §12。**diag2 从 11-12 到 11-13 未再复现**，
+> 故 §11.2 的修法即当前根因解释。14键 ascii 修复本身与 v3.4.12 首次发版见 §0 首节；
+> CI 流程优化见 §10）。
 > **CI 耗时诊断 + 两个修复 + 实测数据见 §10**（旧 §9 保留为发版当次的收尾记录）。
 > v3.4.11 修复的根因/设计见 §0 前几节；新会话请先读 §0 首节（本轮）与 §10「下一步 / 可选」。
 > **更早（2026-11-05）**：v3.4.10。`main` 已合入 **PR #31**（merge 提交 `27b777d6`）：
@@ -1335,6 +1336,9 @@ git cherry-pick --quit; git reset --hard main
   请把它的输入并进 `KeyboardMetrics`，或在取用处加同样的比对。
 
 ### 11.5 当前交接点（2026-11-12 傍晚）
+> **已结案（2026-11-13）**：diag2 从 11-12 到 11-13 未再复现 → 按 §12 与另一条线（14键 ascii
+> 修复）合流，以**同一个 3.4.12**重打 tag 双端发版。下面保留当时的分支说明与判读清单
+> （复发时仍按它排查）。
 - 维护者已装 **diag2** 包，准备跑几天：**"有问题/没问题都会回来报告"**。
   → 新会话开工先问一句"diag2 这几天还有没有复现"，别默认已解决、也别默认还在坏。
 - 分支状态：`main` 顶端 = 本节提交（未推送）。诊断提交链
@@ -1351,3 +1355,40 @@ git cherry-pick --quit; git reset --hard main
   发版说明里把"缓存按构造时配置失效"写成根因，别再写成"密度切换"。
   诊断日志（窗口层那批）**建议保留**：它们每行只在事件/尺寸变化时写，量很小。
 - 若要开 PR：按 CLAUDE.md 推 `origin_home`，用 `tea pull create --repo Home/trime`。
+
+## 12. 2026-11-13 傍晚：diag2 未复现 → 两条分叉合流，v3.4.12 重打 tag 补上缓存修复
+
+### 维护者回报：diag2 从 11-12 到 11-13 未再复现
+- 装 `v3.4.11-diag2`（`358a4a90`）后按原路径（键盘开着 → 熄屏）一天多未复现 → §11.2 的
+  「缓存按构造时配置失效」这条修法**成立**。发版说明里按此写根因，**别**再写成「密度切换」。
+- §11 那批窗口层诊断（`e976900a`）**保留**：每行只在事件/尺寸变化时写，量很小。
+
+### 为什么这次要先合并：两条线从 `5c847865` 分叉（别当成"谁覆盖谁"）
+- 本地 `main`：`e976900a`（窗口层诊断）→ `a444a524` → `358a4a90`（缓存修复）→ `c8f814d6`
+  → `c60d0a5c`（文档）。当时按 §11.3 **故意未推送**，等 diag2 结果。
+- Gitea `main`（2026-11-13 上午，另一台机器修的**另一个** bug）：`7f6cde69`（14键 ascii 模式
+  泄漏内部 token）→ `8bcc88fc`（bump `3.4.12 / 20261113`）→ `4a92dbc9`（JNI 缓存改存 strip
+  后的库 + APK `.so` 体积守卫；`v3.4.12` tag 打在这里）→ `2c095f98`（文档：APK 8MB→21MB 事故）。
+- 后果：Gitea 上的 v3.4.12 **不含**键盘缓存修复（`KeyboardMetrics.kt` 不在那棵树里），
+  本地这条线**不含** 14键 ascii 修复；两边共同祖先 = `5c847865`（11-08 文档提交）。
+- 处理：本地 `main` 上 `git merge --no-ff origin_home/main`，文本**零冲突**
+  （`doc/handoff.md` 两边都改了顶部，git 自动并成「远端 §0 首节 + 本地 §0 上一轮状态」）。
+- **不 bump 版本**：沿用 Gitea 的 `3.4.12 / 20261113` —— 本轮只是把两条线并进同一个版本，
+  版本号已经消耗过，再 bump 只会让同一个版本号出现两套包。
+
+### v3.4.12 的处理：tag 重指到合并后的提交
+- Gitea 上 v3.4.12 的 release 已经发过（4 个 APK ~9.2MB，体积回归已修），但缺缓存修复 →
+  **删 tag 重建 → 指向合并后的 `main` 顶端 → force-push**（与上午 `4a92dbc9` 那次同一手法），
+  workflow 取自 tag 自身，release-ci 自动重跑。
+- ⚠ 重跑产物名带新 hash（`…-g<新提交>-…`），release 步骤**只追加不删除** → 旧的 4 个资产要
+  手工/API 删掉，否则 release 页会变成 8 个 APK。
+- 合并后本地门禁（全绿）：`spotlessCheck`、`:app:compileDebugKotlin`、
+  `:app:testDebugUnitTest`（**224 例 0 失败 0 跳过**；本地 212 + 上午那批 `AsciiModePolicyTest` /
+  `Shipped14KeyPackageTest` 12）、`make style-lint`（含 clang-format，本机有 `/usr/bin/clang-format`）、
+  `python3 script/validate-definitions.py --check-shipped`。4 ABI release 仍由 CI 出（§9.6）。
+
+### 同步到 GitHub：v3.4.10 / 3.4.11 / 3.4.12 一次性补齐
+- 同步前 GitHub 端只到 **v3.4.9**（`develop` = `a6ca2eff`），v3.4.10 之后三个版本的代码都没同步过。
+- 按 `doc/repo-knowledge.md` §10.3：`develop` 合并 `main` → **先推 `develop`** → 再推 tag
+  `v3.4.12`（顺序不能反，否则 changelog base == HEAD，release body 变 "- no changes"）。
+- GitHub release 由 release-ci 的 GitHub 分支生成（`ncipollo/release-action`，4 ABI APK）。
