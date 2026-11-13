@@ -120,10 +120,6 @@ class KeyboardWindow :
      */
     private val onContainerLayoutChange =
         View.OnLayoutChangeListener { v, left, _, right, _, _, _, _, _ ->
-            // A container whose height changed (e.g. the keyboard height was
-            // re-emitted for a new density) must re-evaluate whether the
-            // attached keyboard may be painted, even when the width is the same.
-            syncKeyboardVisibility()
             val width = right - left
             val landscape = isLandscapeOrientation
             if (width <= 0 || (width == measuredContainerWidth && landscape == measuredInLandscape)) {
@@ -288,7 +284,6 @@ class KeyboardWindow :
         }
 
         DiagnosticLog.i(TAG, "attach id=$keyboardId ${geometry()}")
-        syncKeyboardVisibility()
 
         // Attach the disambiguation panel on top of the keyboard view so it
         // covers the strip the active extension targets (the first punctuation
@@ -327,66 +322,6 @@ class KeyboardWindow :
             "allowed=${switcher.allowedWidth} " +
             "container=$container view=${view?.width}x${view?.height} " +
             "density=${conf.densityDpi} fontScale=${conf.fontScale}"
-    }
-
-    /**
-     * Only paint the attached keyboard while the container matches the height
-     * it was built for.
-     *
-     * The [KeyboardView] is top-anchored inside the container and measures
-     * itself to `keyboard.height`, while the container's own height is applied
-     * separately (the window view follows `currentKeyboardHeight`). When the two
-     * disagree — a rebuild in a configuration whose container has not been
-     * laid out yet, e.g. across a display-mode/density switch — the keys are
-     * painted from the top and the difference shows up as a bottom gap: a
-     * "shrunken keyboard" over the real keyboard area. Not painting the keys
-     * for that frame or two is strictly better than painting a wrong layout;
-     * the container layout pass re-enables them within the same vsync.
-     */
-    private fun syncKeyboardVisibility() {
-        if (!this::keyboardView.isInitialized) return
-        val keyboard = currentKeyboard ?: return
-        val view = currentKeyboardView ?: return
-        // Two ways the attached keyboard can describe a different layout than
-        // the space it is drawn in: a container height it was not built for,
-        // and metrics (density / font scale / landscape) that changed since it
-        // was built. Either one paints a whole keyboard at the wrong size, so
-        // neither may be shown.
-        val current = context.currentKeyboardMetrics()
-        val heightMatches = keyboardView.height > 0 && keyboard.height == keyboardView.height
-        val metricsMatch = keyboard.metrics == current
-        val matches = heightMatches && metricsMatch
-        val visibility = if (matches) View.VISIBLE else View.INVISIBLE
-        if (view.visibility != visibility) {
-            val why =
-                when {
-                    matches -> ""
-                    !heightMatches -> " height model=${keyboard.height} container=${keyboardView.height}"
-                    else -> " metrics built=${keyboard.metrics} now=$current"
-                }
-            DiagnosticLog.i(TAG, "keyboard view ${if (matches) "shown" else "hidden"}$why (${geometry()})")
-            view.visibility = visibility
-        }
-        if (!metricsMatch) {
-            // Nothing else will: the configuration change never reached us as a
-            // callback (that is why the metrics are stale), so rebuild the
-            // keyboard for the metrics that are in effect instead of leaving it
-            // hidden until the next keyboard switch.
-            scheduleMetricsRebuild()
-        }
-    }
-
-    /** One pending metrics-triggered rebuild; guards against a config flap loop. */
-    private var metricsRebuildScheduled = false
-
-    private fun scheduleMetricsRebuild() {
-        if (metricsRebuildScheduled) return
-        metricsRebuildScheduled = true
-        keyboardView.post {
-            metricsRebuildScheduled = false
-            DiagnosticLog.i(TAG, "rebuilding keyboard for changed metrics (${geometry()})")
-            rebuildKeyboards()
-        }
     }
 
     fun switchKeyboard(
